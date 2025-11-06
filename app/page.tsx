@@ -1,12 +1,15 @@
 "use client";
 
 import { useState } from "react";
+import { useAccelerometer } from "./useAccelerometer";
 
 export default function Home() {
   const [sliderValues, setSliderValues] = useState({
     slider1: 50,
     slider2: 30,
   });
+
+  const { state: accelerometer, requestPermission } = useAccelerometer();
 
   const handleButtonPress = (buttonNumber: number) => {
     console.log(`Button ${buttonNumber} pressed`);
@@ -26,6 +29,54 @@ export default function Home() {
         <h1 className="text-3xl font-bold text-white text-center mb-8">
           Algofonia
         </h1>
+
+        {/* Accelerometer Monitor */}
+        <div className="bg-black/30 backdrop-blur-sm rounded-lg p-4 mb-6 border border-white/20">
+          <div className="flex items-center justify-between mb-3">
+            <h2 className="text-lg font-semibold text-white">Accelerometer</h2>
+            {accelerometer.hasPermission === null && (
+              <button
+                onClick={requestPermission}
+                className="px-3 py-1 bg-blue-500 hover:bg-blue-600 text-white text-sm rounded transition-colors"
+              >
+                Enable
+              </button>
+            )}
+            {accelerometer.hasPermission === false && (
+              <span className="text-red-400 text-sm">Denied</span>
+            )}
+            {accelerometer.hasPermission === true && (
+              <span className="text-green-400 text-sm">● Active</span>
+            )}
+          </div>
+
+          <div className="grid grid-cols-3 gap-4 text-center">
+            <div className="bg-white/10 rounded p-3">
+              <div className="text-xs text-gray-300 mb-1">X</div>
+              <div className="text-lg font-mono text-white">
+                {accelerometer.x.toFixed(2)}
+              </div>
+            </div>
+            <div className="bg-white/10 rounded p-3">
+              <div className="text-xs text-gray-300 mb-1">Y</div>
+              <div className="text-lg font-mono text-white">
+                {accelerometer.y.toFixed(2)}
+              </div>
+            </div>
+            <div className="bg-white/10 rounded p-3">
+              <div className="text-xs text-gray-300 mb-1">Z</div>
+              <div className="text-lg font-mono text-white">
+                {accelerometer.z.toFixed(2)}
+              </div>
+            </div>
+          </div>
+
+          {!accelerometer.supported && (
+            <div className="mt-3 text-center text-yellow-400 text-sm">
+              Accelerometer not supported on this device
+            </div>
+          )}
+        </div>
 
         {/* Control Buttons */}
         <div className="grid grid-cols-2 gap-4 mb-6">
