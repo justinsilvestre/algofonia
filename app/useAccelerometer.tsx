@@ -18,33 +18,56 @@ export function useAccelerometer() {
     supported: true, // pretend supported for now
   });
 
-  // Dummy permission request – imitates async browser permission flow
   const requestPermission = useCallback(async () => {
-    // simulate delay
-    await new Promise((r) => setTimeout(r, 300));
-
-    setState((prev) => ({
-      ...prev,
-      hasPermission: true,
-    }));
+    // Feature-detect the old “DeviceMotionEvent.requestPermission” API (iOS)
+    if (
+      window.DeviceMotionEvent &&
+      typeof (
+        window.DeviceMotionEvent as unknown as {
+          requestPermission: () => Promise<string>;
+        }
+      ).requestPermission === "function"
+    ) {
+      try {
+        const response = await (
+          window.DeviceMotionEvent as unknown as {
+            requestPermission: () => Promise<string>;
+          }
+        ).requestPermission();
+        if (response === "granted") {
+          setState((prev) => ({ ...prev, hasPermission: true }));
+        } else {
+          setState((prev) => ({ ...prev, hasPermission: false }));
+        }
+      } catch (err) {
+        console.error("Error requesting device motion permission:", err);
+        setState((prev) => ({ ...prev, hasPermission: false }));
+      }
+    } else {
+      // Non-iOS or browsers where no explicit permission API needed
+      setState((prev) => ({ ...prev, hasPermission: true }));
+    }
   }, []);
 
-  // Simulate sensor data updating
   useEffect(() => {
-    // Only run dummy updates once permission is granted
     if (state.hasPermission !== true) return;
 
+    // Simulated sensor data for now
     const interval = setInterval(() => {
-      // Produce static-ish fake values with slight jitter
       setState((prev) => ({
         ...prev,
         x: 0.1,
         y: -0.2,
-        z: 9.7, // ~gravity on Earth
+        z: 9.7,
       }));
     }, 200);
 
-    return () => clearInterval(interval);
+    return () => {
+      clearInterval(interval);
+
+      // If real sensor hooks were added, remove them here
+      // e.g. window.removeEventListener('devicemotion', handleMotion)
+    };
   }, [state.hasPermission]);
 
   return { state, requestPermission };
