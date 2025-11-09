@@ -53,10 +53,10 @@ export default function MovementTest() {
           alpha || 0,
           beta || 0
         );
-        const gainValue1 = orientationControl.frontToBack / 100;
+        const gainValue1 = orientationControl.frontToBack / 50;
         gain1.gain.rampTo(gainValue1);
-        // Map sideToSide to gain2 (poly2)
-        const gainValue2 = orientationControl.around / 100;
+        // Map around to gain2 (poly2)
+        const gainValue2 = orientationControl.around / 50;
         gain2.gain.rampTo(gainValue2);
       } else {
         setDebugText("No toneController yet");
@@ -99,15 +99,17 @@ export default function MovementTest() {
         controller.transport.start();
         controller.loopBeat.start(0);
         controller.poly1.triggerAttack(["C4", "E4", "G4"]);
-        // controller.poly2.triggerAttack(["G4", "A4", "D5"]);
       });
     });
   };
 
   if (!movement.state.hasPermission || !toneController) {
     return (
-      <div>
-        <button onClick={start}>START</button>
+      <div
+        className="w-screen h-screen text-center flex flex-col items-center justify-center"
+        onClick={start}
+      >
+        <button>tap to start</button>
       </div>
     );
   }
