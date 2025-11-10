@@ -103,7 +103,7 @@ export default function MovementTest() {
     });
   };
 
-  const [showMonitor, setShowMonitor] = useState(true);
+  const [showMonitor, setShowMonitor] = useState(false);
 
   if (!movement.state.hasPermission || !toneController) {
     return (
