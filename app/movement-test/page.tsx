@@ -103,13 +103,15 @@ export default function MovementTest() {
     });
   };
 
+  const [showMonitor, setShowMonitor] = useState(true);
+
   if (!movement.state.hasPermission || !toneController) {
     return (
       <div
-        className="w-screen h-screen text-center flex flex-col items-center justify-center"
+        className="w-screen h-screen bg-black text-center flex flex-col items-center justify-center"
         onClick={start}
       >
-        <button>tap to start</button>
+        <button className="text-white">tap to start</button>
       </div>
     );
   }
@@ -125,32 +127,66 @@ export default function MovementTest() {
 
   return (
     <div
-      className="w-screen h-screen"
+      className="w-screen h-screen relative"
       style={{ backgroundColor: `rgb(0, ${green}, ${blue})` }}
     >
-      <div>
-        <p>{debugText}</p>
-        <p>Alpha (compass direction) : {round(orientationState.alpha)}</p>
-        <p>
-          Beta/X rotation (0 = on back, 90 = upright, 180 = facing down, -90 =
-          upside down): {round(orientationState.beta)}
-        </p>
-        <p>
-          Gamma/Y rotation (-89.99 = facing left, 0 = facing you, 90 = facing
-          right):
-          {round(orientationState.gamma)}
-        </p>
+      <div className="text-right">
+        <button
+          className="bg-black  text-white px-3 py-2 rounded-lg  m-4"
+          onClick={() => setShowMonitor(!showMonitor)}
+        >
+          {showMonitor ? "Hide" : "Show"} Monitor
+        </button>
       </div>
-      <div>
-        <p>
-          Front to back control (upright = 100, upside down = 0):{" "}
-          {round(orientationControl.frontToBack)}
-        </p>
-        <p>
-          Compass control (forward/backward = 0, left/right = 100):{" "}
-          {round(orientationControl.around)}
-        </p>
-      </div>
+      {showMonitor && (
+        <div>
+          <div className=" text-white p-4 rounded-lg">
+            {/* <p className="mb-2">{debugText}</p> */}
+            <div className="mb-1 rounded-lg bg-black/50 p-1">
+              <div className="text-xs">Alpha (compass direction 0-360)</div>
+              <div className="text-lg bg-black/50 p-1 font-mono">
+                {round(orientationState.alpha)}
+              </div>
+            </div>
+            <div className="mb-1 rounded-lg bg-black/50 p-1">
+              <div className="text-xs">
+                Beta/X rotation (0 = on back, 90 = upright, 180 = facing down,
+                -90 = upside down)
+              </div>
+              <div className="text-lg bg-black/50 p-1 font-mono">
+                {round(orientationState.beta)}
+              </div>
+            </div>
+            <div className="mb-1 rounded-lg bg-black/50 p-1">
+              <div className="text-xs">
+                Gamma/Y rotation (-89.99 = facing left, 0 = facing you, 90 =
+                facing right)
+              </div>
+              <div className="text-lg bg-black/50 p-1 font-mono">
+                {round(orientationState.gamma)}
+              </div>
+            </div>
+          </div>
+          <div className=" text-white p-4 rounded-lg">
+            <div className="mb-1 rounded-lg bg-black/50 p-1">
+              <div className="text-xs">
+                Front to back control (upright = 100, upside down = 0)
+              </div>
+              <div className="text-lg bg-black/50 p-1 font-mono">
+                {round(orientationControl.frontToBack)}
+              </div>
+            </div>
+            <div className="mb-1 rounded-lg bg-black/50 p-1">
+              <div className="text-xs">
+                Compass control (forward/backward = 0, left/right = 100)
+              </div>
+              <div className="text-lg bg-black/50 p-1 font-mono">
+                {round(orientationControl.around)}
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

@@ -5,13 +5,13 @@ export function getOrientationControlFromEvent(alpha: number, beta: number) {
   let frontToBack = 0;
   if (beta >= 0 && beta <= 90) {
     // From on back (0) to upright (90): 0 to 100
-    frontToBack = (beta / 90) * 100;
+    frontToBack = Math.round((beta / 90) * 100);
   } else if (beta > 90 && beta <= 180) {
     // From upright (90) to facing down (180): 100 to 0
-    frontToBack = ((180 - beta) / 90) * 100;
+    frontToBack = Math.round(((180 - beta) / 90) * 100);
   } else {
     // Negative values (upside down) map to 0
-    frontToBack = 0;
+    frontToBack = Math.round(0);
   }
 
   // Calculate around based on alpha
@@ -24,16 +24,16 @@ export function getOrientationControlFromEvent(alpha: number, beta: number) {
 
   if (normalizedAlpha >= 0 && normalizedAlpha < 90) {
     // 0 to 90: 0 to 100 (front to left)
-    around = (normalizedAlpha / 90) * 100;
+    around = Math.round((normalizedAlpha / 90) * 100);
   } else if (normalizedAlpha >= 90 && normalizedAlpha < 180) {
     // 90 to 180: 100 to 0 (left to back)
-    around = ((180 - normalizedAlpha) / 90) * 100;
+    around = Math.round(((180 - normalizedAlpha) / 90) * 100);
   } else if (normalizedAlpha >= 180 && normalizedAlpha < 270) {
     // 180 to 270: 0 to 100 (back to right)
-    around = ((normalizedAlpha - 180) / 90) * 100;
+    around = Math.round(((normalizedAlpha - 180) / 90) * 100);
   } else {
     // 270 to 360: 100 to 0 (right to front)
-    around = ((360 - normalizedAlpha) / 90) * 100;
+    around = Math.round(((360 - normalizedAlpha) / 90) * 100);
   }
 
   return { frontToBack, around };
