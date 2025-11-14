@@ -9,21 +9,26 @@
     "export": "next build",
     "test": "vitest",
     "lint": "eslint",
-    "tunnel": "cloudflared tunnel --url http://localhost:3000"
+    "tunnel": "cloudflared tunnel --url http://localhost:3000",
+    "ws-server": "node server/websocket-server.js",
+    "dev:all": "concurrently \"npm run dev\" \"npm run ws-server\""
   },
   "dependencies": {
+    "@types/ws": "^8.18.1",
     "cloudflared": "^0.7.1",
     "next": "16.0.1",
     "react": "19.2.0",
     "react-dom": "19.2.0",
     "tone": "^15.1.22",
-    "vitest": "^4.0.8"
+    "vitest": "^4.0.8",
+    "ws": "^8.18.3"
   },
   "devDependencies": {
     "@tailwindcss/postcss": "^4",
     "@types/node": "^20",
     "@types/react": "^19",
     "@types/react-dom": "^19",
+    "concurrently": "^9.2.1",
     "eslint": "^9",
     "eslint-config-next": "16.0.1",
     "tailwindcss": "^4",
