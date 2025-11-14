@@ -192,24 +192,25 @@ export default function MovementTest() {
 }
 
 function getToneController(loopCallback: (time: Tone.Unit.Seconds) => void) {
-  const loopBeat = new Tone.Loop((time) => {
-    loopCallback(time);
-  }, "4n");
-
   const gain1 = new Tone.Gain(1).toDestination();
   const gain2 = new Tone.Gain(1).toDestination();
 
-  const poly1 = new Tone.PolySynth(Tone.Synth, {
-    oscillator: { type: "sine" },
-    envelope: { attack: 1.5, decay: 0.2, sustain: 0.8, release: 4 },
-  }).connect(gain1);
-  const poly2 = new Tone.PolySynth(Tone.Synth, {
-    oscillator: { type: "sine" },
-    envelope: { attack: 0.5, decay: 0.2, sustain: 0.8, release: 4 },
-  }).connect(gain2);
-  const transport = Tone.getTransport();
-
-  return { transport, loopBeat, poly1, poly2, gain1, gain2 };
+  return {
+    gain1,
+    gain2,
+    transport: Tone.getTransport(),
+    loopBeat: new Tone.Loop((time) => {
+      loopCallback(time);
+    }, "4n"),
+    poly1: new Tone.PolySynth(Tone.Synth, {
+      oscillator: { type: "sine" },
+      envelope: { attack: 1.5, decay: 0.2, sustain: 0.8, release: 4 },
+    }).connect(gain1),
+    poly2: new Tone.PolySynth(Tone.Synth, {
+      oscillator: { type: "sine" },
+      envelope: { attack: 0.5, decay: 0.2, sustain: 0.8, release: 4 },
+    }).connect(gain2),
+  };
 }
 
 /** round to nearest hundredth */
