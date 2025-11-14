@@ -3,15 +3,13 @@
   "version": "0.1.0",
   "private": true,
   "scripts": {
-    "dev": "next dev",
+    "dev": "tsx server.ts",
     "build": "next build",
-    "start": "next start",
+    "start": "NODE_ENV=production tsx server.ts",
     "export": "next build",
     "test": "vitest",
     "lint": "eslint",
-    "tunnel": "cloudflared tunnel --url http://localhost:3000",
-    "ws-server": "node server/websocket-server.js",
-    "dev:all": "concurrently \"npm run dev\" \"npm run ws-server\""
+    "tunnel": "cloudflared tunnel --url http://localhost:3000"
   },
   "dependencies": {
     "@types/ws": "^8.18.1",
@@ -20,6 +18,7 @@
     "react": "19.2.0",
     "react-dom": "19.2.0",
     "tone": "^15.1.22",
+    "tsx": "^4.20.6",
     "vitest": "^4.0.8",
     "ws": "^8.18.3"
   },
@@ -28,7 +27,6 @@
     "@types/node": "^20",
     "@types/react": "^19",
     "@types/react-dom": "^19",
-    "concurrently": "^9.2.1",
     "eslint": "^9",
     "eslint-config-next": "16.0.1",
     "tailwindcss": "^4",
