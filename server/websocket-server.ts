@@ -1,6 +1,7 @@
 import { WebSocketServer, WebSocket } from "ws";
 import { createServer as createHttpsServer, Server } from "https";
 import { createServer as createHttpServer } from "http";
+import { performance } from "perf_hooks";
 import { MessageTypes, WebSocketMessage } from "./MessageTypes";
 
 export interface WebSocketServerOptions {
@@ -31,7 +32,7 @@ export async function startWebSocketServer(
 
     // Track beat timing
     let currentBpm = 120; // Default BPM
-    let lastBeatTimestamp = Date.now();
+    let lastBeatTimestamp = performance.now() + performance.timeOrigin;
 
     function calculateNextBeatTimestamp(
       bpm: number,
@@ -112,6 +113,19 @@ export async function startWebSocketServer(
           const message = JSON.parse(data.toString()) as WebSocketMessage;
 
           switch (message.type) {
+            case MessageTypes.SYNC:
+              const t2 = performance.now() + performance.timeOrigin; // Server timestamp when sync request was received
+              const t3 = performance.now() + performance.timeOrigin; // Server timestamp when sync reply was sent
+              ws.send(
+                JSON.stringify({
+                  type: MessageTypes.SYNC_REPLY,
+                  t1: message.t1,
+                  t2: t2,
+                  t3: t3,
+                })
+              );
+              break;
+
             case MessageTypes.JOIN_ROOM_REQUEST:
               const assignedUserId = joinRoom(ws);
               ws.send(
@@ -126,7 +140,7 @@ export async function startWebSocketServer(
             case MessageTypes.BEAT:
               const clientInfo = clients.get(ws);
               if (clientInfo) {
-                const now = Date.now();
+                const now = performance.now() + performance.timeOrigin;
                 currentBpm = message.bpm;
                 lastBeatTimestamp = now;
 
@@ -152,7 +166,7 @@ export async function startWebSocketServer(
             case MessageTypes.SET_TEMPO:
               const clientInfoTempo = clients.get(ws);
               if (clientInfoTempo) {
-                const now = Date.now();
+                const now = performance.now() + performance.timeOrigin;
                 currentBpm = message.bpm;
 
                 // Calculate next beat timestamp based on the new tempo and last beat

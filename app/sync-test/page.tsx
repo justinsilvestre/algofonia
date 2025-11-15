@@ -9,11 +9,32 @@ export default function SyncTestPage() {
   const [currentBpm, setCurrentBpm] = useState(120);
   const [beatCount, setBeatCount] = useState(0);
   const [receivedMessages, setReceivedMessages] = useState<string[]>([]);
+  const [offsetFromServerTime, setOffsetFromServerTime] = useState<
+    number | null
+  >(null);
+  const [roundTripTime, setRoundTripTime] = useState<number | null>(null);
+  const [syncProgress, setSyncProgress] = useState<{
+    current: number;
+    total: number;
+  } | null>(null);
 
   // Track scheduled beat timeouts and animation frames
   const scheduledBeatTimeout = useRef<NodeJS.Timeout | null>(null);
   const animationFrameId = useRef<number | null>(null);
   const targetBeatTimestamp = useRef<number | null>(null);
+
+  // Track pending sync requests and sync samples
+  const pendingSyncRequests = useRef<Map<number, number>>(new Map());
+  const syncSamples = useRef<
+    Array<{
+      t1: number;
+      t2: number;
+      t3: number;
+      t4: number;
+      offset: number;
+      roundTripTime: number;
+    }>
+  >([]);
 
   // Function to flash background by directly manipulating DOM styles
   const flashBackground = () => {
@@ -92,6 +113,7 @@ export default function SyncTestPage() {
     error,
     joinRoom,
     leaveRoom,
+    sendMessage,
     onMessage,
     offMessage,
   } = useWebSocket({
@@ -99,6 +121,91 @@ export default function SyncTestPage() {
     reconnectInterval: 3000,
     maxReconnectAttempts: 5,
   });
+
+  // Function to perform comprehensive time synchronization with server
+  const performTimeSync = useCallback(async () => {
+    if (!isConnected) return;
+
+    // Reset sync samples and show progress
+    syncSamples.current = [];
+    setSyncProgress({ current: 0, total: 30 });
+
+    // Send 30 sync requests with small delays between them
+    for (let i = 0; i < 30; i++) {
+      const t1 = performance.now() + performance.timeOrigin;
+      pendingSyncRequests.current.set(t1, t1);
+
+      sendMessage({
+        type: MessageTypes.SYNC,
+        t1: t1,
+      });
+
+      setSyncProgress({ current: i + 1, total: 30 });
+
+      // Small delay between requests to avoid overwhelming the server
+      if (i < 29) {
+        await new Promise((resolve) => setTimeout(resolve, 10));
+      }
+    }
+  }, [isConnected, sendMessage]);
+
+  // Function to process a single sync reply and determine best offset when all samples are collected
+  const calculateTimeOffset = useCallback(
+    (t1: number, t2: number, t3: number) => {
+      const t4 = performance.now() + performance.timeOrigin; // Client timestamp when reply was received
+
+      // Calculate offset: ((t₂ − t₁) + (t₃ − t₄)) / 2
+      const offset = (t2 - t1 + (t3 - t4)) / 2;
+
+      // Calculate round-trip time: (t₄ − t₁) − (t₃ − t₂)
+      const roundTripTime = t4 - t1 - (t3 - t2);
+
+      // Store this sample
+      syncSamples.current.push({
+        t1,
+        t2,
+        t3,
+        t4,
+        offset,
+        roundTripTime,
+      });
+
+      pendingSyncRequests.current.delete(t1);
+
+      // If we have all 30 samples, choose the best one
+      if (syncSamples.current.length === 30) {
+        // Sort by round-trip time (ascending) and pick the one with lowest RTT
+        const sortedSamples = [...syncSamples.current].sort(
+          (a, b) => a.roundTripTime - b.roundTripTime
+        );
+        const bestSample = sortedSamples[0];
+
+        setOffsetFromServerTime(bestSample.offset);
+        setRoundTripTime(bestSample.roundTripTime);
+        setSyncProgress(null);
+
+        console.log(`Time sync completed with 30 samples:`);
+        console.log(
+          `Best offset: ${bestSample.offset.toFixed(
+            3
+          )}ms (RTT: ${bestSample.roundTripTime.toFixed(3)}ms)`
+        );
+        console.log(
+          `Average RTT: ${(
+            syncSamples.current.reduce((sum, s) => sum + s.roundTripTime, 0) /
+            30
+          ).toFixed(3)}ms`
+        );
+        console.log(
+          `RTT range: ${sortedSamples[0].roundTripTime.toFixed(
+            3
+          )}ms - ${sortedSamples[29].roundTripTime.toFixed(3)}ms`
+        );
+      }
+    },
+    []
+  );
+
   const isInRoom = userId != null;
 
   // Handle incoming messages
@@ -106,28 +213,42 @@ export default function SyncTestPage() {
     const handleMessage = (message: WebSocketMessage) => {
       const timestamp = new Date().toLocaleTimeString();
 
-      if (message.type === MessageTypes.BEAT) {
-        // Schedule next beat flash based on nextBeatTimestamp
+      if (message.type === MessageTypes.SYNC_REPLY) {
+        // Handle time synchronization reply
+        const { t1, t2, t3 } = message;
+        if (pendingSyncRequests.current.has(t1)) {
+          calculateTimeOffset(t1, t2, t3);
+        }
+      } else if (message.type === MessageTypes.BEAT) {
+        // Schedule next beat flash based on nextBeatTimestamp (adjusted for offset)
         const { bpm, nextBeatTimestamp } = message;
-        scheduleBeatFlash(nextBeatTimestamp);
+        const adjustedTimestamp =
+          offsetFromServerTime !== null
+            ? nextBeatTimestamp - offsetFromServerTime
+            : nextBeatTimestamp;
+        scheduleBeatFlash(adjustedTimestamp);
 
         setCurrentBpm(bpm);
         setReceivedMessages((prev) => [
           ...prev.slice(-9), // Keep last 10 messages
           `${timestamp} - BEAT (BPM: ${bpm}) - Next: ${new Date(
-            nextBeatTimestamp
+            adjustedTimestamp
           ).toLocaleTimeString()}`,
         ]);
       } else if (message.type === MessageTypes.SET_TEMPO) {
-        // Schedule next beat flash based on new tempo
+        // Schedule next beat flash based on new tempo (adjusted for offset)
         const { bpm, nextBeatTimestamp } = message;
         setCurrentBpm(bpm || 120);
-        scheduleBeatFlash(nextBeatTimestamp);
+        const adjustedTimestamp =
+          offsetFromServerTime !== null
+            ? nextBeatTimestamp - offsetFromServerTime
+            : nextBeatTimestamp;
+        scheduleBeatFlash(adjustedTimestamp);
 
         setReceivedMessages((prev) => [
           ...prev.slice(-9),
           `${timestamp} - TEMPO SET to ${bpm} BPM - Next: ${new Date(
-            nextBeatTimestamp
+            adjustedTimestamp
           ).toLocaleTimeString()}`,
         ]);
       } else if (message.type === MessageTypes.JOIN_ROOM_REQUEST) {
@@ -155,7 +276,13 @@ export default function SyncTestPage() {
 
     onMessage(handleMessage);
     return () => offMessage(handleMessage);
-  }, [onMessage, offMessage, scheduleBeatFlash]);
+  }, [
+    onMessage,
+    offMessage,
+    scheduleBeatFlash,
+    calculateTimeOffset,
+    offsetFromServerTime,
+  ]);
 
   // Cleanup scheduled timeouts and animation frames on unmount
   useEffect(() => {
@@ -172,6 +299,8 @@ export default function SyncTestPage() {
   const handleJoinRoom = () => {
     if (isConnected) {
       joinRoom();
+      // Perform initial time synchronization
+      setTimeout(() => performTimeSync(), 100);
     }
   };
 
@@ -273,10 +402,39 @@ export default function SyncTestPage() {
                 <span className="text-gray-300">Beats received: </span>
                 <span className="font-mono text-white">{beatCount}</span>
               </div>
+              <div className="col-span-2">
+                <span className="text-gray-300">Time offset: </span>
+                <span className="font-mono text-white">
+                  {offsetFromServerTime !== null
+                    ? `${offsetFromServerTime.toFixed(1)}ms`
+                    : "Not synced"}
+                </span>
+                {roundTripTime !== null && (
+                  <span className="text-gray-300 ml-4">
+                    RTT:{" "}
+                    <span className="font-mono text-white">
+                      {roundTripTime.toFixed(1)}ms
+                    </span>
+                  </span>
+                )}
+                {syncProgress && (
+                  <span className="text-yellow-400 ml-4">
+                    Syncing... {syncProgress.current}/{syncProgress.total}
+                  </span>
+                )}
+                <button
+                  onClick={performTimeSync}
+                  disabled={syncProgress !== null}
+                  className="ml-2 px-2 py-1 text-xs bg-blue-500 hover:bg-blue-600 disabled:bg-gray-600 text-white rounded"
+                >
+                  {offsetFromServerTime !== null ? "Re-sync" : "Sync"}
+                </button>
+              </div>
             </div>
             <div className="text-xs text-gray-400">
               Listening for beats from controller... Background flashes are
-              scheduled based on precise timing.
+              scheduled based on precise timing. Time sync uses 30 samples to
+              find the best offset.
             </div>
           </div>
         </div>
