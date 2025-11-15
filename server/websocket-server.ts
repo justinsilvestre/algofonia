@@ -1,8 +1,10 @@
 import { WebSocketServer, WebSocket } from "ws";
-import { createServer, Server } from "http";
+import { createServer as createHttpsServer, Server } from "https";
+import { createServer as createHttpServer } from "http";
+import { getCert } from "@/getCert";
 
 export interface WebSocketServerOptions {
-  port?: number;
+  server: ReturnType<typeof createHttpsServer | typeof createHttpServer>;
 }
 
 export interface ClientInfo {
@@ -13,18 +15,17 @@ export interface ClientInfo {
 export const MessageTypes = {
   JOIN_ROOM: "join_room",
   LEAVE_ROOM: "leave_room",
-  SYNC_DATA: "sync_data",
+  BEAT: "beat",
+  SET_TEMPO: "set_tempo",
   USER_COUNT: "user_count",
   ERROR: "error",
 } as const;
 
-export function startWebSocketServer(options: WebSocketServerOptions = {}): Promise<Server> {
-  return new Promise((resolve, reject) => {
-    const PORT = options.port || parseInt(process.env.WS_PORT || '8080');
-
-    // Create HTTP server
-    const server = createServer();
-
+export async function startWebSocketServer(
+  options: WebSocketServerOptions
+): Promise<WebSocketServer> {
+  const { server } = options;
+  return await new Promise((resolve, reject) => {
     // Create WebSocket server
     const wss = new WebSocketServer({ server });
 
@@ -52,7 +53,9 @@ export function startWebSocketServer(options: WebSocketServerOptions = {}): Prom
         roomId,
       });
 
-      console.log(`User ${userId} joined room ${roomId}. Room size: ${room.size}`);
+      console.log(
+        `User ${userId} joined room ${roomId}. Room size: ${room.size}`
+      );
     }
 
     function leaveRoom(ws: WebSocket) {
@@ -81,7 +84,11 @@ export function startWebSocketServer(options: WebSocketServerOptions = {}): Prom
       console.log(`User ${userId} left room ${roomId}`);
     }
 
-    function broadcastToRoom(roomId: string, message: Record<string, unknown>, excludeWs: WebSocket | null = null) {
+    function broadcastToRoom(
+      roomId: string,
+      message: Record<string, unknown>,
+      excludeWs: WebSocket | null = null
+    ) {
       const room = rooms.get(roomId);
       if (!room) return;
 
@@ -115,16 +122,33 @@ export function startWebSocketServer(options: WebSocketServerOptions = {}): Prom
               );
               break;
 
-            case MessageTypes.SYNC_DATA:
+            case MessageTypes.BEAT:
               const clientInfo = clients.get(ws);
               if (clientInfo) {
-                // Broadcast sync data to all other clients in the room
+                // Broadcast beat to all other clients in the room
                 broadcastToRoom(
                   clientInfo.roomId,
                   {
-                    type: MessageTypes.SYNC_DATA,
+                    type: MessageTypes.BEAT,
                     payload: payload,
                     from: clientInfo.userId,
+                    timestamp: Date.now(),
+                  },
+                  ws
+                );
+              }
+              break;
+
+            case MessageTypes.SET_TEMPO:
+              const clientInfoTempo = clients.get(ws);
+              if (clientInfoTempo) {
+                // Broadcast tempo change to all other clients in the room
+                broadcastToRoom(
+                  clientInfoTempo.roomId,
+                  {
+                    type: MessageTypes.SET_TEMPO,
+                    payload: payload,
+                    from: clientInfoTempo.userId,
                     timestamp: Date.now(),
                   },
                   ws
@@ -166,13 +190,8 @@ export function startWebSocketServer(options: WebSocketServerOptions = {}): Prom
       });
     });
 
-    server.listen(PORT, () => {
-      console.log(`WebSocket server running on port ${PORT}`);
-      resolve(server);
-    });
-
-    server.on('error', (error) => {
-      console.error('WebSocket server error:', error);
+    server.on("error", (error) => {
+      console.error("WebSocket server error:", error);
       reject(error);
     });
 
@@ -188,5 +207,7 @@ export function startWebSocketServer(options: WebSocketServerOptions = {}): Prom
 
     process.on("SIGTERM", shutdown);
     process.on("SIGINT", shutdown);
+
+    return resolve(wss);
   });
 }

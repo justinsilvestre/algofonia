@@ -1,14 +1,21 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { useWebSocket, MessageTypes } from "../../hooks/useWebSocket";
+import {
+  useWebSocket,
+  MessageTypes,
+  WebSocketMessage,
+} from "../../hooks/useWebSocket";
+import { useWebsocketUrl } from "./control/useWebsocketUrl";
 
 export default function SyncTestPage() {
-  const [roomId, setRoomId] = useState("test-room");
+  const [roomId, setRoomId] = useState("sync-room");
   const [userId, setUserId] = useState(
-    () => `user_${Math.random().toString(36).substr(2, 9)}`
+    () => `listener_${Math.random().toString(36).substr(2, 9)}`
   );
-  const [syncData, setSyncData] = useState({ x: 0, y: 0, timestamp: 0 });
+  const [currentBpm, setCurrentBpm] = useState(120);
+  const [beatCount, setBeatCount] = useState(0);
+  const [flashBg, setFlashBg] = useState(false);
   const [receivedMessages, setReceivedMessages] = useState<string[]>([]);
   const [isInRoom, setIsInRoom] = useState(false);
 
@@ -19,29 +26,40 @@ export default function SyncTestPage() {
     error,
     joinRoom,
     leaveRoom,
-    sendSyncData,
     onMessage,
     offMessage,
   } = useWebSocket({
-    url: "ws://localhost:8080",
+    url: useWebsocketUrl(),
     reconnectInterval: 3000,
     maxReconnectAttempts: 5,
   });
 
   // Handle incoming messages
   useEffect(() => {
-    const handleMessage = (message: {
-      type: string;
-      payload?: unknown;
-      from?: string;
-      success?: boolean;
-    }) => {
+    const handleMessage = (message: WebSocketMessage) => {
       const timestamp = new Date().toLocaleTimeString();
 
-      if (message.type === MessageTypes.SYNC_DATA) {
+      if (message.type === MessageTypes.BEAT) {
+        // Flash background on beat
+        setFlashBg(true);
+        setTimeout(() => setFlashBg(false), 100);
+
+        setBeatCount((prev) => prev + 1);
+        const payload = message.payload as {
+          bpm?: number;
+          timestamp?: number;
+          beatNumber?: number;
+        };
         setReceivedMessages((prev) => [
           ...prev.slice(-9), // Keep last 10 messages
-          `${timestamp} - ${message.from}: ${JSON.stringify(message.payload)}`,
+          `${timestamp} - BEAT from ${message.from} (BPM: ${payload?.bpm})`,
+        ]);
+      } else if (message.type === MessageTypes.SET_TEMPO) {
+        const payload = message.payload as { bpm?: number };
+        setCurrentBpm(payload?.bpm || 120);
+        setReceivedMessages((prev) => [
+          ...prev.slice(-9),
+          `${timestamp} - TEMPO SET to ${payload?.bpm} BPM`,
         ]);
       } else if (message.type === MessageTypes.JOIN_ROOM && message.success) {
         setIsInRoom(true);
@@ -71,16 +89,6 @@ export default function SyncTestPage() {
     ]);
   };
 
-  const handleSendData = () => {
-    const data = {
-      x: Math.round(Math.random() * 100),
-      y: Math.round(Math.random() * 100),
-      timestamp: Date.now(),
-    };
-    setSyncData(data);
-    sendSyncData(data);
-  };
-
   const connectionStatus = isConnecting
     ? "Connecting..."
     : isConnected
@@ -88,10 +96,14 @@ export default function SyncTestPage() {
     : "Disconnected";
 
   return (
-    <div className="min-h-screen bg-linear-to-br from-purple-900 via-blue-900 to-indigo-900 p-4">
+    <div
+      className={`min-h-screen bg-linear-to-br from-purple-900 via-blue-900 to-indigo-900 p-4 transition-all duration-100 ${
+        flashBg ? "bg-white" : ""
+      }`}
+    >
       <div className="max-w-2xl mx-auto">
         <h1 className="text-3xl font-bold text-white text-center mb-8">
-          WebSocket Sync Test
+          Beat Listener
         </h1>
 
         {/* Connection Status */}
@@ -163,23 +175,26 @@ export default function SyncTestPage() {
           </div>
         </div>
 
-        {/* Sync Data */}
+        {/* Beat Listener */}
         <div className="bg-black/30 backdrop-blur-sm rounded-lg p-4 mb-6 border border-white/20">
-          <h2 className="text-lg font-semibold text-white mb-3">Sync Data</h2>
+          <h2 className="text-lg font-semibold text-white mb-3">
+            Beat Listener
+          </h2>
           <div className="space-y-3">
-            <div className="text-sm text-gray-300">
-              Current data:{" "}
-              <span className="font-mono text-white">
-                x: {syncData.x}, y: {syncData.y}
-              </span>
+            <div className="grid grid-cols-2 gap-4 text-sm">
+              <div>
+                <span className="text-gray-300">Current BPM: </span>
+                <span className="font-mono text-white">{currentBpm}</span>
+              </div>
+              <div>
+                <span className="text-gray-300">Beats received: </span>
+                <span className="font-mono text-white">{beatCount}</span>
+              </div>
             </div>
-            <button
-              onClick={handleSendData}
-              disabled={!isConnected || !isInRoom}
-              className="px-4 py-2 bg-blue-500 hover:bg-blue-600 disabled:bg-gray-600 text-white rounded transition-colors"
-            >
-              Send Random Data
-            </button>
+            <div className="text-xs text-gray-400">
+              Listening for beats from controller... Background will flash on
+              each beat.
+            </div>
           </div>
         </div>
 

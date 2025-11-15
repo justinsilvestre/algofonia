@@ -17,13 +17,14 @@ export interface WebSocketMessage {
 export const MessageTypes = {
   JOIN_ROOM: "join_room",
   LEAVE_ROOM: "leave_room",
-  SYNC_DATA: "sync_data",
+  BEAT: "beat",
+  SET_TEMPO: "set_tempo",
   USER_COUNT: "user_count",
   ERROR: "error",
 } as const;
 
 export interface UseWebSocketOptions {
-  url?: string;
+  url?: string | null;
   reconnectInterval?: number;
   maxReconnectAttempts?: number;
 }
@@ -38,7 +39,6 @@ export interface UseWebSocketReturn {
   joinRoom: (roomId: string, userId?: string) => void;
   leaveRoom: () => void;
   sendMessage: (type: string, payload?: unknown) => void;
-  sendSyncData: (data: unknown) => void;
   onMessage: (callback: (message: WebSocketMessage) => void) => void;
   offMessage: (callback: (message: WebSocketMessage) => void) => void;
 }
@@ -46,11 +46,7 @@ export interface UseWebSocketReturn {
 export function useWebSocket(
   options: UseWebSocketOptions = {}
 ): UseWebSocketReturn {
-  const {
-    url = "ws://localhost:8080",
-    reconnectInterval = 3000,
-    maxReconnectAttempts = 5,
-  } = options;
+  const { url, reconnectInterval = 3000, maxReconnectAttempts = 5 } = options;
 
   const [isConnected, setIsConnected] = useState(false);
   const [isConnecting, setIsConnecting] = useState(false);
@@ -69,6 +65,8 @@ export function useWebSocket(
   const connectRef = useRef<(() => void) | null>(null);
 
   const connect = useCallback(() => {
+    if (!url) return;
+
     if (wsRef.current?.readyState === WebSocket.OPEN) {
       return;
     }
@@ -77,6 +75,7 @@ export function useWebSocket(
     setError(null);
 
     try {
+      console.log("Connecting to WebSocket:", url);
       const ws = new WebSocket(url);
       wsRef.current = ws;
 
@@ -194,13 +193,6 @@ export function useWebSocket(
     setUserCount(0);
   }, [sendMessage]);
 
-  const sendSyncData = useCallback(
-    (data: unknown) => {
-      sendMessage(MessageTypes.SYNC_DATA, data);
-    },
-    [sendMessage]
-  );
-
   const onMessage = useCallback(
     (callback: (message: WebSocketMessage) => void) => {
       messageCallbacksRef.current.add(callback);
@@ -237,7 +229,6 @@ export function useWebSocket(
     joinRoom,
     leaveRoom,
     sendMessage,
-    sendSyncData,
     onMessage,
     offMessage,
   };
