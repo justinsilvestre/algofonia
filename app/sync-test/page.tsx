@@ -15,9 +15,22 @@ export default function SyncTestPage() {
   );
   const [currentBpm, setCurrentBpm] = useState(120);
   const [beatCount, setBeatCount] = useState(0);
-  const [flashBg, setFlashBg] = useState(false);
   const [receivedMessages, setReceivedMessages] = useState<string[]>([]);
   const [isInRoom, setIsInRoom] = useState(false);
+
+  // Function to flash background by directly manipulating DOM styles
+  const flashBackground = () => {
+    const container = document.getElementById("sync-page-container");
+    if (container) {
+      // Set flash background
+      container.style.background = "white";
+
+      // Reset after 100ms
+      setTimeout(() => {
+        container.style.background = "";
+      }, 100);
+    }
+  };
 
   const {
     isConnected,
@@ -41,8 +54,7 @@ export default function SyncTestPage() {
 
       if (message.type === MessageTypes.BEAT) {
         // Flash background on beat
-        setFlashBg(true);
-        setTimeout(() => setFlashBg(false), 100);
+        flashBackground();
 
         setBeatCount((prev) => prev + 1);
         const payload = message.payload as {
@@ -97,9 +109,8 @@ export default function SyncTestPage() {
 
   return (
     <div
-      className={`min-h-screen bg-linear-to-br from-purple-900 via-blue-900 to-indigo-900 p-4 transition-all duration-100 ${
-        flashBg ? "bg-white" : ""
-      }`}
+      id="sync-page-container"
+      className="min-h-screen p-4 transition-all duration-100 bg-linear-to-br from-purple-900 via-blue-900 to-indigo-900"
     >
       <div className="max-w-2xl mx-auto">
         <h1 className="text-3xl font-bold text-white text-center mb-8">
