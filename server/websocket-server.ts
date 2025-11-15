@@ -8,8 +8,7 @@ export interface WebSocketServerOptions {
 }
 
 export interface ClientInfo {
-  roomId: string;
-  userId: string;
+  userId: number;
 }
 
 export async function startWebSocketServer(
@@ -23,68 +22,70 @@ export async function startWebSocketServer(
     // Store connected clients
     const clients = new Map<WebSocket, ClientInfo>();
 
-    // Room management
-    const rooms = new Map<string, Set<WebSocket>>();
+    // Single room management - all clients are in one room
+    const connectedClients = new Set<WebSocket>();
 
-    function joinRoom(ws: WebSocket, roomId: string, userId: string) {
-      if (!rooms.has(roomId)) {
-        rooms.set(roomId, new Set());
+    // Track user IDs and next available ID
+    const connectedUserIds = new Set<number>();
+    let nextUserId = 1;
+
+    function joinRoom(ws: WebSocket): number {
+      // Find next available user ID
+      while (connectedUserIds.has(nextUserId)) {
+        nextUserId++;
       }
 
-      const room = rooms.get(roomId)!;
-      room.add(ws);
+      const userId = nextUserId;
+      nextUserId++;
+
+      // Add to connected clients
+      connectedClients.add(ws);
+      connectedUserIds.add(userId);
 
       // Store client info
-      clients.set(ws, { roomId, userId });
+      clients.set(ws, { userId });
 
-      // Broadcast user count to room
-      broadcastToRoom(roomId, {
+      // Broadcast updated user count to all clients
+      broadcastToAllClients({
         type: MessageTypes.USER_COUNT,
-        count: room.size,
-        roomId,
+        count: connectedClients.size,
+        roomId: "main",
       });
 
       console.log(
-        `User ${userId} joined room ${roomId}. Room size: ${room.size}`
+        `User ${userId} joined. Total users: ${connectedClients.size}`
       );
+
+      return userId;
     }
 
     function leaveRoom(ws: WebSocket) {
       const clientInfo = clients.get(ws);
       if (!clientInfo) return;
 
-      const { roomId, userId } = clientInfo;
-      const room = rooms.get(roomId);
+      const { userId } = clientInfo;
 
-      if (room) {
-        room.delete(ws);
-
-        if (room.size === 0) {
-          rooms.delete(roomId);
-        } else {
-          // Broadcast updated user count
-          broadcastToRoom(roomId, {
-            type: MessageTypes.USER_COUNT,
-            count: room.size,
-            roomId,
-          });
-        }
-      }
-
+      // Remove from connected clients
+      connectedClients.delete(ws);
+      connectedUserIds.delete(userId);
       clients.delete(ws);
-      console.log(`User ${userId} left room ${roomId}`);
+
+      // Broadcast updated user count to remaining clients
+      broadcastToAllClients({
+        type: MessageTypes.USER_COUNT,
+        count: connectedClients.size,
+        roomId: "main",
+      });
+
+      console.log(`User ${userId} left. Total users: ${connectedClients.size}`);
     }
 
-    function broadcastToRoom(
-      roomId: string,
+    function broadcastToAllClients(
       message: WebSocketMessage,
       excludeWs: WebSocket | null = null
     ) {
-      const room = rooms.get(roomId);
-      if (!room) return;
-
       const messageStr = JSON.stringify(message);
-      room.forEach((ws) => {
+      connectedClients.forEach((ws: WebSocket) => {
         if (ws !== excludeWs && ws.readyState === WebSocket.OPEN) {
           ws.send(messageStr);
         }
@@ -99,25 +100,22 @@ export async function startWebSocketServer(
           const message = JSON.parse(data.toString()) as WebSocketMessage;
 
           switch (message.type) {
-            case MessageTypes.JOIN_ROOM:
-              const { roomId, userId } = message;
-              joinRoom(ws, roomId, userId);
+            case MessageTypes.JOIN_ROOM_REQUEST:
+              const assignedUserId = joinRoom(ws);
               ws.send(
                 JSON.stringify({
-                  type: MessageTypes.JOIN_ROOM,
-                  success: true,
-                  roomId,
-                  userId,
+                  type: MessageTypes.ASSIGN_USER_ID,
+                  userId: assignedUserId,
                 })
               );
+
               break;
 
             case MessageTypes.BEAT:
               const clientInfo = clients.get(ws);
               if (clientInfo) {
-                // Broadcast beat to all other clients in the room
-                broadcastToRoom(
-                  clientInfo.roomId,
+                // Broadcast beat to all other clients
+                broadcastToAllClients(
                   {
                     type: MessageTypes.BEAT,
                     timestamp: Date.now(),
@@ -132,9 +130,8 @@ export async function startWebSocketServer(
             case MessageTypes.SET_TEMPO:
               const clientInfoTempo = clients.get(ws);
               if (clientInfoTempo) {
-                // Broadcast tempo change to all other clients in the room
-                broadcastToRoom(
-                  clientInfoTempo.roomId,
+                // Broadcast tempo change to all other clients
+                broadcastToAllClients(
                   {
                     type: MessageTypes.SET_TEMPO,
                     bpm: message.bpm,

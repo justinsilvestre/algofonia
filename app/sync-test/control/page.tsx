@@ -6,10 +6,6 @@ import { useWebsocketUrl } from "./useWebsocketUrl";
 import { MessageTypes } from "@/server/MessageTypes";
 
 export default function SyncTestControlPage() {
-  const [roomId, setRoomId] = useState("sync-room");
-  const [userId, setUserId] = useState(
-    () => `controller_${Math.random().toString(36).substr(2, 9)}`
-  );
   const [bpm, setBpm] = useState(120);
   const [isPlaying, setIsPlaying] = useState(false);
   const [isInRoom, setIsInRoom] = useState(false);
@@ -21,6 +17,7 @@ export default function SyncTestControlPage() {
   const {
     isConnected,
     userCount,
+    userId,
     error,
     joinRoom,
     leaveRoom,
@@ -35,8 +32,8 @@ export default function SyncTestControlPage() {
 
   // Handle incoming messages
   useEffect(() => {
-    const handleMessage = (message: { type: string; success?: boolean }) => {
-      if (message.type === MessageTypes.JOIN_ROOM && message.success) {
+    const handleMessage = (message: { type: string; userId?: number }) => {
+      if (message.type === MessageTypes.ASSIGN_USER_ID) {
         setIsInRoom(true);
       }
     };
@@ -104,8 +101,8 @@ export default function SyncTestControlPage() {
   };
 
   const handleJoinRoom = () => {
-    if (roomId && userId) {
-      joinRoom(roomId, userId);
+    if (isConnected) {
+      joinRoom();
     }
   };
 
@@ -182,32 +179,20 @@ export default function SyncTestControlPage() {
             Room Controls
           </h2>
           <div className="space-y-3">
-            <div className="grid grid-cols-2 gap-3">
-              <input
-                type="text"
-                value={roomId}
-                onChange={(e) => setRoomId(e.target.value)}
-                placeholder="Room ID"
-                className="px-3 py-2 bg-gray-700 text-white rounded border border-gray-600 focus:border-blue-500 focus:outline-none"
-                disabled={isInRoom}
-              />
-              <input
-                type="text"
-                value={userId}
-                onChange={(e) => setUserId(e.target.value)}
-                placeholder="User ID"
-                className="px-3 py-2 bg-gray-700 text-white rounded border border-gray-600 focus:border-blue-500 focus:outline-none"
-                disabled={isInRoom}
-              />
-            </div>
+            {userId && (
+              <div className="text-sm text-gray-300">
+                Your User ID:{" "}
+                <span className="font-mono text-white">{userId}</span>
+              </div>
+            )}
             <div className="flex gap-3">
               {!isInRoom ? (
                 <button
                   onClick={handleJoinRoom}
-                  disabled={!isConnected || !roomId || !userId}
+                  disabled={!isConnected}
                   className="px-4 py-2 bg-green-500 hover:bg-green-600 disabled:bg-gray-600 text-white rounded transition-colors"
                 >
-                  Join Room
+                  Join Main Room
                 </button>
               ) : (
                 <button

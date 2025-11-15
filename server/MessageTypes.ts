@@ -1,5 +1,6 @@
 export const MessageTypes = {
-  JOIN_ROOM: "join_room",
+  JOIN_ROOM_REQUEST: "join_room_request",
+  ASSIGN_USER_ID: "assign_user_id",
   LEAVE_ROOM: "leave_room",
   BEAT: "beat",
   SET_TEMPO: "set_tempo",
@@ -9,9 +10,11 @@ export const MessageTypes = {
 
 export type WebSocketMessage =
   | {
-      type: typeof MessageTypes.JOIN_ROOM;
-      roomId: string;
-      userId: string;
+      type: typeof MessageTypes.JOIN_ROOM_REQUEST;
+    }
+  | {
+      type: typeof MessageTypes.ASSIGN_USER_ID;
+      userId: number;
     }
   | {
       type: typeof MessageTypes.LEAVE_ROOM;

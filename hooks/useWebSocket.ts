@@ -14,9 +14,9 @@ export interface UseWebSocketReturn {
   isConnecting: boolean;
   userCount: number;
   roomId: string | null;
-  userId: string | null;
+  userId: number | null;
   error: string | null;
-  joinRoom: (roomId: string, userId?: string) => void;
+  joinRoom: () => void;
   leaveRoom: () => void;
   sendMessage: (message: WebSocketMessage) => void;
   onMessage: (callback: (message: WebSocketMessage) => void) => void;
@@ -32,7 +32,7 @@ export function useWebSocket(
   const [isConnecting, setIsConnecting] = useState(false);
   const [userCount, setUserCount] = useState(0);
   const [roomId, setRoomId] = useState<string | null>(null);
-  const [userId, setUserId] = useState<string | null>(null);
+  const [userId, setUserId] = useState<number | null>(null);
   const [error, setError] = useState<string | null>(null);
 
   const wsRef = useRef<WebSocket | null>(null);
@@ -76,9 +76,9 @@ export function useWebSocket(
             case MessageTypes.USER_COUNT:
               setUserCount(message.count || 0);
               break;
-            case MessageTypes.JOIN_ROOM:
-              setRoomId(message.roomId || null);
-              setUserId(message.userId || null);
+            case MessageTypes.ASSIGN_USER_ID:
+              setRoomId("main"); // Single room
+              setUserId(message.userId);
               break;
             case MessageTypes.ERROR:
               setError(message.message || "Unknown error");
@@ -154,18 +154,11 @@ export function useWebSocket(
     }
   }, []);
 
-  const joinRoom = useCallback(
-    (roomId: string, userId?: string) => {
-      const finalUserId =
-        userId || `user_${Math.random().toString(36).substr(2, 9)}`;
-      sendMessage({
-        type: MessageTypes.JOIN_ROOM,
-        roomId,
-        userId: finalUserId,
-      });
-    },
-    [sendMessage]
-  );
+  const joinRoom = useCallback(() => {
+    sendMessage({
+      type: MessageTypes.JOIN_ROOM_REQUEST,
+    });
+  }, [sendMessage]);
 
   const leaveRoom = useCallback(() => {
     sendMessage({ type: MessageTypes.LEAVE_ROOM });

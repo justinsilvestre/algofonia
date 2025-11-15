@@ -6,14 +6,9 @@ import { useWebsocketUrl } from "./control/useWebsocketUrl";
 import { WebSocketMessage, MessageTypes } from "@/server/MessageTypes";
 
 export default function SyncTestPage() {
-  const [roomId, setRoomId] = useState("sync-room");
-  const [userId, setUserId] = useState(
-    () => `listener_${Math.random().toString(36).substr(2, 9)}`
-  );
   const [currentBpm, setCurrentBpm] = useState(120);
   const [beatCount, setBeatCount] = useState(0);
   const [receivedMessages, setReceivedMessages] = useState<string[]>([]);
-  const [isInRoom, setIsInRoom] = useState(false);
 
   // Function to flash background by directly manipulating DOM styles
   const flashBackground = () => {
@@ -33,6 +28,7 @@ export default function SyncTestPage() {
     isConnected,
     isConnecting,
     userCount,
+    userId,
     error,
     joinRoom,
     leaveRoom,
@@ -43,6 +39,7 @@ export default function SyncTestPage() {
     reconnectInterval: 3000,
     maxReconnectAttempts: 5,
   });
+  const isInRoom = userId != null;
 
   // Handle incoming messages
   useEffect(() => {
@@ -66,8 +63,22 @@ export default function SyncTestPage() {
           ...prev.slice(-9),
           `${timestamp} - TEMPO SET to ${bpm} BPM`,
         ]);
-      } else if (message.type === MessageTypes.JOIN_ROOM) {
-        setIsInRoom(true);
+      } else if (message.type === MessageTypes.JOIN_ROOM_REQUEST) {
+        setReceivedMessages((prev) => [
+          ...prev.slice(-9),
+          `${timestamp} - Joined room successfully`,
+        ]);
+      } else if (message.type === MessageTypes.ERROR) {
+        setReceivedMessages((prev) => [
+          ...prev.slice(-9),
+          `${timestamp} - ERROR: ${message.message}`,
+        ]);
+      } else if (message.type === MessageTypes.USER_COUNT) {
+        setReceivedMessages((prev) => [
+          ...prev.slice(-9),
+          `${timestamp} - User count updated: ${message.count}`,
+        ]);
+      } else if (message.type === MessageTypes.ASSIGN_USER_ID) {
         setReceivedMessages((prev) => [
           ...prev.slice(-9),
           `${timestamp} - Joined room successfully`,
@@ -80,14 +91,13 @@ export default function SyncTestPage() {
   }, [onMessage, offMessage]);
 
   const handleJoinRoom = () => {
-    if (roomId && userId) {
-      joinRoom(roomId, userId);
+    if (isConnected) {
+      joinRoom();
     }
   };
 
   const handleLeaveRoom = () => {
     leaveRoom();
-    setIsInRoom(false);
     setReceivedMessages((prev) => [
       ...prev.slice(-9),
       `${new Date().toLocaleTimeString()} - Left room`,
@@ -126,10 +136,6 @@ export default function SyncTestPage() {
                 {connectionStatus}
               </span>
             </div>
-            <div>
-              <span className="text-gray-300">Users in room: </span>
-              <span className="font-mono text-white">{userCount}</span>
-            </div>
           </div>
           {error && <div className="mt-2 text-red-400 text-sm">{error}</div>}
         </div>
@@ -140,32 +146,26 @@ export default function SyncTestPage() {
             Room Controls
           </h2>
           <div className="space-y-3">
-            <div className="grid grid-cols-2 gap-3">
-              <input
-                type="text"
-                value={roomId}
-                onChange={(e) => setRoomId(e.target.value)}
-                placeholder="Room ID"
-                className="px-3 py-2 bg-gray-700 text-white rounded border border-gray-600 focus:border-blue-500 focus:outline-none"
-                disabled={isInRoom}
-              />
-              <input
-                type="text"
-                value={userId}
-                onChange={(e) => setUserId(e.target.value)}
-                placeholder="User ID"
-                className="px-3 py-2 bg-gray-700 text-white rounded border border-gray-600 focus:border-blue-500 focus:outline-none"
-                disabled={isInRoom}
-              />
-            </div>
+            {userId && (
+              <div className="text-sm text-gray-300">
+                <div>
+                  Your User ID:{" "}
+                  <span className="font-mono text-white">{userId}</span>
+                </div>
+                <div>
+                  <span className="text-gray-300">Users in room: </span>
+                  <span className="font-mono text-white">{userCount}</span>
+                </div>
+              </div>
+            )}
             <div className="flex gap-3">
               {!isInRoom ? (
                 <button
                   onClick={handleJoinRoom}
-                  disabled={!isConnected || !roomId || !userId}
+                  disabled={!isConnected}
                   className="px-4 py-2 bg-green-500 hover:bg-green-600 disabled:bg-gray-600 text-white rounded transition-colors"
                 >
-                  Join Room
+                  Join Main Room
                 </button>
               ) : (
                 <button
