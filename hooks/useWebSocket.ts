@@ -1,27 +1,7 @@
 "use client";
 
+import { MessageTypes, WebSocketMessage } from "@/server/MessageTypes";
 import { useState, useEffect, useRef, useCallback } from "react";
-
-export interface WebSocketMessage {
-  type: string;
-  payload?: unknown;
-  from?: string;
-  timestamp?: number;
-  success?: boolean;
-  roomId?: string;
-  userId?: string;
-  count?: number;
-  message?: string;
-}
-
-export const MessageTypes = {
-  JOIN_ROOM: "join_room",
-  LEAVE_ROOM: "leave_room",
-  BEAT: "beat",
-  SET_TEMPO: "set_tempo",
-  USER_COUNT: "user_count",
-  ERROR: "error",
-} as const;
 
 export interface UseWebSocketOptions {
   url?: string | null;
@@ -38,7 +18,7 @@ export interface UseWebSocketReturn {
   error: string | null;
   joinRoom: (roomId: string, userId?: string) => void;
   leaveRoom: () => void;
-  sendMessage: (type: string, payload?: unknown) => void;
+  sendMessage: (message: WebSocketMessage) => void;
   onMessage: (callback: (message: WebSocketMessage) => void) => void;
   offMessage: (callback: (message: WebSocketMessage) => void) => void;
 }
@@ -97,10 +77,8 @@ export function useWebSocket(
               setUserCount(message.count || 0);
               break;
             case MessageTypes.JOIN_ROOM:
-              if (message.success) {
-                setRoomId(message.roomId || null);
-                setUserId(message.userId || null);
-              }
+              setRoomId(message.roomId || null);
+              setUserId(message.userId || null);
               break;
             case MessageTypes.ERROR:
               setError(message.message || "Unknown error");
@@ -168,9 +146,8 @@ export function useWebSocket(
     setUserCount(0);
   }, []);
 
-  const sendMessage = useCallback((type: string, payload?: unknown) => {
+  const sendMessage = useCallback((message: WebSocketMessage) => {
     if (wsRef.current?.readyState === WebSocket.OPEN) {
-      const message = { type, payload };
       wsRef.current.send(JSON.stringify(message));
     } else {
       console.warn("WebSocket is not connected");
@@ -181,13 +158,17 @@ export function useWebSocket(
     (roomId: string, userId?: string) => {
       const finalUserId =
         userId || `user_${Math.random().toString(36).substr(2, 9)}`;
-      sendMessage(MessageTypes.JOIN_ROOM, { roomId, userId: finalUserId });
+      sendMessage({
+        type: MessageTypes.JOIN_ROOM,
+        roomId,
+        userId: finalUserId,
+      });
     },
     [sendMessage]
   );
 
   const leaveRoom = useCallback(() => {
-    sendMessage(MessageTypes.LEAVE_ROOM);
+    sendMessage({ type: MessageTypes.LEAVE_ROOM });
     setRoomId(null);
     setUserId(null);
     setUserCount(0);

@@ -1,7 +1,7 @@
 import { WebSocketServer, WebSocket } from "ws";
 import { createServer as createHttpsServer, Server } from "https";
 import { createServer as createHttpServer } from "http";
-import { getCert } from "@/getCert";
+import { MessageTypes, WebSocketMessage } from "./MessageTypes";
 
 export interface WebSocketServerOptions {
   server: ReturnType<typeof createHttpsServer | typeof createHttpServer>;
@@ -11,15 +11,6 @@ export interface ClientInfo {
   roomId: string;
   userId: string;
 }
-
-export const MessageTypes = {
-  JOIN_ROOM: "join_room",
-  LEAVE_ROOM: "leave_room",
-  BEAT: "beat",
-  SET_TEMPO: "set_tempo",
-  USER_COUNT: "user_count",
-  ERROR: "error",
-} as const;
 
 export async function startWebSocketServer(
   options: WebSocketServerOptions
@@ -86,7 +77,7 @@ export async function startWebSocketServer(
 
     function broadcastToRoom(
       roomId: string,
-      message: Record<string, unknown>,
+      message: WebSocketMessage,
       excludeWs: WebSocket | null = null
     ) {
       const room = rooms.get(roomId);
@@ -105,12 +96,11 @@ export async function startWebSocketServer(
 
       ws.on("message", (data) => {
         try {
-          const message = JSON.parse(data.toString());
-          const { type, payload } = message;
+          const message = JSON.parse(data.toString()) as WebSocketMessage;
 
-          switch (type) {
+          switch (message.type) {
             case MessageTypes.JOIN_ROOM:
-              const { roomId, userId } = payload;
+              const { roomId, userId } = message;
               joinRoom(ws, roomId, userId);
               ws.send(
                 JSON.stringify({
@@ -130,9 +120,9 @@ export async function startWebSocketServer(
                   clientInfo.roomId,
                   {
                     type: MessageTypes.BEAT,
-                    payload: payload,
-                    from: clientInfo.userId,
                     timestamp: Date.now(),
+                    bpm: message.bpm,
+                    beatNumber: message.beatNumber,
                   },
                   ws
                 );
@@ -147,8 +137,7 @@ export async function startWebSocketServer(
                   clientInfoTempo.roomId,
                   {
                     type: MessageTypes.SET_TEMPO,
-                    payload: payload,
-                    from: clientInfoTempo.userId,
+                    bpm: message.bpm,
                     timestamp: Date.now(),
                   },
                   ws
@@ -164,7 +153,7 @@ export async function startWebSocketServer(
               ws.send(
                 JSON.stringify({
                   type: MessageTypes.ERROR,
-                  message: `Unknown message type: ${type}`,
+                  message: `Unknown message type: ${message.type}`,
                 })
               );
           }

@@ -1,12 +1,9 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import {
-  useWebSocket,
-  MessageTypes,
-  WebSocketMessage,
-} from "../../hooks/useWebSocket";
+import { useWebSocket } from "../../hooks/useWebSocket";
 import { useWebsocketUrl } from "./control/useWebsocketUrl";
+import { WebSocketMessage, MessageTypes } from "@/server/MessageTypes";
 
 export default function SyncTestPage() {
   const [roomId, setRoomId] = useState("sync-room");
@@ -57,23 +54,19 @@ export default function SyncTestPage() {
         flashBackground();
 
         setBeatCount((prev) => prev + 1);
-        const payload = message.payload as {
-          bpm?: number;
-          timestamp?: number;
-          beatNumber?: number;
-        };
+        const { bpm, timestamp } = message;
         setReceivedMessages((prev) => [
           ...prev.slice(-9), // Keep last 10 messages
-          `${timestamp} - BEAT from ${message.from} (BPM: ${payload?.bpm})`,
+          `${timestamp} - BEAT (BPM: ${bpm})`,
         ]);
       } else if (message.type === MessageTypes.SET_TEMPO) {
-        const payload = message.payload as { bpm?: number };
-        setCurrentBpm(payload?.bpm || 120);
+        const { bpm } = message;
+        setCurrentBpm(bpm || 120);
         setReceivedMessages((prev) => [
           ...prev.slice(-9),
-          `${timestamp} - TEMPO SET to ${payload?.bpm} BPM`,
+          `${timestamp} - TEMPO SET to ${bpm} BPM`,
         ]);
-      } else if (message.type === MessageTypes.JOIN_ROOM && message.success) {
+      } else if (message.type === MessageTypes.JOIN_ROOM) {
         setIsInRoom(true);
         setReceivedMessages((prev) => [
           ...prev.slice(-9),

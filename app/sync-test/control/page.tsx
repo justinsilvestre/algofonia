@@ -1,8 +1,9 @@
 "use client";
 
 import { useState, useEffect, useRef, useCallback } from "react";
-import { useWebSocket, MessageTypes } from "../../../hooks/useWebSocket";
+import { useWebSocket } from "../../../hooks/useWebSocket";
 import { useWebsocketUrl } from "./useWebsocketUrl";
+import { MessageTypes } from "@/server/MessageTypes";
 
 export default function SyncTestControlPage() {
   const [roomId, setRoomId] = useState("sync-room");
@@ -62,7 +63,8 @@ export default function SyncTestControlPage() {
       setBeatCount((prev) => prev + 1);
 
       // Send beat message
-      sendMessage(MessageTypes.BEAT, {
+      sendMessage({
+        type: MessageTypes.BEAT,
         bpm,
         timestamp: Date.now(),
         beatNumber: beatCount + 1,
@@ -87,7 +89,8 @@ export default function SyncTestControlPage() {
 
     // Send tempo change message
     if (isInRoom && isConnected) {
-      sendMessage(MessageTypes.SET_TEMPO, {
+      sendMessage({
+        type: MessageTypes.SET_TEMPO,
         bpm: newBpm,
         timestamp: Date.now(),
       });
