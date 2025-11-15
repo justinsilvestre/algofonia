@@ -29,6 +29,18 @@ export async function startWebSocketServer(
     const connectedUserIds = new Set<number>();
     let nextUserId = 1;
 
+    // Track beat timing
+    let currentBpm = 120; // Default BPM
+    let lastBeatTimestamp = Date.now();
+
+    function calculateNextBeatTimestamp(
+      bpm: number,
+      currentTimestamp: number
+    ): number {
+      const beatInterval = (60 / bpm) * 1000; // Convert BPM to milliseconds
+      return currentTimestamp + beatInterval;
+    }
+
     function joinRoom(ws: WebSocket): number {
       // Find next available user ID
       while (connectedUserIds.has(nextUserId)) {
@@ -114,13 +126,23 @@ export async function startWebSocketServer(
             case MessageTypes.BEAT:
               const clientInfo = clients.get(ws);
               if (clientInfo) {
+                const now = Date.now();
+                currentBpm = message.bpm;
+                lastBeatTimestamp = now;
+
+                const nextBeatTimestamp = calculateNextBeatTimestamp(
+                  currentBpm,
+                  now
+                );
+
                 // Broadcast beat to all other clients
                 broadcastToAllClients(
                   {
                     type: MessageTypes.BEAT,
-                    timestamp: Date.now(),
+                    timestamp: now,
                     bpm: message.bpm,
                     beatNumber: message.beatNumber,
+                    nextBeatTimestamp,
                   },
                   ws
                 );
@@ -130,12 +152,24 @@ export async function startWebSocketServer(
             case MessageTypes.SET_TEMPO:
               const clientInfoTempo = clients.get(ws);
               if (clientInfoTempo) {
+                const now = Date.now();
+                currentBpm = message.bpm;
+
+                // Calculate next beat timestamp based on the new tempo and last beat
+                const timeSinceLastBeat = now - lastBeatTimestamp;
+                const newBeatInterval = (60 / currentBpm) * 1000;
+                const nextBeatTimestamp =
+                  lastBeatTimestamp +
+                  Math.ceil(timeSinceLastBeat / newBeatInterval) *
+                    newBeatInterval;
+
                 // Broadcast tempo change to all other clients
                 broadcastToAllClients(
                   {
                     type: MessageTypes.SET_TEMPO,
                     bpm: message.bpm,
-                    timestamp: Date.now(),
+                    timestamp: now,
+                    nextBeatTimestamp,
                   },
                   ws
                 );

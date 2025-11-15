@@ -24,11 +24,13 @@ export type WebSocketMessage =
       bpm: number;
       timestamp: number;
       beatNumber: number;
+      nextBeatTimestamp: number;
     }
   | {
       type: typeof MessageTypes.SET_TEMPO;
       bpm: number;
       timestamp: number;
+      nextBeatTimestamp: number;
     }
   | {
       type: typeof MessageTypes.USER_COUNT;

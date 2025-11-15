@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef, useCallback } from "react";
 import { useWebSocket } from "../../hooks/useWebSocket";
 import { useWebsocketUrl } from "./control/useWebsocketUrl";
 import { WebSocketMessage, MessageTypes } from "@/server/MessageTypes";
@@ -9,6 +9,11 @@ export default function SyncTestPage() {
   const [currentBpm, setCurrentBpm] = useState(120);
   const [beatCount, setBeatCount] = useState(0);
   const [receivedMessages, setReceivedMessages] = useState<string[]>([]);
+
+  // Track scheduled beat timeouts and animation frames
+  const scheduledBeatTimeout = useRef<NodeJS.Timeout | null>(null);
+  const animationFrameId = useRef<number | null>(null);
+  const targetBeatTimestamp = useRef<number | null>(null);
 
   // Function to flash background by directly manipulating DOM styles
   const flashBackground = () => {
@@ -23,6 +28,61 @@ export default function SyncTestPage() {
       }, 100);
     }
   };
+
+  // Function to schedule a beat flash at a specific timestamp with high precision
+  const scheduleBeatFlash = useCallback((nextBeatTimestamp: number) => {
+    // Clear any existing scheduled beat
+    if (scheduledBeatTimeout.current) {
+      clearTimeout(scheduledBeatTimeout.current);
+      scheduledBeatTimeout.current = null;
+    }
+    if (animationFrameId.current) {
+      cancelAnimationFrame(animationFrameId.current);
+      animationFrameId.current = null;
+    }
+
+    const now = performance.now() + performance.timeOrigin;
+    const delay = nextBeatTimestamp - now;
+
+    // Only schedule if the beat is in the future
+    if (delay > 0) {
+      targetBeatTimestamp.current = nextBeatTimestamp;
+
+      // High-precision timing function using requestAnimationFrame
+      const checkBeatTiming = () => {
+        if (targetBeatTimestamp.current === null) return;
+
+        const now = performance.now() + performance.timeOrigin;
+        const timeUntilBeat = targetBeatTimestamp.current - now;
+
+        // If we're within 16ms (one frame at 60fps) of the target time, execute the beat
+        if (timeUntilBeat <= 16) {
+          flashBackground();
+          setBeatCount((prev) => prev + 1);
+          targetBeatTimestamp.current = null;
+
+          if (animationFrameId.current) {
+            cancelAnimationFrame(animationFrameId.current);
+            animationFrameId.current = null;
+          }
+        } else {
+          // Continue checking on the next frame
+          animationFrameId.current = requestAnimationFrame(checkBeatTiming);
+        }
+      };
+
+      // If we're more than 100ms away, use setTimeout to get close, then switch to rAF
+      if (delay > 100) {
+        scheduledBeatTimeout.current = setTimeout(() => {
+          // Switch to high-precision timing when we're close
+          animationFrameId.current = requestAnimationFrame(checkBeatTiming);
+        }, delay - 50); // Start precise timing 50ms early
+      } else {
+        // We're close enough, start precise timing immediately
+        animationFrameId.current = requestAnimationFrame(checkBeatTiming);
+      }
+    }
+  }, []);
 
   const {
     isConnected,
@@ -47,21 +107,28 @@ export default function SyncTestPage() {
       const timestamp = new Date().toLocaleTimeString();
 
       if (message.type === MessageTypes.BEAT) {
-        // Flash background on beat
-        flashBackground();
+        // Schedule next beat flash based on nextBeatTimestamp
+        const { bpm, nextBeatTimestamp } = message;
+        scheduleBeatFlash(nextBeatTimestamp);
 
-        setBeatCount((prev) => prev + 1);
-        const { bpm, timestamp } = message;
+        setCurrentBpm(bpm);
         setReceivedMessages((prev) => [
           ...prev.slice(-9), // Keep last 10 messages
-          `${timestamp} - BEAT (BPM: ${bpm})`,
+          `${timestamp} - BEAT (BPM: ${bpm}) - Next: ${new Date(
+            nextBeatTimestamp
+          ).toLocaleTimeString()}`,
         ]);
       } else if (message.type === MessageTypes.SET_TEMPO) {
-        const { bpm } = message;
+        // Schedule next beat flash based on new tempo
+        const { bpm, nextBeatTimestamp } = message;
         setCurrentBpm(bpm || 120);
+        scheduleBeatFlash(nextBeatTimestamp);
+
         setReceivedMessages((prev) => [
           ...prev.slice(-9),
-          `${timestamp} - TEMPO SET to ${bpm} BPM`,
+          `${timestamp} - TEMPO SET to ${bpm} BPM - Next: ${new Date(
+            nextBeatTimestamp
+          ).toLocaleTimeString()}`,
         ]);
       } else if (message.type === MessageTypes.JOIN_ROOM_REQUEST) {
         setReceivedMessages((prev) => [
@@ -88,7 +155,19 @@ export default function SyncTestPage() {
 
     onMessage(handleMessage);
     return () => offMessage(handleMessage);
-  }, [onMessage, offMessage]);
+  }, [onMessage, offMessage, scheduleBeatFlash]);
+
+  // Cleanup scheduled timeouts and animation frames on unmount
+  useEffect(() => {
+    return () => {
+      if (scheduledBeatTimeout.current) {
+        clearTimeout(scheduledBeatTimeout.current);
+      }
+      if (animationFrameId.current) {
+        cancelAnimationFrame(animationFrameId.current);
+      }
+    };
+  }, []);
 
   const handleJoinRoom = () => {
     if (isConnected) {
@@ -196,8 +275,8 @@ export default function SyncTestPage() {
               </div>
             </div>
             <div className="text-xs text-gray-400">
-              Listening for beats from controller... Background will flash on
-              each beat.
+              Listening for beats from controller... Background flashes are
+              scheduled based on precise timing.
             </div>
           </div>
         </div>
