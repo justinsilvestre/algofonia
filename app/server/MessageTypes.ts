@@ -1,4 +1,5 @@
 export const MessageTypes = {
+  SEND_OSC_MESSAGE: "send_osc_message",
   SYNC: "sync",
   SYNC_REPLY: "sync_reply",
   JOIN_ROOM_REQUEST: "join_room_request",
@@ -11,6 +12,11 @@ export const MessageTypes = {
 } as const;
 
 export type WebSocketMessage =
+  | {
+      type: typeof MessageTypes.SEND_OSC_MESSAGE;
+      frontToBack: number;
+      around: number;
+    }
   | {
       type: typeof MessageTypes.SYNC;
       /** client timestamp when sync request was sent */

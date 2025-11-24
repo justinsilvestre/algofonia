@@ -2,7 +2,6 @@
 
 import { useState, useEffect, useRef, useCallback } from "react";
 import { useWebSocket } from "../../../hooks/useWebSocket";
-import { useWebsocketUrl } from "./useWebsocketUrl";
 import { MessageTypes } from "@/app/server/MessageTypes";
 
 export default function SyncTestControlPage() {
@@ -25,7 +24,6 @@ export default function SyncTestControlPage() {
     onMessage,
     offMessage,
   } = useWebSocket({
-    url: useWebsocketUrl(),
     reconnectInterval: 3000,
     maxReconnectAttempts: 5,
   });

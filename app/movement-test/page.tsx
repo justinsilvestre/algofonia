@@ -3,10 +3,27 @@
 import { useCallback, useEffect, useState } from "react";
 import * as Tone from "tone";
 import { getOrientationControlFromEvent } from "./getOrientationControlFromEvent";
+import { useWebSocket } from "@/hooks/useWebSocket";
+
+const debug = false;
 
 type ToneController = ReturnType<typeof getToneController>;
 export default function MovementTest() {
   const [debugText, setDebugText] = useState<string>("");
+
+  const {
+    isConnected,
+    isConnecting,
+    userCount,
+    userId,
+    error,
+    joinRoom,
+    leaveRoom,
+    sendMessage,
+  } = useWebSocket({
+    reconnectInterval: 3000,
+    maxReconnectAttempts: 5,
+  });
 
   const [orientationState, setOrientationState] = useState<{
     alpha: number | null;
@@ -53,11 +70,18 @@ export default function MovementTest() {
           alpha || 0,
           beta || 0
         );
+
         const gainValue1 = orientationControl.frontToBack / 50;
         gain1.gain.rampTo(gainValue1);
         // Map around to gain2 (poly2)
         const gainValue2 = orientationControl.around / 50;
         gain2.gain.rampTo(gainValue2);
+
+        sendMessage({
+          type: "send_osc_message",
+          frontToBack: orientationControl.frontToBack,
+          around: orientationControl.around,
+        });
       } else {
         setDebugText("No toneController yet");
       }
@@ -70,7 +94,7 @@ export default function MovementTest() {
         handleDeviceOrientationEvent
       );
     };
-  }, [toneController]);
+  }, [toneController, sendMessage]);
 
   const movement = useMovement();
   const start = () => {
@@ -141,7 +165,7 @@ export default function MovementTest() {
       {showMonitor && (
         <div>
           <div className=" text-white p-4 rounded-lg">
-            {/* <p className="mb-2">{debugText}</p> */}
+            {debug ? <p className="mb-2">{debugText}</p> : null}
             <div className="mb-1 rounded-lg bg-black/50 p-1">
               <div className="text-xs">Alpha (compass direction 0-360)</div>
               <div className="text-lg bg-black/50 p-1 font-mono">

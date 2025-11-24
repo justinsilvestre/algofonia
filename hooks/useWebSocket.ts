@@ -1,10 +1,10 @@
 "use client";
 
 import { MessageTypes, WebSocketMessage } from "@/app/server/MessageTypes";
+import { useWebsocketUrl } from "@/app/sync-test/control/useWebsocketUrl";
 import { useState, useEffect, useRef, useCallback } from "react";
 
 export interface UseWebSocketOptions {
-  url?: string | null;
   reconnectInterval?: number;
   maxReconnectAttempts?: number;
 }
@@ -26,7 +26,8 @@ export interface UseWebSocketReturn {
 export function useWebSocket(
   options: UseWebSocketOptions = {}
 ): UseWebSocketReturn {
-  const { url, reconnectInterval = 3000, maxReconnectAttempts = 5 } = options;
+  const url = useWebsocketUrl();
+  const { reconnectInterval = 3000, maxReconnectAttempts = 5 } = options;
 
   const [isConnected, setIsConnected] = useState(false);
   const [isConnecting, setIsConnecting] = useState(false);
@@ -189,6 +190,7 @@ export function useWebSocket(
 
     return () => {
       clearTimeout(timer);
+      console.log("Cleaning up WebSocket connection");
       disconnect();
     };
   }, [connect, disconnect]);

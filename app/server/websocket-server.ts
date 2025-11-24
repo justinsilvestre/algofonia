@@ -3,9 +3,12 @@ import { createServer as createHttpsServer } from "https";
 import { createServer as createHttpServer } from "http";
 import { performance } from "perf_hooks";
 import { MessageTypes, WebSocketMessage } from "./MessageTypes";
+// @ts-expect-error -- no types available
+import * as osc from "osc";
 
 export interface WebSocketServerOptions {
   server: ReturnType<typeof createHttpsServer | typeof createHttpServer>;
+  sendOscMessage: (...args: unknown[]) => void;
 }
 
 export interface ClientInfo {
@@ -18,7 +21,11 @@ export async function startWebSocketServer(
   const { server } = options;
   return await new Promise((resolve, reject) => {
     // Create WebSocket server
-    const wss = new WebSocketServer({ server });
+    const wss = new WebSocketServer({
+      // server,
+      noServer: true,
+      path: "/ws",
+    });
 
     // Store connected clients
     const clients = new Map<WebSocket, ClientInfo>();
@@ -113,6 +120,23 @@ export async function startWebSocketServer(
           const message = JSON.parse(data.toString()) as WebSocketMessage;
 
           switch (message.type) {
+            case MessageTypes.SEND_OSC_MESSAGE:
+              console.log(`Sending OSC message to "/orientation`);
+              options.sendOscMessage({
+                timeTag: osc.timeTag(0), // "immediately"
+                packets: [
+                  {
+                    address: "/front-to-back",
+                    args: [{ type: "i", value: message.frontToBack }],
+                  },
+                  {
+                    address: "/around",
+                    args: [{ type: "i", value: message.around }],
+                  },
+                ],
+              });
+              break;
+
             case MessageTypes.SYNC:
               const t2 = performance.now() + performance.timeOrigin; // Server timestamp when sync request was received
               const t3 = performance.now() + performance.timeOrigin; // Server timestamp when sync reply was sent

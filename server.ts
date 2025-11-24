@@ -63,6 +63,9 @@ async function startServer() {
     oscTestServer.on("message", (msg, rinfo) => {
       console.log("Received OSC message:", msg, "from", rinfo);
     });
+    oscTestServer.on("bundle", (bundle: any, rinfo: any) => {
+      console.log("Received OSC bundle:", bundle, "from", rinfo);
+    });
 
     const udpPort = new osc.UDPPort({
       localAddress: "0.0.0.0",
@@ -73,41 +76,70 @@ async function startServer() {
     // Listen for incoming OSC messages.
     udpPort.on("message", function (oscMsg: any, timeTag: any, info: any) {
       console.log("An OSC message just arrived!", oscMsg);
-      console.log("Remote info is: ", info);
+      console.log("Timetag:", timeTag, "Remote info:", info);
+    });
+    udpPort.on("bundle", function (oscBundle: any, timeTag: any, info: any) {
+      console.log("An OSC bundle just arrived!", oscBundle);
+      console.log("Timetag:", timeTag, "Remote info:", info);
     });
 
     // Open the socket.
     udpPort.open();
 
-    const sendOscMessage = (address: string, args: any[]) => {
-      udpPort.send(
-        {
-          address,
-          args,
-        },
-        "127.0.0.1",
-        oscTestServerPort
-      );
+    const sendOscMessage = (...args: unknown[]) => {
+      udpPort.send(...args, "127.0.0.1", oscTestServerPort);
+      // udpPort.send(...args, );
     };
 
     // When the port is read, send an OSC message to, say, SuperCollider
     udpPort.on("ready", function () {
       console.log("✅ OSC UDP port is ready");
-      sendOscMessage("/s_new", [
+      udpPort.send(
         {
-          type: "s",
-          value: "default",
+          timeTag: osc.timeTag(0),
+          packets: [
+            {
+              address: "/s_new_bundled",
+              args: [
+                {
+                  type: "s",
+                  value: "default",
+                },
+                {
+                  type: "i",
+                  value: 100,
+                },
+              ],
+            },
+          ],
         },
+        "127.0.0.1",
+        oscTestServerPort
+      );
+
+      udpPort.send(
         {
-          type: "i",
-          value: 100,
+          address: "/s_new",
+          args: [
+            {
+              type: "s",
+              value: "default",
+            },
+            {
+              type: "i",
+              value: 100,
+            },
+          ],
         },
-      ]);
+        "127.0.0.1",
+        oscTestServerPort
+      );
     });
 
     // Start WebSocket server
     const wsServer = await startWebSocketServer({
       server,
+      sendOscMessage,
     });
     console.log("✅ WebSocket server started");
 
