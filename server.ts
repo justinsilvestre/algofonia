@@ -19,39 +19,37 @@ async function startServer() {
   try {
     console.log("🚀 Starting Algofonia server...");
 
-    const { ca, cert } = await getCert("https");
-    console.log("✅ TLS certificates ready");
-    const httpsOptions = {
-      key: cert.key,
-      cert: cert.cert,
-    };
-
     // Prepare Next.js
     await app.prepare();
     console.log("✅ Next.js app prepared");
 
-    // Create main HTTP server for Next.js
-    const server = useHttps
-      ? https.createServer(httpsOptions, async (req, res) => {
-          try {
-            const parsedUrl = parse(req.url!, true);
-            await handle(req, res, parsedUrl);
-          } catch (err) {
-            console.error("Error occurred handling", req.url, err);
-            res.statusCode = 500;
-            res.end("Internal server error");
-          }
-        })
-      : http.createServer(async (req, res) => {
-          try {
-            const parsedUrl = parse(req.url!, true);
-            await handle(req, res, parsedUrl);
-          } catch (err) {
-            console.error("Error occurred handling", req.url, err);
-            res.statusCode = 500;
-            res.end("Internal server error");
-          }
-        });
+    let server: http.Server | https.Server;
+    if (useHttps) {
+      const { cert } = await getCert("https");
+      console.log("✅ TLS certificates ready");
+      server = https.createServer(cert, async (req, res) => {
+        try {
+          const parsedUrl = parse(req.url!, true);
+          await handle(req, res, parsedUrl);
+        } catch (err) {
+          console.error("Error occurred handling", req.url, err);
+          res.statusCode = 500;
+          res.end("Internal server error");
+        }
+      });
+    } else {
+      // Create main HTTP server for Next.js
+      server = http.createServer(async (req, res) => {
+        try {
+          const parsedUrl = parse(req.url!, true);
+          await handle(req, res, parsedUrl);
+        } catch (err) {
+          console.error("Error occurred handling", req.url, err);
+          res.statusCode = 500;
+          res.end("Internal server error");
+        }
+      });
+    }
     console.log("✅ Server created");
 
     // Start WebSocket server

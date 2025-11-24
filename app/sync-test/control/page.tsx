@@ -59,12 +59,16 @@ export default function SyncTestControlPage() {
     intervalRef.current = setInterval(() => {
       setBeatCount((prev) => prev + 1);
 
+      const now = performance.now() + performance.timeOrigin;
+      const nextBeatTimestamp = now + beatInterval;
+
       // Send beat message
       sendMessage({
         type: MessageTypes.BEAT,
         bpm,
-        timestamp: Date.now(),
+        timestamp: now,
         beatNumber: beatCount + 1,
+        nextBeatTimestamp,
       });
 
       // Flash background
@@ -86,10 +90,15 @@ export default function SyncTestControlPage() {
 
     // Send tempo change message
     if (isInRoom && isConnected) {
+      const now = performance.now() + performance.timeOrigin;
+      const newBeatInterval = (60 / newBpm) * 1000;
+      const nextBeatTimestamp = now + newBeatInterval;
+
       sendMessage({
         type: MessageTypes.SET_TEMPO,
         bpm: newBpm,
-        timestamp: Date.now(),
+        timestamp: now,
+        nextBeatTimestamp,
       });
     }
 

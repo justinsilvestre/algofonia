@@ -1,5 +1,5 @@
 import { WebSocketServer, WebSocket } from "ws";
-import { createServer as createHttpsServer, Server } from "https";
+import { createServer as createHttpsServer } from "https";
 import { createServer as createHttpServer } from "http";
 import { performance } from "perf_hooks";
 import { MessageTypes, WebSocketMessage } from "./MessageTypes";
