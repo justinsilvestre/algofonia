@@ -2,7 +2,7 @@ import * as http from "http";
 import * as https from "https";
 import { parse } from "url";
 import next from "next";
-import { startWebSocketServer } from "./server/websocket-server.js";
+import { startWebSocketServer } from "./app/server/websocket-server.js";
 import { getCert } from "./getCert.js";
 import { getLocalIp } from "./getLocalIp.js";
 

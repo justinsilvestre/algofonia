@@ -1,6 +1,6 @@
 "use client";
 
-import { MessageTypes, WebSocketMessage } from "@/server/MessageTypes";
+import { MessageTypes, WebSocketMessage } from "@/app/server/MessageTypes";
 import { useState, useEffect, useRef, useCallback } from "react";
 
 export interface UseWebSocketOptions {

@@ -3,7 +3,7 @@
 import { useState, useEffect, useRef, useCallback } from "react";
 import { useWebSocket } from "../../hooks/useWebSocket";
 import { useWebsocketUrl } from "./control/useWebsocketUrl";
-import { WebSocketMessage, MessageTypes } from "@/server/MessageTypes";
+import { WebSocketMessage, MessageTypes } from "@/app/server/MessageTypes";
 
 export default function SyncTestPage() {
   const [currentBpm, setCurrentBpm] = useState(120);
