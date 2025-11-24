@@ -1,10 +1,14 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
 import * as http from "http";
 import * as https from "https";
 import { parse } from "url";
 import next from "next";
+// @ts-expect-error -- no types available
+import osc from "osc";
 import { startWebSocketServer } from "./app/server/websocket-server.js";
-import { getCert } from "./getCert.js";
-import { getLocalIp } from "./getLocalIp.js";
+import { getCert } from "./app/server/getCert.js";
+import { getLocalIp } from "./app/server/getLocalIp.js";
+import { Server } from "node-osc";
 
 const dev = process.env.NODE_ENV !== "production";
 const hostname = process.env.HOSTNAME || "localhost";
@@ -52,6 +56,55 @@ async function startServer() {
     }
     console.log("✅ Server created");
 
+    const oscTestServerPort = 8000;
+    const oscTestServer = new Server(oscTestServerPort, "0.0.0.0", () => {
+      console.log(`OSC test server is listening on port ${oscTestServerPort}`);
+    });
+    oscTestServer.on("message", (msg, rinfo) => {
+      console.log("Received OSC message:", msg, "from", rinfo);
+    });
+
+    const udpPort = new osc.UDPPort({
+      localAddress: "0.0.0.0",
+      localPort: 57121,
+      metadata: true,
+    });
+
+    // Listen for incoming OSC messages.
+    udpPort.on("message", function (oscMsg: any, timeTag: any, info: any) {
+      console.log("An OSC message just arrived!", oscMsg);
+      console.log("Remote info is: ", info);
+    });
+
+    // Open the socket.
+    udpPort.open();
+
+    const sendOscMessage = (address: string, args: any[]) => {
+      udpPort.send(
+        {
+          address,
+          args,
+        },
+        "127.0.0.1",
+        oscTestServerPort
+      );
+    };
+
+    // When the port is read, send an OSC message to, say, SuperCollider
+    udpPort.on("ready", function () {
+      console.log("✅ OSC UDP port is ready");
+      sendOscMessage("/s_new", [
+        {
+          type: "s",
+          value: "default",
+        },
+        {
+          type: "i",
+          value: 100,
+        },
+      ]);
+    });
+
     // Start WebSocket server
     const wsServer = await startWebSocketServer({
       server,
@@ -60,11 +113,23 @@ async function startServer() {
 
     // Start Next.js server
     server.listen(port, () => {
-      console.log(`✅ Next.js server ready on https://${hostname}:${port}`);
-      console.log(`✅ WebSocket server ready on wss://${hostname}:${port}/ws`);
+      console.log(
+        `✅ Next.js server ready on http${
+          useHttps ? "s" : ""
+        }://${hostname}:${port}`
+      );
+      console.log(
+        `✅ WebSocket server ready on ws${
+          useHttps ? "s" : ""
+        }://${hostname}:${port}/ws`
+      );
       const localIp = getLocalIp();
-      console.log(`Access on local network at: https://${localIp}:${port}`);
-      console.log("🎵 Algofonia is ready to make music!");
+      console.log(
+        `Access on local network at: http${
+          useHttps ? "s" : ""
+        }://${localIp}:${port}`
+      );
+      console.log("🎵 Ready to make music!");
     });
 
     server.on("upgrade", (req, socket, head) => {
