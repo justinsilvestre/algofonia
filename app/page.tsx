@@ -1,6 +1,6 @@
 "use client";
 import { useCallback, useEffect, useRef, useState } from "react";
-import { useWebsocket } from "./listen/useWebsocket";
+import { useWebsocket } from "./useWebsocket";
 import { MessageToClient, RoomState } from "./WebsocketMessage";
 import { startBeats } from "./listen/startBeats";
 import { useServerTimeSync } from "./listen/useServerTimeSync";
@@ -8,6 +8,73 @@ import { getOrientationControlFromEvent } from "./movement-test/getOrientationCo
 
 const DEFAULT_ROOM_NAME = "default";
 
+//   const [sensor, setSensor] = useState<AbsoluteOrientationSensor | null>(null);
+
+//   useEffect(() => {
+//     const sensor = new AbsoluteOrientationSensor({
+//       frequency: 60,
+//       referenceFrame: "device",
+//     });
+
+//     const handleReading = () => {
+//       console.log("Orientation quaternion:", sensor.quaternion);
+//       // setDebugText(
+//       //   `Orientation quaternion: ${sensor.quaternion
+//       //     // round to 2 decimal places
+//       //     .map((v) => Math.round(v * 100) / 100)
+//       //     .join("\n")}`
+//       // );
+//       const [w, x, y, z] = sensor.quaternion;
+//       const ysqr = y * y;
+
+//       // roll (x-axis)
+//       const t0 = +2.0 * (w * x + y * z);
+//       const t1 = +1.0 - 2.0 * (x * x + ysqr);
+//       const roll = Math.atan2(t0, t1);
+
+//       // pitch (y-axis)
+//       let t2 = +2.0 * (w * y - z * x);
+//       t2 = Math.min(1.0, Math.max(-1.0, t2));
+//       const pitch = Math.asin(t2);
+
+//       // yaw (z-axis) — rotation around screen normal
+//       const t3 = +2.0 * (w * z + x * y);
+//       const t4 = +1.0 - 2.0 * (ysqr + z * z);
+//       const yaw = Math.atan2(t3, t4);
+
+//       const radiansToDegreesRounded = (radians: number) => {
+//         const degrees = radians * (180 / Math.PI);
+//         return Math.round(degrees * 1) / 1;
+//       };
+
+//       setDebugText(`roll: ${radiansToDegreesRounded(roll)}
+// pitch: ${radiansToDegreesRounded(pitch)}
+// yaw: ${radiansToDegreesRounded(yaw)}`);
+//     };
+//     const handleError = (event: Event) => {
+//       if (
+//         "error" in event &&
+//         event.error &&
+//         (event.error as Error).name === "NotReadableError"
+//       ) {
+//         console.log("Sensor is not available.");
+//       }
+//       console.error("Sensor error:", event);
+//     };
+
+//     sensor.addEventListener("reading", handleReading);
+//     sensor.addEventListener("error", handleError);
+
+//     sensor.start();
+
+//     // eslint-disable-next-line react-hooks/set-state-in-effect
+//     setSensor(sensor);
+//     return () => {
+//       sensor.removeEventListener("reading", handleReading);
+//       sensor.removeEventListener("error", handleError);
+//       sensor.stop();
+//     };
+//   }, [setSensor]);
 export default function InputClientPage() {
   const [debug] = useState<boolean>(false);
   const [debugText, setDebugText] = useState<string>("");
@@ -205,10 +272,25 @@ export default function InputClientPage() {
           </button>
         </div>
 
-        <h1>input client</h1>
-
-        <p>{roomState.inputClientsCount} input clients connected</p>
-        <p>{roomState.outputClientsCount} output clients connected</p>
+        {showMonitor && (
+          <div>
+            <div className=" text-white p-4 rounded-lg">
+              {debug ? <p className="mb-2">{debugText}</p> : null}
+              <div className="mb-1 rounded-lg bg-black/50 p-1">
+                <div className="text-xs">Front-to-back</div>
+                <div className="text-lg bg-black/50 p-1 font-mono">
+                  {Math.round(orientationControl.frontToBack)}
+                </div>
+              </div>
+              <div className="mb-1 rounded-lg bg-black/50 p-1">
+                <div className="text-xs">Around</div>
+                <div className="text-lg bg-black/50 p-1 font-mono">
+                  {Math.round(orientationControl.around)}
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
 
         {debugText && debug ? <p>{debugText}</p> : null}
       </div>
