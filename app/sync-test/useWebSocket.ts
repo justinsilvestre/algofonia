@@ -1,7 +1,7 @@
 "use client";
 
 import { MessageTypes, WebSocketMessage } from "@/app/server/MessageTypes";
-import { useWebsocketUrl } from "@/app/sync-test/control/useWebsocketUrl";
+import { useWebsocketUrl } from "@/app/useWebsocketUrl";
 import { useState, useEffect, useRef, useCallback } from "react";
 
 export interface UseWebSocketOptions {
@@ -209,3 +209,11 @@ export function useWebSocket(
     offMessage,
   };
 }
+export type ConnectionState =
+  | {
+      type: "initial" | "connecting" | "connected" | "disconnected";
+    }
+  | {
+      type: "error";
+      message: string;
+    };

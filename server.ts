@@ -5,7 +5,7 @@ import { parse } from "url";
 import next from "next";
 // @ts-expect-error -- no types available
 import osc from "osc";
-import { startWebSocketServer } from "./app/server/websocket-server.js";
+import { startWebSocketServer } from "./app/server/websocketServer.js";
 import { getCert } from "./app/server/getCert.js";
 import { getLocalIp } from "./app/server/getLocalIp.js";
 import { Server } from "node-osc";
@@ -14,6 +14,8 @@ const dev = process.env.NODE_ENV !== "production";
 const hostname = process.env.HOSTNAME || "localhost";
 const port = parseInt(process.env.PORT || "3000", 10);
 const useHttps = process.env.USE_HTTPS || false;
+
+console.log(`Using HTTPS? ${useHttps}`);
 
 // Prepare Next.js app
 const app = next({ dev, hostname, port });
@@ -138,7 +140,7 @@ async function startServer() {
 
     // Start WebSocket server
     const wsServer = await startWebSocketServer({
-      server,
+      httpServer: server,
       sendOscMessage,
     });
     console.log("✅ WebSocket server started");
@@ -170,6 +172,10 @@ async function startServer() {
           wsServer.emit("connection", ws, req);
         });
       }
+    });
+
+    server.on("error", (error) => {
+      console.error("❌ Server error:", error);
     });
 
     // Graceful shutdown
