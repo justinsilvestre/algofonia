@@ -13,11 +13,11 @@
     "export": "next build",
     "test": "vitest",
     "lint": "eslint",
+    "docker:build": "docker build -t algofonia .",
+    "docker:run": "docker run -p 3000:3000 algofonia",
     "tunnel": "cloudflared tunnel --url http://localhost:3000"
   },
   "dependencies": {
-    "@types/motion-sensors-polyfill": "^0.3.5",
-    "@types/node-osc": "^9.1.0",
     "cloudflared": "^0.7.1",
     "concurrently": "^9.2.1",
     "mkcert": "^3.2.0",
@@ -33,7 +33,9 @@
   },
   "devDependencies": {
     "@tailwindcss/postcss": "^4",
+    "@types/motion-sensors-polyfill": "^0.3.5",
     "@types/node": "^20",
+    "@types/node-osc": "^9.1.0",
     "@types/react": "^19",
     "@types/react-dom": "^19",
     "@types/ws": "^8.18.1",
