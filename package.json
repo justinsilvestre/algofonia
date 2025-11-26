@@ -14,6 +14,7 @@
     "test": "vitest",
     "lint": "eslint",
     "docker:build": "docker build -t algofonia .",
+    "docker:export": "npm run build && docker save -o algofonia.tar algofonia",
     "docker:run": "docker run -p 3000:3000 algofonia",
     "tunnel": "cloudflared tunnel --url http://localhost:3000"
   },

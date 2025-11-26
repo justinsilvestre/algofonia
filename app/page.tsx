@@ -7,6 +7,10 @@ import { useServerTimeSync } from "./listen/useServerTimeSync";
 import { getOrientationControlFromEvent } from "./movement-test/getOrientationControlFromEvent";
 
 const DEFAULT_ROOM_NAME = "default";
+function getRoomName() {
+  const urlParams = new URLSearchParams(window.location.search);
+  return urlParams.get("room") || DEFAULT_ROOM_NAME;
+}
 
 export default function InputClientPage() {
   const [debug] = useState<boolean>(false);
@@ -104,11 +108,14 @@ export default function InputClientPage() {
   });
 
   useEffect(() => {
+    const urlParams = new URLSearchParams(window.location.search);
+    const roomName = urlParams.get("room") || DEFAULT_ROOM_NAME;
+
     if (connectionState.type === "connected") {
       console.log("Sending JOIN_ROOM_REQUEST");
       sendMessage({
         type: "JOIN_ROOM_REQUEST",
-        roomName: DEFAULT_ROOM_NAME,
+        roomName,
         clientType: "input",
       });
 
@@ -171,7 +178,7 @@ export default function InputClientPage() {
           ) {
             sendMessage({
               type: "MOTION_INPUT",
-              roomName: DEFAULT_ROOM_NAME,
+              roomName: getRoomName(),
               userId,
               frontToBack: newOrientation.frontToBack,
               around: newOrientation.around,
@@ -320,7 +327,7 @@ export default function InputClientPage() {
                       const now = performance.now() + performance.timeOrigin;
                       sendMessage({
                         type: "MOTION_INPUT",
-                        roomName: DEFAULT_ROOM_NAME,
+                        roomName: getRoomName(),
                         userId,
                         frontToBack: newValue,
                         around: orientationControl.around,
@@ -363,7 +370,7 @@ export default function InputClientPage() {
                       const now = performance.now() + performance.timeOrigin;
                       sendMessage({
                         type: "MOTION_INPUT",
-                        roomName: DEFAULT_ROOM_NAME,
+                        roomName: getRoomName(),
                         userId,
                         frontToBack: orientationControl.frontToBack,
                         around: newValue,

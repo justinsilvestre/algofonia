@@ -6,6 +6,12 @@ import { useServerTimeSync } from "./useServerTimeSync";
 import { startBeats } from "./startBeats";
 import { useToneController } from "./useTone";
 
+const DEFAULT_ROOM_NAME = "default";
+function getRoomName() {
+  const urlParams = new URLSearchParams(window.location.search);
+  return urlParams.get("room") || DEFAULT_ROOM_NAME;
+}
+
 export default function OutputClientPage() {
   const [debug] = useState<boolean>(false);
   const [debugText, setDebugText] = useState<string>("");
@@ -115,7 +121,7 @@ export default function OutputClientPage() {
       console.log("Sending JOIN_ROOM_REQUEST");
       sendMessage({
         type: "JOIN_ROOM_REQUEST",
-        roomName: "default",
+        roomName: getRoomName(),
         clientType: "output",
       });
 
