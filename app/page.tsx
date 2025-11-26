@@ -8,85 +8,37 @@ import { getOrientationControlFromEvent } from "./movement-test/getOrientationCo
 
 const DEFAULT_ROOM_NAME = "default";
 
-//   const [sensor, setSensor] = useState<AbsoluteOrientationSensor | null>(null);
-
-//   useEffect(() => {
-//     const sensor = new AbsoluteOrientationSensor({
-//       frequency: 60,
-//       referenceFrame: "device",
-//     });
-
-//     const handleReading = () => {
-//       console.log("Orientation quaternion:", sensor.quaternion);
-//       // setDebugText(
-//       //   `Orientation quaternion: ${sensor.quaternion
-//       //     // round to 2 decimal places
-//       //     .map((v) => Math.round(v * 100) / 100)
-//       //     .join("\n")}`
-//       // );
-//       const [w, x, y, z] = sensor.quaternion;
-//       const ysqr = y * y;
-
-//       // roll (x-axis)
-//       const t0 = +2.0 * (w * x + y * z);
-//       const t1 = +1.0 - 2.0 * (x * x + ysqr);
-//       const roll = Math.atan2(t0, t1);
-
-//       // pitch (y-axis)
-//       let t2 = +2.0 * (w * y - z * x);
-//       t2 = Math.min(1.0, Math.max(-1.0, t2));
-//       const pitch = Math.asin(t2);
-
-//       // yaw (z-axis) — rotation around screen normal
-//       const t3 = +2.0 * (w * z + x * y);
-//       const t4 = +1.0 - 2.0 * (ysqr + z * z);
-//       const yaw = Math.atan2(t3, t4);
-
-//       const radiansToDegreesRounded = (radians: number) => {
-//         const degrees = radians * (180 / Math.PI);
-//         return Math.round(degrees * 1) / 1;
-//       };
-
-//       setDebugText(`roll: ${radiansToDegreesRounded(roll)}
-// pitch: ${radiansToDegreesRounded(pitch)}
-// yaw: ${radiansToDegreesRounded(yaw)}`);
-//     };
-//     const handleError = (event: Event) => {
-//       if (
-//         "error" in event &&
-//         event.error &&
-//         (event.error as Error).name === "NotReadableError"
-//       ) {
-//         console.log("Sensor is not available.");
-//       }
-//       console.error("Sensor error:", event);
-//     };
-
-//     sensor.addEventListener("reading", handleReading);
-//     sensor.addEventListener("error", handleError);
-
-//     sensor.start();
-
-//     // eslint-disable-next-line react-hooks/set-state-in-effect
-//     setSensor(sensor);
-//     return () => {
-//       sensor.removeEventListener("reading", handleReading);
-//       sensor.removeEventListener("error", handleError);
-//       sensor.stop();
-//     };
-//   }, [setSensor]);
 export default function InputClientPage() {
   const [debug] = useState<boolean>(false);
   const [debugText, setDebugText] = useState<string>("");
+  const controlsOverrideStateRef = useRef<{
+    frontToBack: boolean;
+    around: boolean;
+    alpha: boolean;
+    beta: boolean;
+    gamma: boolean;
+  }>({
+    frontToBack: false,
+    around: false,
+    alpha: false,
+    beta: false,
+    gamma: false,
+  });
 
   const [showMonitor, setShowMonitor] = useState(false);
   const [orientationControl, setOrientationControl] = useState<{
     /** right-way up = 100, upside down = 0 */
     frontToBack: number;
     around: number;
+    alpha: number | null;
+    beta: number | null;
+    gamma: number | null;
   }>({
     frontToBack: 100,
     around: 100,
+    alpha: null,
+    beta: null,
+    gamma: null,
   });
 
   const [userId, setUserId] = useState<number>(0);
@@ -143,6 +95,14 @@ export default function InputClientPage() {
     },
   });
 
+  const lastSentOrientationRef = useRef<{
+    frontToBack: number;
+    around: number;
+  }>({
+    frontToBack: orientationControl.frontToBack,
+    around: orientationControl.around,
+  });
+
   useEffect(() => {
     if (connectionState.type === "connected") {
       console.log("Sending JOIN_ROOM_REQUEST");
@@ -167,6 +127,7 @@ export default function InputClientPage() {
   }, [connectionState.type, sendMessage, syncRequestsCountRef]);
 
   useEffect(() => {
+    console.log("Setting up deviceorientation event listener");
     const handleDeviceOrientationEvent = (event: DeviceOrientationEvent) => {
       console.log(
         event.absolute ? "Absolute" : "Non-absolute",
@@ -181,21 +142,48 @@ export default function InputClientPage() {
           event.alpha,
           event.beta
         );
-        setOrientationControl(orientation);
-        const now = performance.now() + performance.timeOrigin;
+
+        // Only update orientation if manual controls are not being used
+        const newOrientation = {
+          frontToBack: controlsOverrideStateRef.current.frontToBack
+            ? lastSentOrientationRef.current.frontToBack
+            : orientation.frontToBack,
+          around: controlsOverrideStateRef.current.around
+            ? lastSentOrientationRef.current.around
+            : orientation.around,
+          alpha: event.alpha,
+          beta: event.beta,
+          gamma: event.gamma,
+        };
+
+        setOrientationControl(newOrientation);
+
+        // Only send motion input if neither control is being manually overridden
         if (
-          orientation.frontToBack !== orientationControl.frontToBack ||
-          orientation.around !== orientationControl.around
-        )
-          sendMessage({
-            type: "MOTION_INPUT",
-            roomName: DEFAULT_ROOM_NAME,
-            userId,
-            frontToBack: orientation.frontToBack,
-            around: orientation.around,
-            actionTimestamp: now,
-            nextBeatTimestamp: nextBeatTimestampRef.current ?? now,
-          });
+          !controlsOverrideStateRef.current.frontToBack &&
+          !controlsOverrideStateRef.current.around
+        ) {
+          const now = performance.now() + performance.timeOrigin;
+          if (
+            newOrientation.frontToBack !==
+              lastSentOrientationRef.current.frontToBack ||
+            newOrientation.around !== lastSentOrientationRef.current.around
+          ) {
+            sendMessage({
+              type: "MOTION_INPUT",
+              roomName: DEFAULT_ROOM_NAME,
+              userId,
+              frontToBack: newOrientation.frontToBack,
+              around: newOrientation.around,
+              actionTimestamp: now,
+              nextBeatTimestamp: nextBeatTimestampRef.current ?? now,
+            });
+            lastSentOrientationRef.current = {
+              frontToBack: newOrientation.frontToBack,
+              around: newOrientation.around,
+            };
+          }
+        }
       }
     };
     window.addEventListener("deviceorientation", handleDeviceOrientationEvent);
@@ -205,12 +193,7 @@ export default function InputClientPage() {
         handleDeviceOrientationEvent
       );
     };
-  }, [
-    orientationControl.around,
-    orientationControl.frontToBack,
-    sendMessage,
-    userId,
-  ]);
+  }, [sendMessage, userId]);
 
   const start = () => {
     console.log("Movement permission requested");
@@ -277,15 +260,119 @@ export default function InputClientPage() {
             <div className=" text-white p-4 rounded-lg">
               {debug ? <p className="mb-2">{debugText}</p> : null}
               <div className="mb-1 rounded-lg bg-black/50 p-1">
-                <div className="text-xs">Front-to-back</div>
+                <div className="text-xs">Alpha (compass direction 0-360)</div>
                 <div className="text-lg bg-black/50 p-1 font-mono">
-                  {Math.round(orientationControl.frontToBack)}
+                  {toNearestHundredth(orientationControl.alpha)}
                 </div>
               </div>
               <div className="mb-1 rounded-lg bg-black/50 p-1">
-                <div className="text-xs">Around</div>
+                <div className="text-xs">
+                  Beta/X rotation (0 = on back, 90 = upright, 180 = facing down,
+                  -90 = upside down)
+                </div>
                 <div className="text-lg bg-black/50 p-1 font-mono">
-                  {Math.round(orientationControl.around)}
+                  {toNearestHundredth(orientationControl.beta)}
+                </div>
+                <div className="mb-1 rounded-lg bg-black/50 p-1">
+                  <div className="text-xs">
+                    Gamma/Y rotation (-90 = left side down, 0 = flat, 90 = right
+                    side down)
+                  </div>
+                  <div className="text-lg bg-black/50 p-1 font-mono">
+                    {toNearestHundredth(orientationControl.gamma)}
+                  </div>
+                </div>
+              </div>
+
+              <div className="mt-4 space-y-3">
+                <div className="text-sm text-white/80">
+                  Processed orientation values (slide to override):
+                </div>
+
+                <div className="rounded-lg bg-black/50 p-2">
+                  <label className="block text-xs mb-1">
+                    Front-to-back: {Math.round(orientationControl.frontToBack)}
+                  </label>
+                  <input
+                    type="range"
+                    min="0"
+                    max="100"
+                    value={orientationControl.frontToBack}
+                    onMouseDown={() => {
+                      controlsOverrideStateRef.current.frontToBack = true;
+                    }}
+                    onMouseUp={() => {
+                      controlsOverrideStateRef.current.frontToBack = false;
+                    }}
+                    onTouchStart={() => {
+                      controlsOverrideStateRef.current.frontToBack = true;
+                    }}
+                    onTouchEnd={() => {
+                      controlsOverrideStateRef.current.frontToBack = false;
+                    }}
+                    onChange={(e) => {
+                      const newValue = parseInt(e.target.value);
+                      const newOrientation = {
+                        ...orientationControl,
+                        frontToBack: newValue,
+                      };
+                      setOrientationControl(newOrientation);
+                      const now = performance.now() + performance.timeOrigin;
+                      sendMessage({
+                        type: "MOTION_INPUT",
+                        roomName: DEFAULT_ROOM_NAME,
+                        userId,
+                        frontToBack: newValue,
+                        around: orientationControl.around,
+                        actionTimestamp: now,
+                        nextBeatTimestamp: nextBeatTimestampRef.current ?? now,
+                      });
+                    }}
+                    className="w-full h-2 bg-white/20 rounded-lg appearance-none cursor-pointer slider"
+                  />
+                </div>
+
+                <div className="rounded-lg bg-black/50 p-2">
+                  <label className="block text-xs mb-1">
+                    Around: {Math.round(orientationControl.around)}
+                  </label>
+                  <input
+                    type="range"
+                    min="0"
+                    max="100"
+                    value={orientationControl.around}
+                    onMouseDown={() => {
+                      controlsOverrideStateRef.current.around = true;
+                    }}
+                    onMouseUp={() => {
+                      controlsOverrideStateRef.current.around = false;
+                    }}
+                    onTouchStart={() => {
+                      controlsOverrideStateRef.current.around = true;
+                    }}
+                    onTouchEnd={() => {
+                      controlsOverrideStateRef.current.around = false;
+                    }}
+                    onChange={(e) => {
+                      const newValue = parseInt(e.target.value);
+                      const newOrientation = {
+                        ...orientationControl,
+                        around: newValue,
+                      };
+                      setOrientationControl(newOrientation);
+                      const now = performance.now() + performance.timeOrigin;
+                      sendMessage({
+                        type: "MOTION_INPUT",
+                        roomName: DEFAULT_ROOM_NAME,
+                        userId,
+                        frontToBack: orientationControl.frontToBack,
+                        around: newValue,
+                        actionTimestamp: now,
+                        nextBeatTimestamp: nextBeatTimestampRef.current ?? now,
+                      });
+                    }}
+                    className="w-full h-2 bg-white/20 rounded-lg appearance-none cursor-pointer slider"
+                  />
                 </div>
               </div>
             </div>
@@ -337,4 +424,9 @@ function useMovement() {
   }, []);
 
   return { requestPermission, state };
+}
+
+function toNearestHundredth(value: number | null) {
+  if (value === null) return "null";
+  return Math.round(value * 100) / 100;
 }

@@ -24,13 +24,15 @@ export type MessageToClient =
       actionTimestamp: number;
       nextBeatTimestamp: number;
     }
-  | {
-      type: "MOTION_INPUT";
-      frontToBack: number;
-      around: number;
-      actionTimestamp: number;
-      nextBeatTimestamp: number;
-    };
+  | MotionInputMessageToClient;
+
+export type MotionInputMessageToClient = {
+  type: "MOTION_INPUT";
+  frontToBack: number;
+  around: number;
+  actionTimestamp: number;
+  nextBeatTimestamp: number;
+};
 
 export type RoomState = {
   inputClientsCount: number;

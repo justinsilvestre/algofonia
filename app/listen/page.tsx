@@ -1,14 +1,10 @@
 "use client";
 import { useCallback, useEffect, useRef, useState } from "react";
-import * as Tone from "tone";
 import { MessageToClient, RoomState } from "../WebsocketMessage";
 import { useWebsocket } from "../useWebsocket";
 import { useServerTimeSync } from "./useServerTimeSync";
 import { startBeats } from "./startBeats";
-
-type MusicState = {
-  bpm: number;
-};
+import { useToneController } from "./useTone";
 
 export default function OutputClientPage() {
   const [debug] = useState<boolean>(false);
@@ -16,14 +12,18 @@ export default function OutputClientPage() {
 
   const [userId, setUserId] = useState<number>(0);
 
-  const [toneController, setToneController] = useState<ToneController | null>(
-    null
-  );
-
-  const [musicState, setMusicState] = useState<MusicState | null>(null);
-  const nextBeatTimestampRef = useRef<number | null>(null);
   const { offsetFromServerTimeRef, processSyncReply, syncRequestsCountRef } =
     useServerTimeSync();
+
+  const nextBeatTimestampRef = useRef<number | null>(null);
+  const tone = useToneController();
+  const {
+    controls: toneControls,
+    musicState,
+    start: startTone,
+    input: inputToTone,
+    setBpm,
+  } = tone;
 
   const [roomState, setRoomState] = useState<RoomState>({
     inputClientsCount: 0,
@@ -38,9 +38,8 @@ export default function OutputClientPage() {
             nextBeatTimestampRef.current = message.nextBeatTimestamp;
             setUserId(message.userId);
             setRoomState(message.roomState);
-            setMusicState({
-              bpm: message.bpm,
-            });
+
+            setBpm(message.bpm);
             startBeats(
               message.bpm,
               message.nextBeatTimestamp,
@@ -71,20 +70,14 @@ export default function OutputClientPage() {
             break;
           }
           case "MOTION_INPUT": {
-            if (!toneController) {
-              console.warn("No toneController available for MOTION_INPUT");
-              setDebugText("No toneController available for MOTION_INPUT");
+            if (!toneControls) {
+              console.warn("No tone controls available for MOTION_INPUT");
+              setDebugText("No tone controls available for MOTION_INPUT");
               break;
             }
 
-            const { gain1, gain2 } = toneController;
             const { frontToBack, around } = message;
-
-            const gainValue1 = frontToBack / 50;
-            gain1.gain.rampTo(gainValue1);
-            // Map around to gain2 (poly2)
-            const gainValue2 = around / 50;
-            gain2.gain.rampTo(gainValue2);
+            if (toneControls) inputToTone(message);
 
             const blue = Math.max(
               0,
@@ -107,7 +100,13 @@ export default function OutputClientPage() {
           }
         }
       },
-      [offsetFromServerTimeRef, processSyncReply, toneController]
+      [
+        offsetFromServerTimeRef,
+        processSyncReply,
+        toneControls,
+        inputToTone,
+        setBpm,
+      ]
     ),
   });
 
@@ -145,32 +144,6 @@ export default function OutputClientPage() {
     );
   }
 
-  const start = () => {
-    Tone.start().then(() => {
-      console.log("Tone AudioContext started");
-
-      const controller = getToneController(() => {
-        const notes2 = ["G4", "A4", "D5", "F5"];
-        const sixteenthNoteMs = Tone.Time("16n").toMilliseconds();
-
-        controller.poly2.triggerAttackRelease(notes2[0], "16n");
-        setTimeout(() => {
-          controller.poly2.triggerAttackRelease(notes2[1], "16n");
-        }, sixteenthNoteMs);
-        setTimeout(() => {
-          controller.poly2.triggerAttackRelease(notes2[2], "16n");
-        }, sixteenthNoteMs * 2);
-        setTimeout(() => {
-          controller.poly2.triggerAttackRelease(notes2[3], "16n");
-        }, sixteenthNoteMs * 3);
-      });
-      setToneController(controller);
-      controller.transport.start();
-      controller.loopBeat.start(0);
-      controller.poly1.triggerAttack(["C4", "E4", "G4"]);
-    });
-  };
-
   return (
     <div id="container" className="w-screen h-screen text-white bg-black">
       <div id="flash-container" className="w-screen h-screen p-4">
@@ -181,35 +154,12 @@ export default function OutputClientPage() {
         <p>{roomState.inputClientsCount} input clients connected</p>
         <p>{roomState.outputClientsCount} output clients connected</p>
         {musicState && <p>{musicState.bpm} BPM</p>}
-        {!toneController && (
-          <button className="text-white p-8" onClick={start}>
+        {!toneControls && (
+          <button className="text-white p-8" onClick={startTone}>
             tap to start
           </button>
         )}
       </div>
     </div>
   );
-}
-
-type ToneController = ReturnType<typeof getToneController>;
-function getToneController(loopCallback: (time: Tone.Unit.Seconds) => void) {
-  const gain1 = new Tone.Gain(1).toDestination();
-  const gain2 = new Tone.Gain(1).toDestination();
-
-  return {
-    gain1,
-    gain2,
-    transport: Tone.getTransport(),
-    loopBeat: new Tone.Loop((time) => {
-      loopCallback(time);
-    }, "4n"),
-    poly1: new Tone.PolySynth(Tone.Synth, {
-      oscillator: { type: "sine" },
-      envelope: { attack: 1.5, decay: 0.2, sustain: 0.8, release: 4 },
-    }).connect(gain1),
-    poly2: new Tone.PolySynth(Tone.Synth, {
-      oscillator: { type: "sine" },
-      envelope: { attack: 0.5, decay: 0.2, sustain: 0.8, release: 4 },
-    }).connect(gain2),
-  };
 }

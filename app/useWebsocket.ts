@@ -2,7 +2,15 @@
 import { useState, useEffect, useCallback } from "react";
 import { MessageToClient, MessageToServer } from "./WebsocketMessage";
 import { useWebsocketUrl } from "@/app/useWebsocketUrl";
-import { ConnectionState } from "@/app/sync-test/useWebSocket";
+
+type ConnectionState =
+  | {
+      type: "initial" | "connecting" | "connected" | "disconnected";
+    }
+  | {
+      type: "error";
+      message: string;
+    };
 
 export function useWebsocket(
   options: {
