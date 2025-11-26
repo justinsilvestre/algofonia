@@ -5,12 +5,7 @@ import { MessageToClient, RoomState } from "./WebsocketMessage";
 import { startBeats } from "./listen/startBeats";
 import { useServerTimeSync } from "./listen/useServerTimeSync";
 import { getOrientationControlFromEvent } from "./movement-test/getOrientationControlFromEvent";
-
-const DEFAULT_ROOM_NAME = "default";
-function getRoomName() {
-  const urlParams = new URLSearchParams(window.location.search);
-  return urlParams.get("room") || DEFAULT_ROOM_NAME;
-}
+import { getRoomName } from "./getRoomName";
 
 export default function InputClientPage() {
   const [debug] = useState<boolean>(false);
@@ -108,8 +103,7 @@ export default function InputClientPage() {
   });
 
   useEffect(() => {
-    const urlParams = new URLSearchParams(window.location.search);
-    const roomName = urlParams.get("room") || DEFAULT_ROOM_NAME;
+    const roomName = getRoomName();
 
     if (connectionState.type === "connected") {
       console.log("Sending JOIN_ROOM_REQUEST");

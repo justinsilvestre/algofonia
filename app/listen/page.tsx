@@ -5,12 +5,7 @@ import { useWebsocket } from "../useWebsocket";
 import { useServerTimeSync } from "./useServerTimeSync";
 import { startBeats } from "./startBeats";
 import { useToneController } from "./useTone";
-
-const DEFAULT_ROOM_NAME = "default";
-function getRoomName() {
-  const urlParams = new URLSearchParams(window.location.search);
-  return urlParams.get("room") || DEFAULT_ROOM_NAME;
-}
+import { getRoomName } from "../getRoomName";
 
 export default function OutputClientPage() {
   const [debug] = useState<boolean>(false);
@@ -154,6 +149,7 @@ export default function OutputClientPage() {
     <div id="container" className="w-screen h-screen text-white bg-black">
       <div id="flash-container" className="w-screen h-screen p-4">
         <h1>Listen</h1>
+        <p>Room name: {getRoomName()}</p>
         <p>Your user ID: {userId}</p>
         {debug && <p>{debugText}</p>}
 
