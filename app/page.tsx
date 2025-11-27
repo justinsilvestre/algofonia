@@ -47,8 +47,8 @@ export default function InputClientPage() {
   const { offsetFromServerTimeRef, processSyncReply, syncRequestsCountRef } =
     useServerTimeSync();
   const [roomState, setRoomState] = useState<RoomState>({
-    inputClientsCount: 0,
-    outputClientsCount: 0,
+    inputClients: [],
+    outputClients: [],
   });
 
   const movement = useMovement();

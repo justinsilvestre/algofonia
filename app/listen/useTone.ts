@@ -1,61 +1,143 @@
 import { useState, useCallback } from "react";
 import * as Tone from "tone";
 import { MotionInputMessageToClient } from "../WebsocketMessage";
-
-type ToneControls = ReturnType<typeof getToneController>;
+import { channels, getToneControls, ToneControls } from "./tone";
 
 type MusicState = {
   bpm: number;
+  channels: {
+    [channelKey: string]: {
+      channelKey: string;
+      input: MusicControlChannelInputState;
+      state: unknown;
+    };
+  };
+  channelsOrder: string[];
+};
+type MusicControlChannelInputState = {
+  frontToBack: number;
+  around: number;
 };
 
-export function useToneController(startBpm: number = 120) {
+export function useTone(startBpm: number = 120) {
   const [controls, setControls] = useState<ToneControls | null>(null);
-  const [musicState, setMusicState] = useState<MusicState>({ bpm: startBpm });
+  const [musicState, setMusicState] = useState<MusicState>({
+    bpm: startBpm,
+    channels: {},
+    channelsOrder: [],
+  });
 
   const start = useCallback(() => {
+    console.log("Starting Tone AudioContext...");
     Tone.start().then(() => {
       console.log("Tone AudioContext started");
-
-      const controls = getToneController(() => {
-        const notes2 = ["G4", "A4", "D5", "F5"];
-        const sixteenthNoteMs = Tone.Time("16n").toMilliseconds();
-
-        controls.poly2.triggerAttackRelease(notes2[0], "16n");
-        setTimeout(() => {
-          controls.poly2.triggerAttackRelease(notes2[1], "16n");
-        }, sixteenthNoteMs);
-        setTimeout(() => {
-          controls.poly2.triggerAttackRelease(notes2[2], "16n");
-        }, sixteenthNoteMs * 2);
-        setTimeout(() => {
-          controls.poly2.triggerAttackRelease(notes2[3], "16n");
-        }, sixteenthNoteMs * 3);
+      const controls = getToneControls(() => {
+        setMusicState((musicState) => {
+          console.log("Updating music state on loop");
+          let newMusicState = { ...musicState };
+          for (const channelKey of musicState.channelsOrder) {
+            const channelDef = channels.find((c) => c.key === channelKey);
+            if (channelDef) {
+              const channelState = newMusicState.channels[channelKey].state;
+              const updatedChannelState = channelDef.onLoop(
+                controls,
+                // eslint-disable-next-line @typescript-eslint/no-explicit-any
+                channelState as unknown as any,
+                0
+              );
+              if (updatedChannelState && updatedChannelState !== channelState) {
+                newMusicState = {
+                  ...newMusicState,
+                  channels: {
+                    ...newMusicState.channels,
+                    [channelKey]: {
+                      ...newMusicState.channels[channelKey],
+                      state: updatedChannelState,
+                    },
+                  },
+                };
+              }
+            }
+          }
+          return newMusicState;
+        });
       });
+      console.log("Initializing channels...");
+      const initialChannels: MusicState["channels"] = Object.fromEntries(
+        channels.map((channel) => [
+          channel.key,
+          {
+            channelKey: channel.key,
+            input: { frontToBack: 0, around: 0 },
+            state: channel.initialize(controls),
+          },
+        ])
+      );
+
+      setMusicState((musicState) => {
+        console.log("Initializing music state with channels");
+        const newMusicState: MusicState = {
+          ...musicState,
+          channelsOrder: channels.map((c) => c.key),
+          channels: initialChannels,
+        };
+        return newMusicState;
+      });
+
       setControls(controls);
       controls.transport.start();
       // set initial bpm
       controls.setBpm(musicState.bpm);
-      controls.loopBeat.start(0);
-      controls.poly1.triggerAttack(["C4", "E4", "G4"]);
+      controls.loop.start(0);
     });
   }, [musicState.bpm]);
 
   const input = useCallback(
-    (message: MotionInputMessageToClient) => {
+    (channelKey: string, message: MotionInputMessageToClient) => {
       if (!controls) {
         console.warn("ToneControls not initialized yet");
         return;
       }
-      const { frontToBack, around } = message;
-
-      const { gain1, gain2 } = controls;
-      const gainValue1 = frontToBack / 50;
-      gain1.gain.rampTo(gainValue1);
-      // Map around to gain2 (poly2)
-      const gainValue2 = around / 50;
-      gain2.gain.rampTo(gainValue2);
+      const channel = musicState.channels[channelKey];
+      if (!channel) {
+        // Might be good to eventually show an error message in this case.
+        console.warn("No channel with key", channelKey);
+        return;
+      } else {
+        const channelDef = channels.find((c) => c.key === channel.channelKey);
+        if (!channelDef) {
+          console.warn(
+            "No channel definition for channelKey",
+            channel.channelKey
+          );
+          return;
+        }
+        // Let the channel respond to the input
+        const updatedChannelState = channelDef.respond(
+          controls,
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          channel.state as unknown as any,
+          message
+        );
+        if (updatedChannelState && updatedChannelState !== channel.state) {
+          setMusicState((musicState) => ({
+            ...musicState,
+            channels: {
+              ...musicState.channels,
+              [message.userId]: {
+                ...musicState.channels[message.userId],
+                state: updatedChannelState,
+                input: {
+                  frontToBack: message.frontToBack,
+                  around: message.around,
+                },
+              },
+            },
+          }));
+        }
+      }
     },
-    [controls]
+    [controls, musicState.channels]
   );
 
   const setBpm = useCallback(
@@ -69,29 +151,4 @@ export function useToneController(startBpm: number = 120) {
   );
 
   return { controls, musicState, start, input, setBpm };
-}
-
-function getToneController(loopCallback: (time: Tone.Unit.Seconds) => void) {
-  const gain1 = new Tone.Gain(1).toDestination();
-  const gain2 = new Tone.Gain(1).toDestination();
-
-  return {
-    gain1,
-    gain2,
-    transport: Tone.getTransport(),
-    loopBeat: new Tone.Loop((time) => {
-      loopCallback(time);
-    }, "4n"),
-    poly1: new Tone.PolySynth(Tone.Synth, {
-      oscillator: { type: "sine" },
-      envelope: { attack: 1.5, decay: 0.2, sustain: 0.8, release: 4 },
-    }).connect(gain1),
-    poly2: new Tone.PolySynth(Tone.Synth, {
-      oscillator: { type: "sine" },
-      envelope: { attack: 0.5, decay: 0.2, sustain: 0.8, release: 4 },
-    }).connect(gain2),
-    setBpm: (bpm: number) => {
-      Tone.getTransport().bpm.value = bpm;
-    },
-  };
 }
