@@ -12,7 +12,15 @@ const port = parseInt(process.env.PORT || "3000", 10);
 const useHttps =
   process.env.TUNNEL || process.env.NODE_ENV === "production" ? false : true;
 
-console.log(`Using HTTPS? ${useHttps}`);
+if (process.env.NODE_ENV === "production") {
+  console.log("Running in production mode");
+} else {
+  console.log("Running in mode:", process.env.NODE_ENV);
+}
+
+if (process.env.TUNNEL) {
+  console.log("Serving over HTTP for tunneling");
+}
 
 // Prepare Next.js app
 const app = next({ dev, hostname, port });
@@ -74,12 +82,22 @@ async function startServer() {
         }://${hostname}:${port}/ws`
       );
       const localIp = getLocalIp();
+      console.log("🎵 Ready to make music!");
+      console.log("*".repeat(80));
       console.log(
-        `Access on local network at: http${
+        `* LISTEN TO MUSIC at: \n*      🔊 http${
+          useHttps ? "s" : ""
+        }://${localIp}:${port}/listen \n*      Or, on this machine, at http${
+          useHttps ? "s" : ""
+        }://localhost:${port}/listen`
+      );
+      console.log("*".repeat(80));
+      console.log(
+        `* MAKE MUSIC on local network at: \n*      🎶 http${
           useHttps ? "s" : ""
         }://${localIp}:${port}`
       );
-      console.log("🎵 Ready to make music!");
+      console.log("*".repeat(80));
     });
 
     server.on("upgrade", (req, socket, head) => {
