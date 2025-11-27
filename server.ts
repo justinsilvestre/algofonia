@@ -1,14 +1,10 @@
-/* eslint-disable @typescript-eslint/no-explicit-any */
 import * as http from "http";
 import * as https from "https";
 import { parse } from "url";
 import next from "next";
-// @ts-expect-error -- no types available
-import osc from "osc";
 import { startWebSocketServer } from "./app/server/websocketServer.js";
 import { getCert } from "./app/server/getCert.js";
 import { getLocalIp } from "./app/server/getLocalIp.js";
-import { Server } from "node-osc";
 
 const dev = process.env.NODE_ENV !== "production";
 const hostname = process.env.HOSTNAME || "localhost";
@@ -16,7 +12,15 @@ const port = parseInt(process.env.PORT || "3000", 10);
 const useHttps =
   process.env.TUNNEL || process.env.NODE_ENV === "production" ? false : true;
 
-console.log(`Using HTTPS? ${useHttps}`);
+if (process.env.NODE_ENV === "production") {
+  console.log("Running in production mode");
+} else {
+  console.log("Running in mode:", process.env.NODE_ENV);
+}
+
+if (process.env.TUNNEL) {
+  console.log("Serving over HTTP for tunneling");
+}
 
 // Prepare Next.js app
 const app = next({ dev, hostname, port });
@@ -59,90 +63,9 @@ async function startServer() {
     }
     console.log("✅ Server created");
 
-    const oscTestServerPort = 8000;
-    const oscTestServer = new Server(oscTestServerPort, "0.0.0.0", () => {
-      console.log(`OSC test server is listening on port ${oscTestServerPort}`);
-    });
-    oscTestServer.on("message", (msg, rinfo) => {
-      console.log("Received OSC message:", msg, "from", rinfo);
-    });
-    oscTestServer.on("bundle", (bundle: any, rinfo: any) => {
-      console.log("Received OSC bundle:", bundle, "from", rinfo);
-    });
-
-    const udpPort = new osc.UDPPort({
-      localAddress: "0.0.0.0",
-      localPort: 57121,
-      metadata: true,
-    });
-
-    // Listen for incoming OSC messages.
-    udpPort.on("message", function (oscMsg: any, timeTag: any, info: any) {
-      console.log("An OSC message just arrived!", oscMsg);
-      console.log("Timetag:", timeTag, "Remote info:", info);
-    });
-    udpPort.on("bundle", function (oscBundle: any, timeTag: any, info: any) {
-      console.log("An OSC bundle just arrived!", oscBundle);
-      console.log("Timetag:", timeTag, "Remote info:", info);
-    });
-
-    // Open the socket.
-    udpPort.open();
-
-    const sendOscMessage = (...args: unknown[]) => {
-      udpPort.send(...args, "127.0.0.1", oscTestServerPort);
-      // udpPort.send(...args, );
-    };
-
-    // When the port is read, send an OSC message to, say, SuperCollider
-    udpPort.on("ready", function () {
-      console.log("✅ OSC UDP port is ready");
-      udpPort.send(
-        {
-          timeTag: osc.timeTag(0),
-          packets: [
-            {
-              address: "/s_new_bundled",
-              args: [
-                {
-                  type: "s",
-                  value: "default",
-                },
-                {
-                  type: "i",
-                  value: 100,
-                },
-              ],
-            },
-          ],
-        },
-        "127.0.0.1",
-        oscTestServerPort
-      );
-
-      udpPort.send(
-        {
-          address: "/s_new",
-          args: [
-            {
-              type: "s",
-              value: "default",
-            },
-            {
-              type: "i",
-              value: 100,
-            },
-          ],
-        },
-        "127.0.0.1",
-        oscTestServerPort
-      );
-    });
-
     // Start WebSocket server
     const wsServer = await startWebSocketServer({
       httpServer: server,
-      sendOscMessage,
     });
     console.log("✅ WebSocket server started");
 
@@ -159,12 +82,22 @@ async function startServer() {
         }://${hostname}:${port}/ws`
       );
       const localIp = getLocalIp();
+      console.log("🎵 Ready to make music!");
+      console.log("*".repeat(80));
       console.log(
-        `Access on local network at: http${
+        `* LISTEN TO MUSIC at: \n*      🔊 http${
+          useHttps ? "s" : ""
+        }://${localIp}:${port}/listen \n*      Or, on this machine, at http${
+          useHttps ? "s" : ""
+        }://localhost:${port}/listen`
+      );
+      console.log("*".repeat(80));
+      console.log(
+        `* MAKE MUSIC on local network at: \n*      🎶 http${
           useHttps ? "s" : ""
         }://${localIp}:${port}`
       );
-      console.log("🎵 Ready to make music!");
+      console.log("*".repeat(80));
     });
 
     server.on("upgrade", (req, socket, head) => {

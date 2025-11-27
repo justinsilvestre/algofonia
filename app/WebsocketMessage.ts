@@ -28,6 +28,7 @@ export type MessageToClient =
 
 export type MotionInputMessageToClient = {
   type: "MOTION_INPUT";
+  userId: number;
   frontToBack: number;
   around: number;
   actionTimestamp: number;
@@ -35,8 +36,8 @@ export type MotionInputMessageToClient = {
 };
 
 export type RoomState = {
-  inputClientsCount: number;
-  outputClientsCount: number;
+  inputClients: number[];
+  outputClients: number[];
 };
 
 export type MessageToServer =

@@ -17,7 +17,6 @@ type Room = {
 
 type WebSocketServerOptions = {
   httpServer: ReturnType<typeof createHttpsServer | typeof createHttpServer>;
-  sendOscMessage: (...args: unknown[]) => void;
 };
 
 export async function startWebSocketServer(
@@ -96,12 +95,15 @@ function handleMessage(
         message.clientType === "input" ? "inputClients" : "outputClients"
       ].set(socket, userId);
 
+      const inputClients = Array.from(room.inputClients.values());
+      const outputClients = Array.from(room.outputClients.values());
+
       sendToClient(socket, {
         type: "JOIN_ROOM_REPLY",
         userId,
         roomState: {
-          inputClientsCount: room.inputClients.size,
-          outputClientsCount: room.outputClients.size,
+          inputClients,
+          outputClients,
         },
         bpm: room.currentBpm,
         nextBeatTimestamp: getNextBeatTimestamp(room),
@@ -110,8 +112,8 @@ function handleMessage(
         type: "ROOM_STATE_UPDATE",
         roomName: message.roomName,
         roomState: {
-          inputClientsCount: room.inputClients.size,
-          outputClientsCount: room.outputClients.size,
+          inputClients,
+          outputClients,
         },
       });
     }
