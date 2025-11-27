@@ -260,6 +260,9 @@ export default function InputClientPage() {
           <div>
             <div className=" text-white p-4 rounded-lg">
               {debug ? <p className="mb-2">{debugText}</p> : null}
+              <div className="mb-2 text-sm">
+                Room name: {getRoomName()} | Your user ID: {userId} | BPM: {bpm}
+              </div>
               <div className="mb-1 rounded-lg bg-black/50 p-1">
                 <div className="text-xs">Alpha (compass direction 0-360)</div>
                 <div className="text-lg bg-black/50 p-1 font-mono">

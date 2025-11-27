@@ -98,7 +98,10 @@ export function useTone(startBpm: number = 120) {
         console.warn("ToneControls not initialized yet");
         return;
       }
-      const channel = musicState.channels[channelKey];
+      const channel =
+        message.userId % 2
+          ? musicState.channels["drone chord"]
+          : musicState.channels["arpeggio"];
       if (!channel) {
         // Might be good to eventually show an error message in this case.
         console.warn("No channel with key", channelKey);
@@ -124,8 +127,8 @@ export function useTone(startBpm: number = 120) {
             ...musicState,
             channels: {
               ...musicState.channels,
-              [message.userId]: {
-                ...musicState.channels[message.userId],
+              [channelKey]: {
+                ...musicState.channels[channelKey],
                 state: updatedChannelState,
                 input: {
                   frontToBack: message.frontToBack,
