@@ -53,6 +53,7 @@ export default function InputClientPage() {
   const [roomState, setRoomState] = useState<RoomState>({
     inputClients: [],
     outputClients: [],
+    subscriptionsCount: 0,
   });
 
   const movement = useMovement();

@@ -33,6 +33,16 @@ export type MessageToClient =
       beatNumber: number;
       beatTimestamp: number;
     }
+  | {
+      type: "SUBSCRIBE_TO_ROOM_REPLY";
+      roomName: string;
+    }
+  | {
+      type: "SCHEDULE_BEAT";
+      roomName: string;
+      beatNumber: number;
+      beatTimestamp: number;
+    }
   | MotionInputMessageToClient;
 
 export type MotionInputMessageToClient = {
@@ -47,6 +57,7 @@ export type MotionInputMessageToClient = {
 export type RoomState = {
   inputClients: number[];
   outputClients: number[];
+  subscriptionsCount: number;
 };
 
 export type MessageToServer =
@@ -80,6 +91,16 @@ export type MessageToServer =
     }
   | {
       type: "SYNC_BEAT";
+      roomName: string;
+      beatNumber: number;
+      beatTimestamp: number;
+    }
+  | {
+      type: "SUBSCRIBE_TO_ROOM_REQUEST";
+      roomName: string;
+    }
+  | {
+      type: "SCHEDULE_BEAT";
       roomName: string;
       beatNumber: number;
       beatTimestamp: number;

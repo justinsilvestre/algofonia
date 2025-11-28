@@ -46,6 +46,7 @@ export default function OutputClientPage() {
   const [roomState, setRoomState] = useState<RoomState>({
     inputClients: [],
     outputClients: [],
+    subscriptionsCount: 0,
   });
   const { connectionState, sendMessage } = useWebsocket({
     handleMessage: useCallback(
@@ -61,6 +62,7 @@ export default function OutputClientPage() {
             nextBeatTimestampRef.current = message.nextBeatTimestamp;
             setUserId(message.userId);
             setRoomState(message.roomState);
+            const roomName = getRoomName();
 
             setBpm(message.bpm);
             startBeats(
@@ -71,12 +73,19 @@ export default function OutputClientPage() {
               offsetFromServerTimeRef,
               () => {
                 console.log("BEAT #" + beatsCountRef.current);
+                sendMessage({
+                  type: "SCHEDULE_BEAT",
+                  roomName,
+                  beatNumber: beatsCountRef.current + 1,
+                  beatTimestamp: nextBeatTimestampRef.current!,
+                });
+
                 const outputClients = message.roomState.outputClients;
                 const isFirstOutputClient = outputClients[0] === userId;
                 if (isFirstOutputClient && beatsCountRef.current % 20 === 0) {
                   sendMessage({
                     type: "SYNC_BEAT",
-                    roomName: getRoomName(),
+                    roomName,
                     beatNumber: beatsCountRef.current + 1,
                     beatTimestamp: nextBeatTimestampRef.current!,
                   });
@@ -206,6 +215,7 @@ export default function OutputClientPage() {
 
         <p>{roomState.inputClients.length} input clients connected</p>
         <p>{roomState.outputClients.length} output clients connected</p>
+        <p>{roomState.subscriptionsCount} subscribers</p>
         {musicState && <p>{musicState.bpm} BPM</p>}
         {!toneControls && (
           <button className="text-white p-8" onClick={tone.start}>

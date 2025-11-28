@@ -7,6 +7,7 @@ type ConnectionsState = {
   connectedClients: Set<WebSocket>;
   nextUserId: number;
   rooms: Map<string, Room>;
+  subscribers: Map<string, Set<WebSocket>>;
 };
 type Room = {
   outputClients: Map<WebSocket, number>;
@@ -14,6 +15,7 @@ type Room = {
   currentBpm: number;
   lastSyncedBeatNumber: number;
   lastSyncedBeatTimestamp: number;
+  subscriptionsCount: number;
 };
 
 type WebSocketServerOptions = {
@@ -30,10 +32,12 @@ export async function startWebSocketServer(
 
   const connectedClients = new Set<WebSocket>();
   const rooms = new Map<string, Room>();
+  const subscribers = new Map<string, Set<WebSocket>>();
   const connectionsState: ConnectionsState = {
     connectedClients,
     rooms,
     nextUserId: 1,
+    subscribers,
   };
 
   websocketServer.on("connection", (socket: WebSocket) => {
@@ -47,6 +51,12 @@ export async function startWebSocketServer(
     socket.on("close", () => {
       console.log("WebSocket connection closed");
       connectedClients.delete(socket);
+      subscribers.forEach((roomSubscribers, roomName) => {
+        roomSubscribers.delete(socket);
+        if (roomSubscribers.size === 0) {
+          subscribers.delete(roomName);
+        }
+      });
       rooms.forEach((room, roomName) => {
         room.outputClients.delete(socket);
         room.inputClients.delete(socket);
@@ -62,6 +72,7 @@ export async function startWebSocketServer(
             roomState: {
               inputClients: Array.from(room.inputClients.values()),
               outputClients: Array.from(room.outputClients.values()),
+              subscriptionsCount: room.subscriptionsCount,
             },
           });
       });
@@ -103,6 +114,7 @@ function handleMessage(
         lastSyncedBeatTimestamp: performance.now() + performance.timeOrigin,
         inputClients: new Map<WebSocket, number>(),
         outputClients: new Map<WebSocket, number>(),
+        subscriptionsCount: 0,
       };
       connectionsState.rooms.set(message.roomName, room);
       const userId = connectionsState.nextUserId++;
@@ -121,6 +133,7 @@ function handleMessage(
         roomState: {
           inputClients,
           outputClients,
+          subscriptionsCount: room.subscriptionsCount,
         },
         bpm: room.currentBpm,
         lastBeatNumber,
@@ -132,6 +145,7 @@ function handleMessage(
         roomState: {
           inputClients,
           outputClients,
+          subscriptionsCount: room.subscriptionsCount,
         },
       });
     }
@@ -218,6 +232,59 @@ function handleMessage(
         if (outputClient.readyState === WebSocket.OPEN) {
           sendToClient(outputClient, message);
         }
+      }
+      // also send to room subscribers
+      const roomSubscribers = connectionsState.subscribers.get(
+        message.roomName
+      );
+      if (roomSubscribers) {
+        roomSubscribers.forEach((subscriber) => {
+          if (subscriber.readyState === WebSocket.OPEN) {
+            sendToClient(subscriber, message);
+          }
+        });
+      }
+      return;
+    }
+
+    case "SUBSCRIBE_TO_ROOM_REQUEST": {
+      const roomSubscribers =
+        connectionsState.subscribers.get(message.roomName) ||
+        new Set<WebSocket>();
+      roomSubscribers.add(socket);
+      connectionsState.subscribers.set(message.roomName, roomSubscribers);
+      const room = connectionsState.rooms.get(message.roomName);
+      sendToClient(socket, {
+        type: "ROOM_STATE_UPDATE",
+        roomName: message.roomName,
+        roomState: {
+          inputClients: room ? Array.from(room.inputClients.values()) : [],
+          outputClients: room ? Array.from(room.outputClients.values()) : [],
+          subscriptionsCount: roomSubscribers.size,
+        },
+      });
+      return sendToClient(socket, {
+        type: "SUBSCRIBE_TO_ROOM_REPLY",
+        roomName: message.roomName,
+      });
+    }
+
+    case "SCHEDULE_BEAT": {
+      const roomSubscribers = connectionsState.subscribers.get(
+        message.roomName
+      );
+      if (roomSubscribers) {
+        const messageToSend: MessageToClient = {
+          type: "SCHEDULE_BEAT",
+          roomName: message.roomName,
+          beatNumber: message.beatNumber,
+          beatTimestamp: message.beatTimestamp,
+        };
+        roomSubscribers.forEach((subscriber) => {
+          if (subscriber.readyState === WebSocket.OPEN) {
+            sendToClient(subscriber, messageToSend);
+          }
+        });
       }
       return;
     }

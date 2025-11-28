@@ -83,21 +83,30 @@ async function startServer() {
       );
       const localIp = getLocalIp();
       console.log("🎵 Ready to make music!");
-      console.log("*".repeat(80));
-      console.log(
-        `* LISTEN TO MUSIC at: \n*      🔊 http${
-          useHttps ? "s" : ""
-        }://${localIp}:${port}/listen \n*      Or, on this machine, at http${
-          useHttps ? "s" : ""
-        }://localhost:${port}/listen`
-      );
-      console.log("*".repeat(80));
-      console.log(
-        `* MAKE MUSIC on local network at: \n*      🎶 http${
-          useHttps ? "s" : ""
-        }://${localIp}:${port}`
-      );
-      console.log("*".repeat(80));
+
+      if (process.env.TUNNEL) {
+        console.log("*".repeat(80));
+        console.log(
+          `* TUNNELING ENABLED - make sure to use the tunnel URL provided by your tunneling service`
+        );
+        console.log("*".repeat(80));
+      } else {
+        console.log("*".repeat(80));
+        console.log(
+          `* LISTEN TO MUSIC at: \n*      🔊 http${
+            useHttps ? "s" : ""
+          }://${localIp}:${port}/listen \n*      Or, on this machine, at http${
+            useHttps ? "s" : ""
+          }://localhost:${port}/listen`
+        );
+        console.log("*".repeat(80));
+        console.log(
+          `* MAKE MUSIC on local network at: \n*      🎶 http${
+            useHttps ? "s" : ""
+          }://${localIp}:${port}`
+        );
+        console.log("*".repeat(80));
+      }
     });
 
     server.on("upgrade", (req, socket, head) => {
