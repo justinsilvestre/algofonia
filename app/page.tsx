@@ -233,7 +233,14 @@ export default function InputClientPage() {
         className="w-screen h-screen bg-black text-center flex flex-col items-center justify-center"
         onClick={start}
       >
-        <button className="text-white">tap to start</button>
+        <button className="text-white">
+          1. lock your device
+          <br />
+          in <strong>portrait mode</strong>
+          <br />
+          <br />
+          2. tap to start
+        </button>
       </div>
     );
   }
@@ -250,10 +257,17 @@ export default function InputClientPage() {
     );
   }
 
-  const blue = Math.max(
+  // Calculate orb position based on frontToBack, keeping it within screen bounds
+  // Map 0-100 to the available screen height minus orb radius (32px = half of w-16)
+  const orbRadius = 32; // Half of 64px (w-16 h-16)
+  const orbYPercent = Math.max(
     0,
-    Math.min(255, Math.round((orientationControl.frontToBack / 100) * 255))
+    Math.min(100, orientationControl.frontToBack)
   );
+  const orbYPixels =
+    (orbYPercent / 100) * (window.innerHeight - 2 * orbRadius) + orbRadius;
+
+  // Calculate orb color based on around value
   const green = Math.max(
     0,
     Math.min(255, Math.round((orientationControl.around / 100) * 255))
@@ -262,10 +276,21 @@ export default function InputClientPage() {
   return (
     <div
       id="container"
-      className="w-screen h-screen text-white bg-black"
-      style={{ backgroundColor: `rgb(0, ${green}, ${blue})` }}
+      className="w-full h-full text-white bg-black relative overflow-hidden"
     >
-      <div id="flash-container" className="w-screen h-screen p-4">
+      {/* Gravity Orb */}
+      <div
+        className="absolute w-16 h-16 rounded-full shadow-lg transition-all duration-100 ease-out"
+        style={{
+          backgroundColor: `rgb(255, ${green}, 100)`,
+          boxShadow: `0 0 20px rgb(255, ${green}, 100)`,
+          left: "50%",
+          top: `${orbYPixels}px`,
+          transform: "translate(-50%, -50%)",
+        }}
+      />
+
+      <div id="flash-container" className="w-screen h-screen p-4 relative z-10">
         <div className="text-right">
           <button
             className="bg-black  text-white px-3 py-2 rounded-lg  m-4"
