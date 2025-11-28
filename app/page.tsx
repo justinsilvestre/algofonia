@@ -42,7 +42,11 @@ export default function InputClientPage() {
 
   const [userId, setUserId] = useState<number>(0);
   const [bpm, setBpm] = useState<number | null>(null);
+  const getBpm = useCallback((): number => {
+    return bpm ?? 120;
+  }, [bpm]);
 
+  const beatsCountRef = useRef<number>(0);
   const nextBeatTimestampRef = useRef<number | null>(null);
   const { offsetFromServerTimeRef, processSyncReply, syncRequestsCountRef } =
     useServerTimeSync();
@@ -54,44 +58,57 @@ export default function InputClientPage() {
   const movement = useMovement();
 
   const { connectionState, sendMessage } = useWebsocket({
-    handleMessage: (message: MessageToClient) => {
-      console.log("Received message from server:", message);
-      switch (message.type) {
-        case "JOIN_ROOM_REPLY":
-          nextBeatTimestampRef.current = message.nextBeatTimestamp;
-          setUserId(message.userId);
-          setRoomState(message.roomState);
-          setBpm(message.bpm);
-          startBeats(
-            message.bpm,
-            message.nextBeatTimestamp,
-            offsetFromServerTimeRef,
-            () => {
-              const flashContainer = document.getElementById("flash-container");
-              // Flash white
-              const flashDuration = 100; // Duration of the white flash in milliseconds
-              if (flashContainer)
-                flashContainer.style.backgroundColor = "white";
-              // Reset background after flash duration
-              setTimeout(() => {
+    handleMessage: useCallback(
+      (message: MessageToClient) => {
+        console.log("Received message from server:", message);
+        switch (message.type) {
+          case "JOIN_ROOM_REPLY":
+            beatsCountRef.current = message.lastBeatNumber;
+            nextBeatTimestampRef.current = message.nextBeatTimestamp;
+            setUserId(message.userId);
+            setRoomState(message.roomState);
+            setBpm(message.bpm);
+            startBeats(
+              message.nextBeatTimestamp,
+              getBpm,
+              beatsCountRef,
+              nextBeatTimestampRef,
+              offsetFromServerTimeRef,
+              () => {
+                console.log("BEAT #" + beatsCountRef.current);
                 const flashContainer =
                   document.getElementById("flash-container");
-                if (flashContainer) flashContainer.style.backgroundColor = "";
-              }, flashDuration);
-            }
-          );
-          break;
-        case "ROOM_STATE_UPDATE":
-          setRoomState(message.roomState);
-          break;
-        case "SYNC_REPLY": {
-          const { t0, s0 } = message;
-          const t1 = performance.now() + performance.timeOrigin;
-          processSyncReply({ t0, s0, t1 });
-          break;
+                // Flash white
+                const flashDuration = 100; // Duration of the white flash in milliseconds
+                if (flashContainer)
+                  flashContainer.style.backgroundColor = "white";
+                // Reset background after flash duration
+                setTimeout(() => {
+                  const flashContainer =
+                    document.getElementById("flash-container");
+                  if (flashContainer) flashContainer.style.backgroundColor = "";
+                }, flashDuration);
+              }
+            );
+            break;
+          case "ROOM_STATE_UPDATE":
+            setRoomState(message.roomState);
+            break;
+          case "SYNC_REPLY": {
+            const { t0, s0 } = message;
+            const t1 = performance.now() + performance.timeOrigin;
+            processSyncReply({ t0, s0, t1 });
+            break;
+          }
+          case "SYNC_BEAT": {
+            nextBeatTimestampRef.current = message.beatTimestamp;
+            beatsCountRef.current = message.beatNumber - 1; // will be incremented on next beat
+            break;
+          }
         }
-      }
-    },
+      },
+      [offsetFromServerTimeRef, getBpm, processSyncReply]
+    ),
   });
 
   const lastSentOrientationRef = useRef<{
@@ -177,6 +194,7 @@ export default function InputClientPage() {
               frontToBack: newOrientation.frontToBack,
               around: newOrientation.around,
               actionTimestamp: now,
+              lastBeatNumber: beatsCountRef.current,
               nextBeatTimestamp: nextBeatTimestampRef.current ?? now,
             });
             lastSentOrientationRef.current = {
@@ -329,6 +347,7 @@ export default function InputClientPage() {
                         frontToBack: newValue,
                         around: orientationControl.around,
                         actionTimestamp: now,
+                        lastBeatNumber: beatsCountRef.current,
                         nextBeatTimestamp: nextBeatTimestampRef.current ?? now,
                       });
                     }}
@@ -372,6 +391,7 @@ export default function InputClientPage() {
                         frontToBack: orientationControl.frontToBack,
                         around: newValue,
                         actionTimestamp: now,
+                        lastBeatNumber: beatsCountRef.current,
                         nextBeatTimestamp: nextBeatTimestampRef.current ?? now,
                       });
                     }}

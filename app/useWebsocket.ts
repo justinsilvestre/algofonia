@@ -12,14 +12,14 @@ type ConnectionState =
       message: string;
     };
 
-export function useWebsocket(
-  options: {
-    reconnectInterval?: number;
-    maxReconnectAttempts?: number;
-    handleMessage?: (message: MessageToClient) => void;
-    sendMessage?: (message: MessageToServer) => void;
-  } = {}
-) {
+export function useWebsocket(options: {
+  reconnectInterval?: number;
+  maxReconnectAttempts?: number;
+  handleMessage: (
+    message: MessageToClient,
+    sendMessage: (message: MessageToServer) => void
+  ) => void;
+}) {
   const url = useWebsocketUrl();
   const {
     reconnectInterval = 3000,
@@ -106,37 +106,40 @@ export function useWebsocket(
     reconnectInterval,
   ]);
 
+  const sendMessage = useCallback(
+    (message: MessageToServer) => {
+      console.log("Sending message to server:", message);
+      if (socket?.readyState === WebSocket.OPEN) {
+        socket.send(JSON.stringify(message));
+        return { OK: true };
+      } else {
+        console.warn(
+          `WebSocket is not connected; cannot send message ${JSON.stringify(
+            message
+          )}`
+        );
+        return { OK: false, error: "WebSocket is not connected" };
+      }
+    },
+    [socket]
+  );
+
   useEffect(() => {
     if (!socket || !handleMessage) return;
     // eslint-disable-next-line react-hooks/immutability
     socket.onmessage = (event) => {
       try {
         const message: MessageToClient = JSON.parse(event.data);
-        handleMessage(message);
+        handleMessage(message, sendMessage);
       } catch (error) {
         console.error("Failed to parse WebSocket message:", error);
       }
     };
-  }, [socket, handleMessage]);
+  }, [socket, handleMessage, sendMessage]);
 
   return {
     socket,
     connectionState,
-    sendMessage: useCallback(
-      (message: MessageToServer) => {
-        if (socket?.readyState === WebSocket.OPEN) {
-          socket.send(JSON.stringify(message));
-          return { OK: true };
-        } else {
-          console.warn(
-            `WebSocket is not connected; cannot send message ${JSON.stringify(
-              message
-            )}`
-          );
-          return { OK: false, error: "WebSocket is not connected" };
-        }
-      },
-      [socket]
-    ),
+    sendMessage,
   };
 }

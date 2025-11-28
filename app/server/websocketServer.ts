@@ -12,7 +12,8 @@ type Room = {
   outputClients: Map<WebSocket, number>;
   inputClients: Map<WebSocket, number>;
   currentBpm: number;
-  lastBeatTimestamp: number;
+  lastSyncedBeatNumber: number;
+  lastSyncedBeatTimestamp: number;
 };
 
 type WebSocketServerOptions = {
@@ -46,9 +47,23 @@ export async function startWebSocketServer(
     socket.on("close", () => {
       console.log("WebSocket connection closed");
       connectedClients.delete(socket);
-      rooms.forEach((room) => {
+      rooms.forEach((room, roomName) => {
         room.outputClients.delete(socket);
         room.inputClients.delete(socket);
+        const noClientsLeft =
+          room.outputClients.size === 0 && room.inputClients.size === 0;
+        if (noClientsLeft) {
+          console.log(`No clients left in room ${roomName}, deleting room`);
+          rooms.delete(roomName);
+        } else
+          broadcastToAllClientsInRoom(connectionsState, roomName, {
+            type: "ROOM_STATE_UPDATE",
+            roomName,
+            roomState: {
+              inputClients: Array.from(room.inputClients.values()),
+              outputClients: Array.from(room.outputClients.values()),
+            },
+          });
       });
     });
 
@@ -84,7 +99,8 @@ function handleMessage(
     case "JOIN_ROOM_REQUEST": {
       const room: Room = connectionsState.rooms.get(message.roomName) || {
         currentBpm: 120,
-        lastBeatTimestamp: performance.now() + performance.timeOrigin,
+        lastSyncedBeatNumber: 0,
+        lastSyncedBeatTimestamp: performance.now() + performance.timeOrigin,
         inputClients: new Map<WebSocket, number>(),
         outputClients: new Map<WebSocket, number>(),
       };
@@ -98,6 +114,7 @@ function handleMessage(
       const inputClients = Array.from(room.inputClients.values());
       const outputClients = Array.from(room.outputClients.values());
 
+      const { lastBeatNumber, nextBeatTimestamp } = getBeat(room);
       sendToClient(socket, {
         type: "JOIN_ROOM_REPLY",
         userId,
@@ -106,7 +123,8 @@ function handleMessage(
           outputClients,
         },
         bpm: room.currentBpm,
-        nextBeatTimestamp: getNextBeatTimestamp(room),
+        lastBeatNumber,
+        nextBeatTimestamp,
       });
       return broadcastToAllClientsInRoom(connectionsState, message.roomName, {
         type: "ROOM_STATE_UPDATE",
@@ -133,14 +151,60 @@ function handleMessage(
       }
       const now = performance.now() + performance.timeOrigin;
       room.currentBpm = message.bpm;
-      room.lastBeatTimestamp = now;
+      room.lastSyncedBeatTimestamp = now;
 
       broadcastToAllClientsInRoom(connectionsState, message.roomName, {
         type: "SET_TEMPO",
+        roomName: message.roomName,
         bpm: message.bpm,
         actionTimestamp: message.actionTimestamp,
+        nextBeatNumber: message.nextBeatNumber,
         nextBeatTimestamp: message.nextBeatTimestamp,
       });
+      return;
+    }
+
+    case "SYNC_BEAT": {
+      console.log(
+        "SYNC_BEAT received for room",
+        message.roomName,
+        "beatNumber",
+        message.beatNumber,
+        "beatTimestamp",
+        message.beatTimestamp
+      );
+      const room = connectionsState.rooms.get(message.roomName);
+      if (!room) {
+        console.error(`Room ${message.roomName} not found for SYNC_BEAT`);
+        return;
+      }
+
+      room.lastSyncedBeatNumber = message.beatNumber;
+      room.lastSyncedBeatTimestamp = message.beatTimestamp;
+
+      for (const [outputClient] of room.outputClients) {
+        if (
+          outputClient !== socket &&
+          outputClient.readyState === WebSocket.OPEN
+        ) {
+          sendToClient(outputClient, {
+            type: "SYNC_BEAT",
+            roomName: message.roomName,
+            beatNumber: message.beatNumber,
+            beatTimestamp: message.beatTimestamp,
+          });
+        }
+      }
+      for (const [inputClient] of room.inputClients) {
+        if (inputClient.readyState === WebSocket.OPEN) {
+          sendToClient(inputClient, {
+            type: "SYNC_BEAT",
+            roomName: message.roomName,
+            beatNumber: message.beatNumber,
+            beatTimestamp: message.beatTimestamp,
+          });
+        }
+      }
       return;
     }
 
@@ -176,20 +240,40 @@ function broadcastToAllClientsInRoom(
   const messageString = JSON.stringify(message);
   const room = connectionsState.rooms.get(roomName);
   if (room) {
-    room.outputClients.forEach((_, client) => {
-      if (client.readyState === WebSocket.OPEN) {
-        client.send(messageString);
-      }
-    });
+    {
+      room.outputClients.forEach((_, client) => {
+        if (client.readyState === WebSocket.OPEN) {
+          client.send(messageString);
+        }
+      });
+      room.inputClients.forEach((_, client) => {
+        if (client.readyState === WebSocket.OPEN) {
+          client.send(messageString);
+        }
+      });
+    }
   }
 }
 
 function getNextBeatTimestamp(room: Room): number {
   const now = performance.now() + performance.timeOrigin;
   const beatInterval = (60 / room.currentBpm) * 1000;
-  const timeSinceLastBeat = now - room.lastBeatTimestamp;
+  const timeSinceLastBeat = now - room.lastSyncedBeatTimestamp;
   return (
-    room.lastBeatTimestamp +
+    room.lastSyncedBeatTimestamp +
     Math.ceil(timeSinceLastBeat / beatInterval) * beatInterval
   );
+}
+function getBeat(room: Room): {
+  lastBeatNumber: number;
+  nextBeatTimestamp: number;
+} {
+  const now = performance.now() + performance.timeOrigin;
+  const beatInterval = (60 / room.currentBpm) * 1000;
+  const timeSinceLastBeat = now - room.lastSyncedBeatTimestamp;
+  const beatsSinceLastSync = Math.floor(timeSinceLastBeat / beatInterval);
+  const lastBeatNumber = room.lastSyncedBeatNumber + beatsSinceLastSync;
+  const nextBeatTimestamp =
+    room.lastSyncedBeatTimestamp + (beatsSinceLastSync + 1) * beatInterval;
+  return { lastBeatNumber, nextBeatTimestamp };
 }

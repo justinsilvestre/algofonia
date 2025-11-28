@@ -13,6 +13,9 @@ export function getToneControls(
     setBpm: (bpm: number) => {
       Tone.getTransport().bpm.value = bpm;
     },
+    getBpm: () => {
+      return Tone.getTransport().bpm.value;
+    },
   };
 }
 
@@ -76,7 +79,6 @@ export const channels = [
       const gainValue = frontToBack / 100;
       gain.gain.rampTo(gainValue);
       console.log("Drone chord frontToBack:", frontToBack);
-      // synth.volume.rampTo(frontToBack / 100);
     },
   }),
   createChannel({

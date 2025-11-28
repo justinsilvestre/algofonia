@@ -1,6 +1,10 @@
 "use client";
 import { useCallback, useEffect, useRef, useState } from "react";
-import { MessageToClient, RoomState } from "../WebsocketMessage";
+import {
+  MessageToClient,
+  MessageToServer,
+  RoomState,
+} from "../WebsocketMessage";
 import { useWebsocket } from "../useWebsocket";
 import { useServerTimeSync } from "./useServerTimeSync";
 import { startBeats } from "./startBeats";
@@ -17,7 +21,7 @@ export default function OutputClientPage() {
   const [debug] = useState<boolean>(false);
   const [debugText, setDebugText] = useState<string>("");
 
-  const [userId, setUserId] = useState<number>(0);
+  const [userId, setUserId] = useState<number | null>(null);
   const [inputClients, setInputClients] = useState<
     Map<number, InputClientState>
   >(new Map());
@@ -33,6 +37,11 @@ export default function OutputClientPage() {
     input: inputToTone,
     setBpm,
   } = tone;
+  const getBpm = useCallback(() => {
+    return toneControls ? toneControls.getBpm() : 120;
+  }, [toneControls]);
+
+  const beatsCountRef = useRef<number>(0);
 
   const [roomState, setRoomState] = useState<RoomState>({
     inputClients: [],
@@ -40,20 +49,39 @@ export default function OutputClientPage() {
   });
   const { connectionState, sendMessage } = useWebsocket({
     handleMessage: useCallback(
-      (message: MessageToClient) => {
+      (
+        message: MessageToClient,
+        sendMessage: (message: MessageToServer) => void
+      ) => {
         console.log("Received message from server:", message);
         switch (message.type) {
           case "JOIN_ROOM_REPLY":
+            const { userId } = message;
+            beatsCountRef.current = message.lastBeatNumber;
             nextBeatTimestampRef.current = message.nextBeatTimestamp;
             setUserId(message.userId);
             setRoomState(message.roomState);
 
             setBpm(message.bpm);
             startBeats(
-              message.bpm,
               message.nextBeatTimestamp,
+              getBpm,
+              beatsCountRef,
+              nextBeatTimestampRef,
               offsetFromServerTimeRef,
               () => {
+                console.log("BEAT #" + beatsCountRef.current);
+                const outputClients = message.roomState.outputClients;
+                const isFirstOutputClient = outputClients[0] === userId;
+                if (isFirstOutputClient && beatsCountRef.current % 20 === 0) {
+                  sendMessage({
+                    type: "SYNC_BEAT",
+                    roomName: getRoomName(),
+                    beatNumber: beatsCountRef.current + 1,
+                    beatTimestamp: nextBeatTimestampRef.current!,
+                  });
+                }
+
                 const flashContainer =
                   document.getElementById("flash-container");
                 // Flash white
@@ -126,6 +154,7 @@ export default function OutputClientPage() {
         toneControls,
         inputToTone,
         setBpm,
+        getBpm,
       ]
     ),
   });
@@ -169,7 +198,10 @@ export default function OutputClientPage() {
       <div id="flash-container" className="w-screen h-screen p-4">
         <h1>Listen</h1>
         <p>Room name: {getRoomName()}</p>
-        <p>Your user ID: {userId}</p>
+        <p>
+          Your user ID: {userId}{" "}
+          {roomState.outputClients[0] === userId ? "(tempo source)" : ""}
+        </p>
         {debug && <p>{debugText}</p>}
 
         <p>{roomState.inputClients.length} input clients connected</p>

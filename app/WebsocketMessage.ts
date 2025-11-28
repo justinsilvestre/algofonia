@@ -11,6 +11,7 @@ export type MessageToClient =
       userId: number;
       roomState: RoomState;
       bpm: number;
+      lastBeatNumber: number;
       nextBeatTimestamp: number;
     }
   | {
@@ -20,9 +21,17 @@ export type MessageToClient =
     }
   | {
       type: "SET_TEMPO";
+      roomName: string;
       bpm: number;
       actionTimestamp: number;
+      nextBeatNumber: number;
       nextBeatTimestamp: number;
+    }
+  | {
+      type: "SYNC_BEAT";
+      roomName: string;
+      beatNumber: number;
+      beatTimestamp: number;
     }
   | MotionInputMessageToClient;
 
@@ -56,6 +65,7 @@ export type MessageToServer =
       roomName: string;
       bpm: number;
       actionTimestamp: number;
+      nextBeatNumber: number;
       nextBeatTimestamp: number;
     }
   | {
@@ -65,5 +75,12 @@ export type MessageToServer =
       frontToBack: number;
       around: number;
       actionTimestamp: number;
+      lastBeatNumber: number;
       nextBeatTimestamp: number;
+    }
+  | {
+      type: "SYNC_BEAT";
+      roomName: string;
+      beatNumber: number;
+      beatTimestamp: number;
     };
