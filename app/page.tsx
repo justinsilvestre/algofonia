@@ -6,6 +6,7 @@ import { startBeats } from "./listen/startBeats";
 import { useServerTimeSync } from "./listen/useServerTimeSync";
 import { getOrientationControlFromEvent } from "./movement-test/getOrientationControlFromEvent";
 import { getRoomName } from "./getRoomName";
+import { useCanvas, MotionVisualsCanvas } from "./MotionVisualsCanvas";
 
 export default function InputClientPage() {
   const [debug] = useState<boolean>(false);
@@ -58,6 +59,23 @@ export default function InputClientPage() {
 
   const movement = useMovement();
 
+  const lastSentOrientationRef = useRef<{
+    frontToBack: number;
+    around: number;
+    alpha: number | null;
+    beta: number | null;
+    gamma: number | null;
+  }>({
+    frontToBack: orientationControl.frontToBack,
+    around: orientationControl.around,
+    alpha: orientationControl.alpha,
+    beta: orientationControl.beta,
+    gamma: orientationControl.gamma,
+  });
+
+  const canvas = useCanvas(lastSentOrientationRef);
+  const { pulse } = canvas;
+
   const { connectionState, sendMessage } = useWebsocket({
     handleMessage: useCallback(
       (message: MessageToClient) => {
@@ -77,18 +95,8 @@ export default function InputClientPage() {
               offsetFromServerTimeRef,
               () => {
                 console.log("BEAT #" + beatsCountRef.current);
-                const flashContainer =
-                  document.getElementById("flash-container");
-                // Flash white
-                const flashDuration = 100; // Duration of the white flash in milliseconds
-                if (flashContainer)
-                  flashContainer.style.backgroundColor = "white";
-                // Reset background after flash duration
-                setTimeout(() => {
-                  const flashContainer =
-                    document.getElementById("flash-container");
-                  if (flashContainer) flashContainer.style.backgroundColor = "";
-                }, flashDuration);
+                // Trigger orb beat pulse
+                pulse();
               }
             );
             break;
@@ -108,16 +116,8 @@ export default function InputClientPage() {
           }
         }
       },
-      [offsetFromServerTimeRef, getBpm, processSyncReply]
+      [offsetFromServerTimeRef, getBpm, processSyncReply, pulse]
     ),
-  });
-
-  const lastSentOrientationRef = useRef<{
-    frontToBack: number;
-    around: number;
-  }>({
-    frontToBack: orientationControl.frontToBack,
-    around: orientationControl.around,
   });
 
   useEffect(() => {
@@ -201,6 +201,9 @@ export default function InputClientPage() {
             lastSentOrientationRef.current = {
               frontToBack: newOrientation.frontToBack,
               around: newOrientation.around,
+              alpha: newOrientation.alpha,
+              beta: newOrientation.beta,
+              gamma: newOrientation.gamma,
             };
           }
         }
@@ -233,7 +236,14 @@ export default function InputClientPage() {
         className="w-screen h-screen bg-black text-center flex flex-col items-center justify-center"
         onClick={start}
       >
-        <button className="text-white">tap to start</button>
+        <button className="text-white">
+          1. lock your device
+          <br />
+          in <strong>portrait mode</strong>
+          <br />
+          <br />
+          2. tap to start
+        </button>
       </div>
     );
   }
@@ -250,22 +260,13 @@ export default function InputClientPage() {
     );
   }
 
-  const blue = Math.max(
-    0,
-    Math.min(255, Math.round((orientationControl.frontToBack / 100) * 255))
-  );
-  const green = Math.max(
-    0,
-    Math.min(255, Math.round((orientationControl.around / 100) * 255))
-  );
-
   return (
     <div
       id="container"
-      className="w-screen h-screen text-white bg-black"
-      style={{ backgroundColor: `rgb(0, ${green}, ${blue})` }}
+      className="w-full h-full text-white bg-black relative overflow-hidden"
     >
-      <div id="flash-container" className="w-screen h-screen p-4">
+      <MotionVisualsCanvas canvas={canvas} />
+      <div className="w-screen h-screen p-4 relative z-10">
         <div className="text-right">
           <button
             className="bg-black  text-white px-3 py-2 rounded-lg  m-4"
@@ -340,6 +341,10 @@ export default function InputClientPage() {
                         frontToBack: newValue,
                       };
                       setOrientationControl(newOrientation);
+                      lastSentOrientationRef.current = {
+                        ...lastSentOrientationRef.current,
+                        frontToBack: newValue,
+                      };
                       const now = performance.now() + performance.timeOrigin;
                       sendMessage({
                         type: "MOTION_INPUT",
@@ -384,6 +389,10 @@ export default function InputClientPage() {
                         around: newValue,
                       };
                       setOrientationControl(newOrientation);
+                      lastSentOrientationRef.current = {
+                        ...lastSentOrientationRef.current,
+                        around: newValue,
+                      };
                       const now = performance.now() + performance.timeOrigin;
                       sendMessage({
                         type: "MOTION_INPUT",
