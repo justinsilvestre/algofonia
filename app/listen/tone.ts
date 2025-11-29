@@ -8,7 +8,6 @@ export function getToneControls(
   const transport = Tone.getTransport();
   let started = false;
   const loop = new Tone.Loop((time) => {
-    console.log("Tone loop callback at time:", time);
     loopCallback(time);
   }, "1m");
   return {

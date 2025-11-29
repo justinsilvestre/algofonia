@@ -17,7 +17,6 @@ export const arpeggio = createChannel({
     };
   },
   onLoop: (tone, { synth, notes }, time) => {
-    console.log("Looping arpeggio at time:", time);
     synth.triggerAttackRelease(notes[0], "8n", time);
     synth.triggerAttackRelease(
       notes[1],
