@@ -6,11 +6,18 @@ import { startBeats } from "./listen/startBeats";
 import { useServerTimeSync } from "./listen/useServerTimeSync";
 import { getOrientationControlFromEvent } from "./movement-test/getOrientationControlFromEvent";
 import { getRoomName } from "./getRoomName";
-import { useCanvas, MotionVisualsCanvas } from "./MotionVisualsCanvas";
+import { useCanvas, MotionVisuals } from "./MotionVisuals";
 
 export default function InputClientPage() {
   const [debug] = useState<boolean>(false);
   const [debugText, setDebugText] = useState<string>("");
+  const [visualsAreShowing, setVisualsAreShowing] = useState<boolean>(() => {
+    if (typeof window !== "undefined") {
+      const params = new URLSearchParams(window.location.search);
+      return params.get("disable_visuals") !== "true";
+    }
+    return true;
+  });
   const controlsOverrideStateRef = useRef<{
     frontToBack: boolean;
     around: boolean;
@@ -250,22 +257,35 @@ export default function InputClientPage() {
 
   if (connectionState.type !== "connected") {
     return (
-      <>
-        <h1>input client</h1>
-        <p>Connection status: {connectionState.type}</p>
-        {connectionState.type === "error" && (
-          <p>Error message: {connectionState.message}</p>
-        )}
-      </>
+      <div className="w-screen h-dvh bg-black text-white flex flex-col items-center justify-center p-4">
+        <div className="text-center space-y-4"></div>
+        <h1 className="text-2xl font-bold">Input Client</h1>
+        <div className="bg-white/10 rounded-lg p-4 backdrop-blur-sm">
+          <p className="text-lg mb-2">
+            You&apos;ve been disconnected. Refresh the page to reconnect.
+          </p>
+          {connectionState.type === "error" && (
+            <p className="text-red-400 text-sm">
+              Error: {connectionState.message}
+            </p>
+          )}
+          {connectionState.type === "connecting" && (
+            <div className="flex items-center justify-center space-x-2">
+              <div className="w-2 h-2 bg-white rounded-full animate-pulse"></div>
+              <span className="text-sm">Connecting...</span>
+            </div>
+          )}
+        </div>
+      </div>
     );
   }
 
   return (
     <div
       id="container"
-      className="w-full h-full text-white bg-black relative overflow-hidden"
+      className="w-full h-dvh text-white bg-black relative overflow-hidden"
     >
-      <MotionVisualsCanvas canvas={canvas} />
+      {visualsAreShowing ? <MotionVisuals canvas={canvas} /> : null}
       <div className="w-screen h-screen p-4 relative z-10">
         <div className="text-right">
           <button
@@ -341,10 +361,7 @@ export default function InputClientPage() {
                         frontToBack: newValue,
                       };
                       setOrientationControl(newOrientation);
-                      lastSentOrientationRef.current = {
-                        ...lastSentOrientationRef.current,
-                        frontToBack: newValue,
-                      };
+                      lastSentOrientationRef.current = newOrientation;
                       const now = performance.now() + performance.timeOrigin;
                       sendMessage({
                         type: "MOTION_INPUT",
@@ -389,10 +406,7 @@ export default function InputClientPage() {
                         around: newValue,
                       };
                       setOrientationControl(newOrientation);
-                      lastSentOrientationRef.current = {
-                        ...lastSentOrientationRef.current,
-                        around: newValue,
-                      };
+                      lastSentOrientationRef.current = newOrientation;
                       const now = performance.now() + performance.timeOrigin;
                       sendMessage({
                         type: "MOTION_INPUT",
@@ -409,6 +423,15 @@ export default function InputClientPage() {
                   />
                 </div>
               </div>
+            </div>
+
+            <div className="mb-4 text-right">
+              <button
+                className="bg-white/10 text-white px-3 py-2 rounded-lg"
+                onClick={() => setVisualsAreShowing(!visualsAreShowing)}
+              >
+                {visualsAreShowing ? "Hide" : "Show"} Visuals
+              </button>
             </div>
           </div>
         )}
