@@ -943,7 +943,7 @@ export function MotionVisuals({ canvas }: { canvas: CanvasInterface }) {
       const yMax = window.innerHeight - yMin;
       const currentOrbYPercent = Math.max(0, Math.min(100, frontToBack));
       const currentOrbYPixels =
-        (currentOrbYPercent / 100) * (yMax - yMin) + yMin;
+        yMax - (currentOrbYPercent / 100) * (yMax - yMin);
       // Interpolate main orb color based on frontToBack position
       const colorLerpFactor = frontToBack / 100; // 0 = low color, 1 = high color
       const baseMainOrbColor = {
@@ -1044,7 +1044,7 @@ export function MotionVisuals({ canvas }: { canvas: CanvasInterface }) {
         Math.min(100, lastSentOrientationRef.current.frontToBack)
       );
       const orbYPixels =
-        yMin + (orbYPercent / 100) * (window.innerHeight - yMin * 2);
+        (window.innerHeight - yMin) - (orbYPercent / 100) * (window.innerHeight - yMin * 2);
 
       // Calculate orb positions for particle attraction
       const orbitRadius = ORB_SETTINGS.ORBIT_RADIUS;
@@ -1286,7 +1286,7 @@ export function MotionVisuals({ canvas }: { canvas: CanvasInterface }) {
       const yMax = window.innerHeight - yMin;
       const currentOrbYPercent = Math.max(0, Math.min(100, frontToBack));
       const currentOrbYPixels =
-        (currentOrbYPercent / 100) * (yMax - yMin) + yMin;
+        yMax - (currentOrbYPercent / 100) * (yMax - yMin);
 
       // Calculate orb positions and colors (same as canvas version)
       const colorLerpFactor = frontToBack / 100;
