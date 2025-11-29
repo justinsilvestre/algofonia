@@ -869,8 +869,7 @@ export function useCanvas(
     alpha: number | null;
     beta: number | null;
     gamma: number | null;
-  }>,
-  renderingMode: string = "canvas"
+  }>
 ) {
   // Beat visualization state
   const pulsing = useRef(0);
@@ -878,9 +877,49 @@ export function useCanvas(
   // Canvas rendering
   const elementRef = useRef<HTMLCanvasElement>(null);
 
+  return {
+    elementRef,
+    lastSentOrientationRef,
+    pulsing,
+    pulse: useCallback(() => {
+      console.log("Canvas pulse triggered");
+      pulsing.current = 1.0;
+      setTimeout(() => {
+        pulsing.current = 0;
+      }, 150);
+    }, []),
+  };
+}
+
+export function MotionVisuals({ canvas }: { canvas: CanvasInterface }) {
+  const { elementRef, lastSentOrientationRef, pulsing } = canvas;
+  const particleIdRef = useRef(0);
   // Particle system state
   const particlesRef = useRef<Set<Particle>>(new Set());
-  const particleIdRef = useRef(0);
+
+  // Detect WebGL support once
+  const renderingMode = useMemo(() => {
+    if (typeof window === "undefined") return "canvas";
+
+    try {
+      // Create a temporary canvas to test WebGL support
+      const testCanvas = document.createElement("canvas");
+      const gl =
+        testCanvas.getContext("webgl") ||
+        testCanvas.getContext("experimental-webgl");
+
+      if (gl && gl instanceof WebGLRenderingContext) {
+        console.log("WebGL supported, using WebGL rendering");
+        return "webgl";
+      } else {
+        console.log("WebGL not supported, falling back to Canvas 2D");
+        return "canvas";
+      }
+    } catch (error) {
+      console.warn("WebGL detection failed, using Canvas 2D fallback:", error);
+      return "canvas";
+    }
+  }, []);
 
   const render = useCallback(
     (ctx: CanvasRenderingContext2D) => {
@@ -989,7 +1028,7 @@ export function useCanvas(
       ctx.globalAlpha = 1;
       ctx.shadowBlur = 0;
     },
-    [lastSentOrientationRef]
+    [lastSentOrientationRef, elementRef]
   );
 
   // Particle system animation loop
@@ -1192,7 +1231,7 @@ export function useCanvas(
     }, 1000 / 60); // 60 FPS
 
     return () => clearInterval(interval);
-  }, [lastSentOrientationRef, pulsing]);
+  }, [lastSentOrientationRef, pulsing, renderingMode]);
 
   // Cache shader programs for performance
   const shaderProgramRef = useRef<WebGLProgram | null>(null);
@@ -1354,52 +1393,8 @@ export function useCanvas(
       );
       middleOrb.renderToWebGL(gl, program, canvas.width, canvas.height);
     },
-    [lastSentOrientationRef]
+    [lastSentOrientationRef, elementRef]
   );
-
-  return {
-    elementRef,
-    render,
-    renderWebGL,
-    particles: particlesRef,
-    lastSentOrientationRef,
-    pulsing,
-    pulse: useCallback(() => {
-      console.log("Canvas pulse triggered");
-      pulsing.current = 1.0;
-      setTimeout(() => {
-        pulsing.current = 0;
-      }, 150);
-    }, []),
-  };
-}
-
-export function MotionVisuals({ canvas }: { canvas: CanvasInterface }) {
-  const { elementRef, render, renderWebGL } = canvas;
-
-  // Detect WebGL support once
-  const renderingMode = useMemo(() => {
-    if (typeof window === "undefined") return "canvas";
-
-    try {
-      // Create a temporary canvas to test WebGL support
-      const testCanvas = document.createElement("canvas");
-      const gl =
-        testCanvas.getContext("webgl") ||
-        testCanvas.getContext("experimental-webgl");
-
-      if (gl && gl instanceof WebGLRenderingContext) {
-        console.log("WebGL supported, using WebGL rendering");
-        return "webgl";
-      } else {
-        console.log("WebGL not supported, falling back to Canvas 2D");
-        return "canvas";
-      }
-    } catch (error) {
-      console.warn("WebGL detection failed, using Canvas 2D fallback:", error);
-      return "canvas";
-    }
-  }, []);
 
   // WebGL rendering loop
   useEffect(() => {

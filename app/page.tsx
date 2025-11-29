@@ -285,14 +285,16 @@ export default function InputClientPage() {
       id="container"
       className="w-full h-dvh text-white bg-black relative overflow-hidden"
     >
-      {visualsAreShowing ? <MotionVisuals canvas={canvas} /> : null}
+      {visualsAreShowing ? (
+        <MotionVisuals canvas={canvas} key={String(visualsAreShowing)} />
+      ) : null}
       <div className="w-screen h-screen p-4 relative z-10">
         <div className="text-right">
           <button
             className="bg-black  text-white px-3 py-2 rounded-lg  m-4"
             onClick={() => setShowMonitor(!showMonitor)}
           >
-            {showMonitor ? "Hide" : "Show"} Monitor
+            {showMonitor ? "Hide Monitor" : "Show Monitor"}
           </button>
         </div>
 
@@ -430,7 +432,7 @@ export default function InputClientPage() {
                 className="bg-white/10 text-white px-3 py-2 rounded-lg"
                 onClick={() => setVisualsAreShowing(!visualsAreShowing)}
               >
-                {visualsAreShowing ? "Hide" : "Show"} Visuals
+                {visualsAreShowing ? "Hide Visuals" : "Show Visuals"}
               </button>
             </div>
           </div>
