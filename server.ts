@@ -84,28 +84,40 @@ async function startServer() {
       const localIp = getLocalIp();
       console.log("🎵 Ready to make music!");
 
+      function logInBox(message: string[]) {
+        const boxWidth = Math.max(...message.map((line) => line.length)) + 4;
+        console.log("*".repeat(boxWidth));
+        message.forEach((line) => {
+          const padding = " ".repeat(boxWidth - line.length - 3);
+          console.log(`* ${line}${padding}*`);
+        });
+        console.log("*".repeat(boxWidth));
+      }
       if (process.env.TUNNEL) {
-        console.log("*".repeat(80));
-        console.log(
-          `* TUNNELING ENABLED - make sure to use the tunnel URL provided by your tunneling service`
-        );
-        console.log("*".repeat(80));
+        logInBox([
+          "TUNNELING ENABLED - to access the dev site from anywhere, use the provided tunnel URL.",
+          "",
+          `LISTEN TO MUSIC at:`,
+          `   🔊 http${useHttps ? "s" : ""}://<your-tunnel-url>/listen`,
+          `   Or, on this machine, at http${
+            useHttps ? "s" : ""
+          }://localhost:${port}/listen`,
+          "",
+          `MAKE MUSIC on local network at:`,
+          `   🎶 http${useHttps ? "s" : ""}://${localIp}:${port}`,
+        ]);
       } else {
-        console.log("*".repeat(80));
-        console.log(
-          `* LISTEN TO MUSIC at: \n*      🔊 http${
+        logInBox([
+          "",
+          `LISTEN TO MUSIC at:`,
+          `   🔊 http${useHttps ? "s" : ""}://${localIp}:${port}/listen`,
+          `   Or, on this machine, at http${
             useHttps ? "s" : ""
-          }://${localIp}:${port}/listen \n*      Or, on this machine, at http${
-            useHttps ? "s" : ""
-          }://localhost:${port}/listen`
-        );
-        console.log("*".repeat(80));
-        console.log(
-          `* MAKE MUSIC on local network at: \n*      🎶 http${
-            useHttps ? "s" : ""
-          }://${localIp}:${port}`
-        );
-        console.log("*".repeat(80));
+          }://localhost:${port}/listen`,
+          "",
+          `MAKE MUSIC on local network at:`,
+          `   🎶 http${useHttps ? "s" : ""}://${localIp}:${port}`,
+        ]);
       }
     });
 
