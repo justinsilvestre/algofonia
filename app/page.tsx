@@ -74,7 +74,7 @@ export default function InputClientPage() {
   });
 
   const canvas = useCanvas(lastSentOrientationRef);
-  const { setBeatPulse } = canvas;
+  const { pulse } = canvas;
 
   const { connectionState, sendMessage } = useWebsocket({
     handleMessage: useCallback(
@@ -96,9 +96,7 @@ export default function InputClientPage() {
               () => {
                 console.log("BEAT #" + beatsCountRef.current);
                 // Trigger orb beat pulse
-                setBeatPulse(1.0);
-                // Reset beat pulse after brief duration
-                setTimeout(() => setBeatPulse(0), 150);
+                pulse();
               }
             );
             break;
@@ -118,7 +116,7 @@ export default function InputClientPage() {
           }
         }
       },
-      [offsetFromServerTimeRef, getBpm, processSyncReply, setBeatPulse]
+      [offsetFromServerTimeRef, getBpm, processSyncReply, pulse]
     ),
   });
 
@@ -268,7 +266,6 @@ export default function InputClientPage() {
       className="w-full h-full text-white bg-black relative overflow-hidden"
     >
       <MotionVisualsCanvas canvas={canvas} />
-
       <div className="w-screen h-screen p-4 relative z-10">
         <div className="text-right">
           <button
@@ -344,6 +341,10 @@ export default function InputClientPage() {
                         frontToBack: newValue,
                       };
                       setOrientationControl(newOrientation);
+                      lastSentOrientationRef.current = {
+                        ...lastSentOrientationRef.current,
+                        frontToBack: newValue,
+                      };
                       const now = performance.now() + performance.timeOrigin;
                       sendMessage({
                         type: "MOTION_INPUT",
@@ -388,6 +389,10 @@ export default function InputClientPage() {
                         around: newValue,
                       };
                       setOrientationControl(newOrientation);
+                      lastSentOrientationRef.current = {
+                        ...lastSentOrientationRef.current,
+                        around: newValue,
+                      };
                       const now = performance.now() + performance.timeOrigin;
                       sendMessage({
                         type: "MOTION_INPUT",
