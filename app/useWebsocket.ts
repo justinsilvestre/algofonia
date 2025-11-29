@@ -108,7 +108,6 @@ export function useWebsocket(options: {
 
   const sendMessage = useCallback(
     (message: MessageToServer) => {
-      console.log("Sending message to server:", message);
       if (socket?.readyState === WebSocket.OPEN) {
         socket.send(JSON.stringify(message));
         return { OK: true };

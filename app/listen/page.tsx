@@ -17,6 +17,8 @@ type InputClientState = {
   around: number;
 };
 
+const VERBOSE_LOGGING = false;
+
 export default function OutputClientPage() {
   const [debug] = useState<boolean>(false);
   const [debugText, setDebugText] = useState<string>("");
@@ -54,7 +56,8 @@ export default function OutputClientPage() {
         message: MessageToClient,
         sendMessage: (message: MessageToServer) => void
       ) => {
-        console.log("Received message from server:", message);
+        if (VERBOSE_LOGGING)
+          console.log("Received message from server:", message);
         switch (message.type) {
           case "JOIN_ROOM_REPLY":
             const { userId } = message;
@@ -72,7 +75,8 @@ export default function OutputClientPage() {
               nextBeatTimestampRef,
               offsetFromServerTimeRef,
               () => {
-                console.log("BEAT #" + beatsCountRef.current);
+                if (VERBOSE_LOGGING)
+                  console.log("BEAT #" + beatsCountRef.current);
                 sendMessage({
                   type: "SCHEDULE_BEAT",
                   roomName,

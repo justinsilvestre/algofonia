@@ -5,11 +5,25 @@ export type ToneControls = ReturnType<typeof getToneControls>;
 export function getToneControls(
   loopCallback: (time: Tone.Unit.Seconds) => void
 ) {
+  const transport = Tone.getTransport();
+  let started = false;
+  const loop = new Tone.Loop((time) => {
+    loopCallback(time);
+  }, "1m");
   return {
-    transport: Tone.getTransport(),
-    loop: new Tone.Loop((time) => {
-      loopCallback(time);
-    }, "4n"),
+    get started() {
+      return started;
+    },
+    transport,
+    loop,
+    start: (startBpm: number) => {
+      transport.start();
+      // set initial bpm
+      Tone.getTransport().bpm.value = startBpm;
+      loop.start(0);
+      started = true;
+      return Promise.resolve();
+    },
     setBpm: (bpm: number) => {
       Tone.getTransport().bpm.value = bpm;
     },
@@ -96,22 +110,43 @@ export const channels = [
         notes: ["G4", "A4", "D5", "F5"],
       };
     },
-    onLoop: (tone, { synth, notes }) => {
-      const sixteenthNoteMs = Tone.Time("16n").toMilliseconds();
-
-      synth.triggerAttackRelease(notes[0], "16n");
-      setTimeout(() => {
-        synth.triggerAttackRelease(notes[1], "16n");
-      }, sixteenthNoteMs);
-      setTimeout(() => {
-        synth.triggerAttackRelease(notes[2], "16n");
-      }, sixteenthNoteMs * 2);
-      setTimeout(() => {
-        synth.triggerAttackRelease(notes[3], "16n");
-      }, sixteenthNoteMs * 3);
+    onLoop: (tone, { synth, notes }, time) => {
+      console.log("Looping arpeggio at time:", time);
+      synth.triggerAttackRelease(notes[0], "8n", time);
+      synth.triggerAttackRelease(
+        notes[1],
+        "8n",
+        time + Tone.Time("8n").toSeconds() * 1
+      );
+      synth.triggerAttackRelease(
+        notes[2],
+        "8n",
+        time + Tone.Time("8n").toSeconds() * 2
+      );
+      synth.triggerAttackRelease(
+        notes[3],
+        "8n",
+        time + Tone.Time("8n").toSeconds() * 3
+      );
+      synth.triggerAttackRelease(
+        notes[2],
+        "8n",
+        time + Tone.Time("8n").toSeconds() * 4
+      );
+      synth.triggerAttackRelease(
+        notes[1],
+        "8n",
+        time + Tone.Time("8n").toSeconds() * 5
+      );
+      synth.triggerAttackRelease(
+        notes[0],
+        "8n",
+        time + Tone.Time("8n").toSeconds() * 6
+      );
     },
     respond: (tone, { gain }, { around }) => {
       const gainValue = around / 70;
+      console.log("Arpeggio around:", around, "setting gain to", gainValue);
       gain.gain.rampTo(gainValue);
     },
   }),

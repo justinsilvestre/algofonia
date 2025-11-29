@@ -1,4 +1,4 @@
-import { useState, useCallback } from "react";
+import { useState, useCallback, useRef } from "react";
 import * as Tone from "tone";
 import { MotionInputMessageToClient } from "../WebsocketMessage";
 import { channels, getToneControls, ToneControls } from "./tone";
@@ -26,40 +26,43 @@ export function useTone(startBpm: number = 120) {
     channels: {},
     channelsOrder: [],
   });
+  const channelsStateRef = useRef<{ [channelKey: string]: unknown }>({});
 
   const start = useCallback(() => {
     console.log("Starting Tone AudioContext...");
     Tone.start().then(() => {
       console.log("Tone AudioContext started");
-      const controls = getToneControls(() => {
-        setMusicState((musicState) => {
-          console.log("Updating music state on loop");
-          let newMusicState = { ...musicState };
-          for (const channelKey of musicState.channelsOrder) {
-            const channelDef = channels.find((c) => c.key === channelKey);
-            if (channelDef) {
-              const channelState = newMusicState.channels[channelKey].state;
-              const updatedChannelState = channelDef.onLoop(
-                controls,
-                // eslint-disable-next-line @typescript-eslint/no-explicit-any
-                channelState as unknown as any,
-                0
-              );
-              if (updatedChannelState && updatedChannelState !== channelState) {
-                newMusicState = {
-                  ...newMusicState,
-                  channels: {
-                    ...newMusicState.channels,
-                    [channelKey]: {
-                      ...newMusicState.channels[channelKey],
-                      state: updatedChannelState,
-                    },
-                  },
-                };
-              }
-            }
+      const controls = getToneControls((time) => {
+        const musicStateOverrides: {
+          [channelKey: string]: unknown;
+        } = {};
+        for (const channel of channels) {
+          const channelState = channelsStateRef.current[channel.key];
+          const newChannelState = channel.onLoop(
+            controls,
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
+            channelState as unknown as any,
+            time
+          );
+          if (newChannelState && newChannelState !== channelState) {
+            channelsStateRef.current[channel.key] = newChannelState;
+            musicStateOverrides[channel.key] = newChannelState;
           }
-          return newMusicState;
+        }
+        setMusicState((musicState) => {
+          for (const channelKey in musicStateOverrides) {
+            musicState = {
+              ...musicState,
+              channels: {
+                ...musicState.channels,
+                [channelKey]: {
+                  ...musicState.channels[channelKey],
+                  state: musicStateOverrides[channelKey],
+                },
+              },
+            };
+          }
+          return musicState;
         });
       });
       console.log("Initializing channels...");
@@ -71,6 +74,13 @@ export function useTone(startBpm: number = 120) {
             input: { frontToBack: 0, around: 0 },
             state: channel.initialize(controls),
           },
+        ])
+      );
+      // set ref
+      channelsStateRef.current = Object.fromEntries(
+        channels.map((channel) => [
+          channel.key,
+          initialChannels[channel.key].state,
         ])
       );
 
@@ -85,44 +95,40 @@ export function useTone(startBpm: number = 120) {
       });
 
       setControls(controls);
-      controls.transport.start();
-      // set initial bpm
-      controls.setBpm(musicState.bpm);
-      controls.loop.start(0);
+      controls.start(musicState.bpm).then(() => {
+        console.log("Tone transport started");
+      });
     });
-  }, [musicState.bpm]);
+  }, [musicState.bpm, channelsStateRef]);
 
   const input = useCallback(
-    (channelKey: string, message: MotionInputMessageToClient) => {
+    (_channelKey: string, message: MotionInputMessageToClient) => {
       if (!controls) {
         console.warn("ToneControls not initialized yet");
         return;
       }
-      const channel =
-        message.userId % 2
-          ? musicState.channels["drone chord"]
-          : musicState.channels["arpeggio"];
-      if (!channel) {
+      const channelKey = message.userId % 2 ? "drone chord" : "arpeggio";
+      const channelState = channelsStateRef.current[channelKey];
+      if (!channelState) {
         // Might be good to eventually show an error message in this case.
         console.warn("No channel with key", channelKey);
         return;
       } else {
-        const channelDef = channels.find((c) => c.key === channel.channelKey);
-        if (!channelDef) {
-          console.warn(
-            "No channel definition for channelKey",
-            channel.channelKey
-          );
+        const channel = channels.find((c) => c.key === channelKey);
+        if (!channel) {
+          console.warn("No channel definition for channelKey", channelKey);
           return;
         }
-        // Let the channel respond to the input
-        const updatedChannelState = channelDef.respond(
+        console.log("Processing input for channel", channelKey, message);
+        const updatedChannelState = channel.respond(
           controls,
           // eslint-disable-next-line @typescript-eslint/no-explicit-any
-          channel.state as unknown as any,
+          channelState as unknown as any,
           message
         );
-        if (updatedChannelState && updatedChannelState !== channel.state) {
+
+        if (updatedChannelState && updatedChannelState !== channelState) {
+          channelsStateRef.current[channelKey] = updatedChannelState;
           setMusicState((musicState) => ({
             ...musicState,
             channels: {
@@ -140,7 +146,7 @@ export function useTone(startBpm: number = 120) {
         }
       }
     },
-    [controls, musicState.channels]
+    [controls, channelsStateRef]
   );
 
   const setBpm = useCallback(
