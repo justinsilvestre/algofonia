@@ -32,7 +32,7 @@ export default function OutputClientPage() {
     useServerTimeSync();
 
   const nextBeatTimestampRef = useRef<number | null>(null);
-  const tone = useTone();
+  const tone = useTone(120, nextBeatTimestampRef, offsetFromServerTimeRef);
   const {
     controls: toneControls,
     musicState,

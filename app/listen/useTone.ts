@@ -1,7 +1,8 @@
-import { useState, useCallback, useRef } from "react";
+import { useState, useCallback, useRef, RefObject } from "react";
 import * as Tone from "tone";
 import { MotionInputMessageToClient } from "../WebsocketMessage";
-import { channels, getToneControls, ToneControls } from "./tone";
+import { getToneControls, ToneControls } from "./tone";
+import { channels } from "./channels";
 
 type MusicState = {
   bpm: number;
@@ -19,7 +20,11 @@ type MusicControlChannelInputState = {
   around: number;
 };
 
-export function useTone(startBpm: number = 120) {
+export function useTone(
+  startBpm: number = 120,
+  nextBeatTimestampRef: RefObject<number | null>,
+  offsetFromServerTimeRef?: RefObject<number | null>
+) {
   const [controls, setControls] = useState<ToneControls | null>(null);
   const [musicState, setMusicState] = useState<MusicState>({
     bpm: startBpm,
@@ -33,6 +38,7 @@ export function useTone(startBpm: number = 120) {
     Tone.start().then(() => {
       console.log("Tone AudioContext started");
       const controls = getToneControls((time) => {
+        console.log("Tone loop at time:", time);
         const musicStateOverrides: {
           [channelKey: string]: unknown;
         } = {};
@@ -95,11 +101,35 @@ export function useTone(startBpm: number = 120) {
       });
 
       setControls(controls);
-      controls.start(musicState.bpm).then(() => {
+      // wait till the next beat and then start
+      const startBpm = musicState.bpm;
+
+      const startOffsetSeconds = (() => {
+        const nextBeatTimestamp = nextBeatTimestampRef.current;
+        if (nextBeatTimestamp == null) {
+          console.warn(
+            "nextBeatTimestampRef is null, starting transport immediately"
+          );
+          return 0;
+        }
+        const now = Date.now();
+        let offsetFromServerTime = 0;
+        if (offsetFromServerTimeRef?.current != null) {
+          offsetFromServerTime = offsetFromServerTimeRef.current;
+        }
+        const timeUntilNextBeatMs =
+          nextBeatTimestamp - (now + offsetFromServerTime);
+        const offsetSeconds = timeUntilNextBeatMs / 1000;
+        console.log(
+          `Calculated start offset seconds: ${offsetSeconds} (timeUntilNextBeatMs: ${timeUntilNextBeatMs}, now: ${now}, nextBeatTimestamp: ${nextBeatTimestamp}, offsetFromServerTime: ${offsetFromServerTime})`
+        );
+        return Math.max(0, offsetSeconds);
+      })();
+      controls.start(startBpm, startOffsetSeconds).then(() => {
         console.log("Tone transport started");
       });
     });
-  }, [musicState.bpm, channelsStateRef]);
+  }, [musicState.bpm, nextBeatTimestampRef, offsetFromServerTimeRef]);
 
   const input = useCallback(
     (_channelKey: string, message: MotionInputMessageToClient) => {
