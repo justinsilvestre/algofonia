@@ -1,10 +1,10 @@
 This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
 
-## Development
+## Running a development server
 
 Because the app uses motion controls, some devices/browsers require the page to be served over HTTPS. This means that running the app locally requires one of two workarounds:
 
-### Local HTTPS server
+### Method #1: Local HTTPS server
 
 The advantage of this method is that it is more reliable, and doesn't rely on a working Internet connection.
 
@@ -19,7 +19,7 @@ The advantage of this method is that it is more reliable, and doesn't rely on a 
 
 The disadvantage of this method is that step 3 can be tricky, since browsers rightfully make it difficult to open a website like this without a valid HTTPS cert.
 
-### Cloudflare Tunnel
+### Method #2: Cloudflare Tunnel
 
 This method requires an internet connection and relies on the free "Cloudflare Tunnels" service, which has no uptime guarantees, but has generally worked pretty well.
 

@@ -14,7 +14,11 @@ export default function InputClientPage() {
   const [visualsAreShowing, setVisualsAreShowing] = useState<boolean>(() => {
     if (typeof window !== "undefined") {
       const params = new URLSearchParams(window.location.search);
-      return params.get("disable_visuals") !== "true";
+      const disableVisualsParam = params.get("disable_visuals");
+      if (!disableVisualsParam) return true;
+      if (disableVisualsParam === "0" || disableVisualsParam === "false")
+        return false;
+      return true;
     }
     return true;
   });
@@ -34,7 +38,6 @@ export default function InputClientPage() {
 
   const [showMonitor, setShowMonitor] = useState(false);
   const [orientationControl, setOrientationControl] = useState<{
-    /** right-way up = 100, upside down = 0 */
     frontToBack: number;
     around: number;
     alpha: number | null;

@@ -1,5 +1,6 @@
 import * as Tone from "tone";
 import { MotionInputMessageToClient } from "../WebsocketMessage";
+import { Key } from "tonal";
 
 export type ToneControls = ReturnType<typeof getToneControls>;
 export function getToneControls(
@@ -30,6 +31,11 @@ export function getToneControls(
     },
     getBpm: () => {
       return Tone.getTransport().bpm.value;
+    },
+    key: "C",
+    chordRootScaleDegree: 1,
+    getChord: (key: string, chordRootScaleDegree: number) => {
+      return Key.majorKey(key).chords[chordRootScaleDegree - 1];
     },
   };
 }

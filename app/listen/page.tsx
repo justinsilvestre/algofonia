@@ -10,6 +10,7 @@ import { useServerTimeSync } from "./useServerTimeSync";
 import { startBeats } from "./startBeats";
 import { useTone } from "./useTone";
 import { getRoomName } from "../getRoomName";
+import { channels } from "./channels";
 
 type InputClientState = {
   userId: number;
@@ -137,10 +138,11 @@ export default function OutputClientPage() {
             }
 
             const { userId: inputUserId, frontToBack, around } = message;
-            if (toneControls) {
-              inputToTone("drone chord", message);
-              inputToTone("arpeggio", message);
-            }
+            const userIdsToChannelKeys = getUserIdsToChannelKeys(
+              roomState.inputClients
+            );
+            const channelKey = userIdsToChannelKeys.get(inputUserId)!;
+            inputToTone(channelKey, message);
 
             // Update the specific input client's state
             setInputClients((prev) => {
@@ -168,6 +170,7 @@ export default function OutputClientPage() {
         inputToTone,
         setBpm,
         getBpm,
+        roomState.inputClients,
       ]
     ),
   });
@@ -206,6 +209,8 @@ export default function OutputClientPage() {
     );
   }
 
+  const userIdsToChannelKeys = getUserIdsToChannelKeys(roomState.inputClients);
+
   return (
     <div id="container" className="w-screen h-screen text-white bg-black">
       <div id="flash-container" className="w-screen h-screen p-4">
@@ -229,24 +234,32 @@ export default function OutputClientPage() {
 
         {/* Individual Input Client Displays */}
         <div className="mt-6 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-          {Array.from(inputClients.values()).map((client) => {
-            const blue = Math.max(
-              0,
-              Math.min(255, Math.round((client.frontToBack / 100) * 255))
-            );
-            const green = Math.max(
-              0,
-              Math.min(255, Math.round((client.around / 100) * 255))
-            );
+          {Array.from(userIdsToChannelKeys, ([userId, channelKey]) => {
+            const client = inputClients.get(userId) || {
+              userId,
+              frontToBack: 0,
+              around: 0,
+            };
+
+            const blue =
+              Math.max(
+                0,
+                Math.min(255, Math.round((client.frontToBack / 100) * 255))
+              ) * 0.7;
+            const green =
+              Math.max(
+                0,
+                Math.min(255, Math.round((client.around / 100) * 255))
+              ) * 0.7;
 
             return (
               <div
-                key={client.userId}
+                key={userId}
                 className="p-4 rounded-lg border-2 border-white/20"
                 style={{ backgroundColor: `rgb(0, ${green}, ${blue})` }}
               >
                 <div className="text-sm font-mono mb-2">
-                  Client #{client.userId}
+                  {channelKey} (user ID #{userId})
                 </div>
                 <div className="space-y-3">
                   <div className="rounded-lg bg-black/30 p-2">
@@ -290,4 +303,13 @@ export default function OutputClientPage() {
       </div>
     </div>
   );
+}
+function getUserIdsToChannelKeys(inputClients: number[]) {
+  const userIdsToChannelKeys = new Map<number, string>();
+  for (let i = 0; i < inputClients.length; i++) {
+    const userId = inputClients[i];
+    const channelKey = channels[i % channels.length].key;
+    userIdsToChannelKeys.set(userId, channelKey);
+  }
+  return userIdsToChannelKeys;
 }

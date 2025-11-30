@@ -4,6 +4,8 @@ import { MotionInputMessageToClient } from "../WebsocketMessage";
 import { getToneControls, ToneControls } from "./tone";
 import { channels } from "./channels";
 
+const VERBOSE_LOGGING = false;
+
 type MusicState = {
   bpm: number;
   channels: {
@@ -132,12 +134,11 @@ export function useTone(
   }, [musicState.bpm, nextBeatTimestampRef, offsetFromServerTimeRef]);
 
   const input = useCallback(
-    (_channelKey: string, message: MotionInputMessageToClient) => {
+    (channelKey: string, message: MotionInputMessageToClient) => {
       if (!controls) {
         console.warn("ToneControls not initialized yet");
         return;
       }
-      const channelKey = message.userId % 2 ? "drone chord" : "arpeggio";
       const channelState = channelsStateRef.current[channelKey];
       if (!channelState) {
         // Might be good to eventually show an error message in this case.
@@ -149,7 +150,8 @@ export function useTone(
           console.warn("No channel definition for channelKey", channelKey);
           return;
         }
-        console.log("Processing input for channel", channelKey, message);
+        if (VERBOSE_LOGGING)
+          console.log("Processing input for channel", channelKey, message);
         const updatedChannelState = channel.respond(
           controls,
           // eslint-disable-next-line @typescript-eslint/no-explicit-any

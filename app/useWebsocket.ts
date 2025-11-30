@@ -134,6 +134,9 @@ export function useWebsocket(options: {
         console.error("Failed to parse WebSocket message:", error);
       }
     };
+    return () => {
+      socket.onmessage = null;
+    };
   }, [socket, handleMessage, sendMessage]);
 
   return {

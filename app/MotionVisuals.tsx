@@ -1,5 +1,7 @@
 import { useRef, useEffect, useCallback, useMemo } from "react";
 
+const Y_MIN_OFFSET = 75; // Pixels to offset minimum Y position for orbs
+
 // Visual element classes
 class MiddleOrb {
   constructor(
@@ -939,7 +941,7 @@ export function MotionVisuals({ canvas }: { canvas: CanvasInterface }) {
       // Calculate current values
       const orbsGroupDiameter =
         ORB_SETTINGS.ORBIT_RADIUS * 2 + 64 + ORB_SETTINGS.MAIN_ORB_RADIUS * 2;
-      const yMin = orbsGroupDiameter / 2;
+      const yMin = orbsGroupDiameter / 2 - Y_MIN_OFFSET;
       const yMax = window.innerHeight - yMin;
       const currentOrbYPercent = Math.max(0, Math.min(100, frontToBack));
       const currentOrbYPixels =
@@ -1038,13 +1040,15 @@ export function MotionVisuals({ canvas }: { canvas: CanvasInterface }) {
       const mainOrbCenterX = window.innerWidth / 2;
       const orbsGroupDiameter =
         ORB_SETTINGS.ORBIT_RADIUS * 2 + 64 + ORB_SETTINGS.MAIN_ORB_RADIUS * 2;
-      const yMin = orbsGroupDiameter / 2;
+      const yMin = orbsGroupDiameter / 2 - Y_MIN_OFFSET;
       const orbYPercent = Math.max(
         0,
         Math.min(100, lastSentOrientationRef.current.frontToBack)
       );
       const orbYPixels =
-        (window.innerHeight - yMin) - (orbYPercent / 100) * (window.innerHeight - yMin * 2);
+        window.innerHeight -
+        yMin -
+        (orbYPercent / 100) * (window.innerHeight - yMin * 2);
 
       // Calculate orb positions for particle attraction
       const orbitRadius = ORB_SETTINGS.ORBIT_RADIUS;
@@ -1282,7 +1286,7 @@ export function MotionVisuals({ canvas }: { canvas: CanvasInterface }) {
       // Calculate current orb positions and colors (same as canvas version)
       const orbsGroupDiameter =
         ORB_SETTINGS.ORBIT_RADIUS * 2 + 64 + ORB_SETTINGS.MAIN_ORB_RADIUS * 2;
-      const yMin = orbsGroupDiameter / 2;
+      const yMin = orbsGroupDiameter / 2 - Y_MIN_OFFSET;
       const yMax = window.innerHeight - yMin;
       const currentOrbYPercent = Math.max(0, Math.min(100, frontToBack));
       const currentOrbYPixels =
