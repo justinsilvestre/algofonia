@@ -14,9 +14,15 @@ export default function InputClientPage() {
   const [visualsAreShowing, setVisualsAreShowing] = useState<boolean>(() => {
     if (typeof window !== "undefined") {
       const params = new URLSearchParams(window.location.search);
-      const disableVisualsParam = params.get("disable_visuals");
-      if (!disableVisualsParam) return true;
-      if (disableVisualsParam === "0" || disableVisualsParam === "false")
+      const enableVisualsParam = params.get("enable_visuals");
+      if (!enableVisualsParam) return true;
+      console.log("enable_visuals param:", enableVisualsParam);
+      console.log("!enableVisualsParam", !enableVisualsParam);
+      console.log(
+        "enableVisualsParam === '0' || enableVisualsParam === 'false'",
+        enableVisualsParam === "0" || enableVisualsParam === "false"
+      );
+      if (enableVisualsParam === "0" || enableVisualsParam === "false")
         return false;
       return true;
     }

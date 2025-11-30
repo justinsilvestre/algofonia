@@ -199,17 +199,43 @@ export default function OutputClientPage() {
   }, [connectionState.type, sendMessage, syncRequestsCountRef]);
   if (connectionState.type !== "connected") {
     return (
-      <>
-        <h1>Listen</h1>
-        <p>Connection status: {connectionState.type}</p>
-        {connectionState.type === "error" && (
-          <p>Error message: {connectionState.message}</p>
-        )}
-      </>
+      <div className="w-screen h-screen bg-black text-white flex items-center justify-center">
+        <div className="text-center space-y-4">
+          <h1 className="text-4xl font-bold">Listen</h1>
+          <div className="space-y-2">
+            <p className="text-xl">
+              Connection status:
+              <span
+                className={`ml-2 font-semibold ${
+                  connectionState.type === "connecting"
+                    ? "text-yellow-400"
+                    : connectionState.type === "error"
+                    ? "text-red-400"
+                    : "text-gray-400"
+                }`}
+              >
+                {connectionState.type}
+              </span>
+            </p>
+            {connectionState.type === "error" && (
+              <p className="text-red-400 bg-red-900/20 border border-red-400/30 rounded-lg p-4 max-w-md">
+                Error: {connectionState.message}
+              </p>
+            )}
+            {connectionState.type === "connecting" && (
+              <div className="flex items-center justify-center space-x-2">
+                <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
+                <span className="text-gray-300">Connecting...</span>
+              </div>
+            )}
+          </div>
+        </div>
+      </div>
     );
   }
 
   const userIdsToChannelKeys = getUserIdsToChannelKeys(roomState.inputClients);
+  console.log("userIdsToChannelKeys:", userIdsToChannelKeys);
 
   return (
     <div id="container" className="w-screen h-screen text-white bg-black">
@@ -228,77 +254,152 @@ export default function OutputClientPage() {
         {musicState && <p>{musicState.bpm} BPM</p>}
         {!toneControls && (
           <button className="text-white p-8" onClick={tone.start}>
-            tap to start
+            click to start
           </button>
         )}
 
         {/* Individual Input Client Displays */}
         <div className="mt-6 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-          {Array.from(userIdsToChannelKeys, ([userId, channelKey]) => {
-            const client = inputClients.get(userId) || {
-              userId,
-              frontToBack: 0,
-              around: 0,
-            };
+          {toneControls &&
+            channels
+              .flatMap((channel, i) => {
+                const userIdsForChannel = Array.from(
+                  userIdsToChannelKeys.entries()
+                )
+                  .filter(([, channelKey]) => channelKey === channel.key)
+                  .map(([userId]) => userId);
+                return userIdsForChannel.length
+                  ? userIdsForChannel.map(
+                      (userId) => [userId, channel] as [number, typeof channel]
+                    )
+                  : [[-i, channel] as [number, typeof channel]];
+              })
+              .map(([userId, channel]) => {
+                const { key: channelKey } = channel;
+                const client = inputClients.get(userId) || {
+                  userId,
+                  frontToBack: 0,
+                  around: 0,
+                };
 
-            const blue =
-              Math.max(
-                0,
-                Math.min(255, Math.round((client.frontToBack / 100) * 255))
-              ) * 0.7;
-            const green =
-              Math.max(
-                0,
-                Math.min(255, Math.round((client.around / 100) * 255))
-              ) * 0.7;
+                const blue =
+                  Math.max(
+                    0,
+                    Math.min(255, Math.round((client.frontToBack / 100) * 255))
+                  ) * 0.7;
+                const green =
+                  Math.max(
+                    0,
+                    Math.min(255, Math.round((client.around / 100) * 255))
+                  ) * 0.7;
 
-            return (
-              <div
-                key={userId}
-                className="p-4 rounded-lg border-2 border-white/20"
-                style={{ backgroundColor: `rgb(0, ${green}, ${blue})` }}
-              >
-                <div className="text-sm font-mono mb-2">
-                  {channelKey} (user ID #{userId})
-                </div>
-                <div className="space-y-3">
-                  <div className="rounded-lg bg-black/30 p-2">
-                    <label className="block text-xs mb-1">
-                      Front-to-back: {Math.round(client.frontToBack)}
-                    </label>
-                    <input
-                      type="range"
-                      min="0"
-                      max="100"
-                      value={client.frontToBack}
-                      readOnly
-                      className="w-full h-2 bg-white/20 rounded-lg appearance-none cursor-default slider"
-                      style={{
-                        background: `linear-gradient(to right, #0066cc 0%, #0066cc ${client.frontToBack}%, rgba(255,255,255,0.2) ${client.frontToBack}%, rgba(255,255,255,0.2) 100%)`,
-                      }}
-                    />
+                return (
+                  <div
+                    key={userId}
+                    className="p-4 rounded-lg border-2 border-white/20"
+                    style={{ backgroundColor: `rgb(0, ${green}, ${blue})` }}
+                  >
+                    <div className="text-sm font-mono mb-2">
+                      {channelKey} {userId <= 0 ? "" : <>(user ID #{userId})</>}
+                    </div>
+                    <div className="space-y-3">
+                      <div className="rounded-lg bg-black/30 p-2">
+                        <label className="block text-xs mb-1">
+                          Front-to-back: {Math.round(client.frontToBack)}{" "}
+                          (manual override)
+                        </label>
+                        <input
+                          type="range"
+                          min="0"
+                          max="100"
+                          value={client.frontToBack}
+                          onChange={(e) => {
+                            const newFrontToBack = parseInt(e.target.value);
+                            const newClient = {
+                              ...client,
+                              frontToBack: newFrontToBack,
+                            };
+
+                            // Update local state
+                            setInputClients((prev) => {
+                              const newMap = new Map(prev);
+                              newMap.set(userId, newClient);
+                              return newMap;
+                            });
+
+                            // Simulate motion input event
+                            if (toneControls) {
+                              const simulatedMotionInput = {
+                                type: "MOTION_INPUT" as const,
+                                roomName: getRoomName(),
+                                userId,
+                                frontToBack: newFrontToBack,
+                                around: client.around,
+                                actionTimestamp:
+                                  performance.now() + performance.timeOrigin,
+                                lastBeatNumber: beatsCountRef.current,
+                                nextBeatTimestamp:
+                                  nextBeatTimestampRef.current ??
+                                  performance.now() + performance.timeOrigin,
+                              };
+                              inputToTone(channelKey, simulatedMotionInput);
+                            }
+                          }}
+                          className="w-full h-2 bg-white/20 rounded-lg appearance-none cursor-pointer slider"
+                          style={{
+                            background: `linear-gradient(to right, #0066cc 0%, #0066cc ${client.frontToBack}%, rgba(255,255,255,0.2) ${client.frontToBack}%, rgba(255,255,255,0.2) 100%)`,
+                          }}
+                        />
+                      </div>
+
+                      <div className="rounded-lg bg-black/30 p-2">
+                        <label className="block text-xs mb-1">
+                          Around: {Math.round(client.around)} (manual override)
+                        </label>
+                        <input
+                          type="range"
+                          min="0"
+                          max="100"
+                          value={client.around}
+                          onChange={(e) => {
+                            const newAround = parseInt(e.target.value);
+                            const newClient = { ...client, around: newAround };
+
+                            // Update local state
+                            setInputClients((prev) => {
+                              const newMap = new Map(prev);
+                              newMap.set(userId, newClient);
+                              return newMap;
+                            });
+
+                            // Simulate motion input event
+                            if (toneControls) {
+                              const simulatedMotionInput = {
+                                type: "MOTION_INPUT" as const,
+                                roomName: getRoomName(),
+                                userId,
+                                frontToBack: client.frontToBack,
+                                around: newAround,
+                                actionTimestamp:
+                                  performance.now() + performance.timeOrigin,
+                                lastBeatNumber: beatsCountRef.current,
+                                nextBeatTimestamp:
+                                  nextBeatTimestampRef.current ??
+                                  performance.now() + performance.timeOrigin,
+                              };
+                              inputToTone(channelKey, simulatedMotionInput);
+                            }
+                          }}
+                          className="w-full h-2 bg-white/20 rounded-lg appearance-none cursor-pointer slider"
+                          style={{
+                            background: `linear-gradient(to right, #00cc66 0%, #00cc66 ${client.around}%, rgba(255,255,255,0.2) ${client.around}%, rgba(255,255,255,0.2) 100%)`,
+                          }}
+                        />
+                      </div>
+                    </div>
                   </div>
-
-                  <div className="rounded-lg bg-black/30 p-2">
-                    <label className="block text-xs mb-1">
-                      Around: {Math.round(client.around)}
-                    </label>
-                    <input
-                      type="range"
-                      min="0"
-                      max="100"
-                      value={client.around}
-                      readOnly
-                      className="w-full h-2 bg-white/20 rounded-lg appearance-none cursor-default slider"
-                      style={{
-                        background: `linear-gradient(to right, #00cc66 0%, #00cc66 ${client.around}%, rgba(255,255,255,0.2) ${client.around}%, rgba(255,255,255,0.2) 100%)`,
-                      }}
-                    />
-                  </div>
-                </div>
-              </div>
-            );
-          })}
+                );
+              })}
         </div>
       </div>
     </div>

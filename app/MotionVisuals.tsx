@@ -10,11 +10,17 @@ class MiddleOrb {
     private currentOrbYPixels: number
   ) {}
 
-  renderToCanvas(ctx: CanvasRenderingContext2D, canvas: HTMLCanvasElement) {
-    const mainOrbRadius = ORB_SETTINGS.MAIN_ORB_RADIUS;
+  renderToCanvas(
+    ctx: CanvasRenderingContext2D,
+    canvas: HTMLCanvasElement,
+    beatPulse = 0
+  ) {
+    // Apply warping based on beat pulse
+    const warpFactor = beatPulse * 0.3; // 0-0.3 warping strength
+    const mainOrbRadius = ORB_SETTINGS.MAIN_ORB_RADIUS * (1 + warpFactor);
     const orbCenterX = canvas.width / 2;
     const orbCenterY = this.currentOrbYPixels;
-    const glowRadius = 80;
+    const glowRadius = 80 * (1 + warpFactor * 1.5); // Glow expands more dramatically
 
     // Interpolate glow color based on frontToBack position
     const colorLerpFactor = this.frontToBack / 100;
@@ -74,10 +80,21 @@ class MiddleOrb {
     ctx.arc(orbCenterX, orbCenterY, glowRadius, 0, Math.PI * 2);
     ctx.fill();
 
-    // Draw main orb on top
+    // Draw main orb on top with warping effect
     ctx.fillStyle = mainOrbColorString;
     ctx.beginPath();
-    ctx.arc(orbCenterX, orbCenterY, mainOrbRadius, 0, Math.PI * 2);
+
+    if (warpFactor > 0.05) {
+      // Draw warped elliptical orb during beats
+      ctx.save();
+      ctx.translate(orbCenterX, orbCenterY);
+      ctx.scale(1 + warpFactor * 0.5, 1 - warpFactor * 0.3); // Stretch horizontally, compress vertically
+      ctx.arc(0, 0, mainOrbRadius, 0, Math.PI * 2);
+      ctx.restore();
+    } else {
+      // Normal circular orb
+      ctx.arc(orbCenterX, orbCenterY, mainOrbRadius, 0, Math.PI * 2);
+    }
     ctx.fill();
   }
 
@@ -132,8 +149,7 @@ class MiddleOrb {
   renderToWebGL(
     gl: WebGLRenderingContext,
     program: WebGLProgram,
-    viewportWidth: number,
-    viewportHeight: number
+    beatPulse = 0
   ) {
     // Get attribute locations
     const positionLocation = gl.getAttribLocation(program, "a_position");
@@ -144,7 +160,7 @@ class MiddleOrb {
       return;
 
     // Calculate orb position
-    const orbX = viewportWidth / 2;
+    const orbX = window.innerWidth / 2;
     const orbY = this.currentOrbYPixels;
 
     // Convert RGB to normalized values
@@ -153,9 +169,14 @@ class MiddleOrb {
     const b = this.mainOrbColor.b / 255;
     const a = 1.0;
 
-    // Set up vertex data with larger size for WebGL
+    // Apply warping to size based on beat pulse
+    const warpFactor = beatPulse * 0.3;
+    const warpedSize =
+      ORB_SETTINGS.MAIN_ORB_RADIUS * 2 * 2.0 * (1 + warpFactor);
+
+    // Set up vertex data with warped size for WebGL
     const positions = new Float32Array([orbX, orbY]);
-    const sizes = new Float32Array([ORB_SETTINGS.MAIN_ORB_RADIUS * 2 * 2.0]); // 2x larger for WebGL
+    const sizes = new Float32Array([warpedSize]);
     const colors = new Float32Array([r, g, b, a]);
 
     // Create and bind buffers
@@ -194,13 +215,19 @@ class SideOrb {
     private color: { r: number; g: number; b: number }
   ) {}
 
-  renderToCanvas(ctx: CanvasRenderingContext2D, canvas: HTMLCanvasElement) {
+  renderToCanvas(
+    ctx: CanvasRenderingContext2D,
+    canvas: HTMLCanvasElement,
+    beatPulse = 0
+  ) {
     const opacity = Math.max(
       ORB_SETTINGS.OPACITY_MIN,
       Math.min(1.0, this.around / 100)
     );
-    const orbRadius = ORB_SETTINGS.SATELLITE_ORB_RADIUS;
-    const baseGlow = 8;
+    // Apply warping to satellite orbs
+    const warpFactor = beatPulse * 0.4; // Stronger warping for smaller orbs
+    const orbRadius = ORB_SETTINGS.SATELLITE_ORB_RADIUS * (1 + warpFactor);
+    const baseGlow = 8 * (1 + warpFactor);
 
     const orbX = canvas.width / 2 - 32 + this.pos.x;
     const orbY = this.pos.y;
@@ -211,15 +238,25 @@ class SideOrb {
 
     ctx.fillStyle = `rgb(${this.color.r}, ${this.color.g}, ${this.color.b})`;
     ctx.beginPath();
-    ctx.arc(orbX, orbY, orbRadius, 0, Math.PI * 2);
+
+    if (warpFactor > 0.05) {
+      // Draw warped satellite orb during beats
+      ctx.save();
+      ctx.translate(orbX, orbY);
+      ctx.scale(1 - warpFactor * 0.3, 1 + warpFactor * 0.6); // Compress horizontally, stretch vertically (opposite of main orb)
+      ctx.arc(0, 0, orbRadius, 0, Math.PI * 2);
+      ctx.restore();
+    } else {
+      // Normal circular orb
+      ctx.arc(orbX, orbY, orbRadius, 0, Math.PI * 2);
+    }
     ctx.fill();
   }
 
   renderToWebGL(
     gl: WebGLRenderingContext,
     program: WebGLProgram,
-    viewportWidth: number,
-    viewportHeight: number
+    beatPulse = 0
   ) {
     // Get attribute locations
     const positionLocation = gl.getAttribLocation(program, "a_position");
@@ -234,7 +271,7 @@ class SideOrb {
       ORB_SETTINGS.OPACITY_MIN,
       Math.min(1.0, this.around / 100)
     );
-    const orbX = viewportWidth / 2 - 32 + this.pos.x;
+    const orbX = window.innerWidth / 2 - 32 + this.pos.x;
     const orbY = this.pos.y;
 
     // Convert RGB to normalized values
@@ -243,11 +280,14 @@ class SideOrb {
     const b = this.color.b / 255;
     const a = opacity;
 
-    // Set up vertex data with larger size for WebGL
+    // Apply warping to satellite orb size
+    const warpFactor = beatPulse * 0.4;
+    const warpedSize =
+      ORB_SETTINGS.SATELLITE_ORB_RADIUS * 2 * 1.8 * (1 + warpFactor);
+
+    // Set up vertex data with warped size for WebGL
     const positions = new Float32Array([orbX, orbY]);
-    const sizes = new Float32Array([
-      ORB_SETTINGS.SATELLITE_ORB_RADIUS * 2 * 1.8,
-    ]); // 1.8x larger for WebGL
+    const sizes = new Float32Array([warpedSize]);
     const colors = new Float32Array([r, g, b, a]);
 
     // Create and bind buffers
@@ -280,15 +320,7 @@ class SideOrb {
 }
 
 class Particle {
-  public trailPositions: Array<{
-    x: number;
-    y: number;
-    age: number;
-    intensity: number;
-  }> = [];
-  private maxTrailLength = 20; // Much longer trail for dramatic comet effect
   private nucleusGlow = 0; // Comet nucleus brightness
-  private tailWidth = 1; // Comet tail width
 
   constructor(
     public id: number,
@@ -360,26 +392,8 @@ class Particle {
     const velocity = Math.sqrt(newVx * newVx + newVy * newVy);
     const velocityIntensity = Math.min(velocity / 6, 1.0);
 
-    // Add current position to trail with velocity-based intensity
-    this.trailPositions.unshift({
-      x: this.x,
-      y: this.y,
-      age: 0,
-      intensity: velocityIntensity,
-    });
-
-    // Update trail ages and intensity decay
-    this.trailPositions = this.trailPositions
-      .map((pos) => ({
-        ...pos,
-        age: pos.age + 1,
-        intensity: pos.intensity * 0.92, // Fade intensity over time
-      }))
-      .filter((_, index) => index < this.maxTrailLength);
-
     // Update comet properties based on velocity
     this.nucleusGlow = Math.min(velocityIntensity * 1.5 + 0.3, 1.0);
-    this.tailWidth = Math.max(1, velocityIntensity * 3);
 
     // Update particle properties in place
     this.x = this.x + newVx;
@@ -396,6 +410,7 @@ class Particle {
   renderToCanvas(ctx: CanvasRenderingContext2D) {
     const opacity = this.life / this.maxLife;
 
+    // Render main particle
     ctx.shadowColor = this.color;
     ctx.shadowBlur = this.size * 2;
     ctx.globalAlpha = opacity;
@@ -420,12 +435,7 @@ class Particle {
     ctx.stroke();
   }
 
-  renderToWebGL(
-    gl: WebGLRenderingContext,
-    program: WebGLProgram,
-    viewportWidth: number,
-    viewportHeight: number
-  ) {
+  renderToWebGL(gl: WebGLRenderingContext, program: WebGLProgram) {
     // Get attribute locations including comet-specific attributes
     const positionLocation = gl.getAttribLocation(program, "a_position");
     const sizeLocation = gl.getAttribLocation(program, "a_size");
@@ -517,9 +527,7 @@ class Particle {
 
   renderConnectionLineToWebGL(
     gl: WebGLRenderingContext,
-    program: WebGLProgram,
-    viewportWidth: number,
-    viewportHeight: number
+    program: WebGLProgram
   ) {
     if (!this.linkedOrb) return;
 
@@ -565,95 +573,6 @@ class Particle {
 
     // Draw the line
     gl.drawArrays(gl.LINES, 0, 2);
-
-    // Clean up
-    gl.deleteBuffer(positionBuffer);
-    gl.deleteBuffer(colorBuffer);
-  }
-
-  renderTrailStreakToWebGL(
-    gl: WebGLRenderingContext,
-    lineProgram: WebGLProgram,
-    viewportWidth: number,
-    viewportHeight: number
-  ) {
-    if (this.trailPositions.length < 3) return;
-
-    // Get attribute locations for line shader
-    const positionLocation = gl.getAttribLocation(lineProgram, "a_position");
-    const colorLocation = gl.getAttribLocation(lineProgram, "a_color");
-
-    if (positionLocation === -1 || colorLocation === -1) return;
-
-    // Parse color
-    const colorMatch = this.color.match(/rgb\((\d+),\s*(\d+),\s*(\d+)\)/);
-    if (!colorMatch) return;
-
-    const r = parseInt(colorMatch[1]) / 255;
-    const g = parseInt(colorMatch[2]) / 255;
-    const b = parseInt(colorMatch[3]) / 255;
-
-    // Calculate velocity for comet tail intensity
-    const velocity = Math.sqrt(this.vx * this.vx + this.vy * this.vy);
-    const cometIntensity = Math.min(velocity / 6, 1.0);
-
-    // Only render comet tail if moving fast enough
-    if (cometIntensity < 0.15) return;
-
-    // Create comet tail with multiple line segments for tapering effect
-    const positions = [];
-    const colors = [];
-
-    // Start from current position (comet head)
-    positions.push(this.x, this.y);
-    colors.push(
-      r + cometIntensity * 0.2,
-      g + cometIntensity * 0.1,
-      Math.max(b - cometIntensity * 0.1, 0.3),
-      cometIntensity * 0.9
-    );
-
-    // Add trail positions with exponential fading (comet tail behavior)
-    const maxTailSegments = Math.min(this.trailPositions.length, 8);
-    for (let i = 0; i < maxTailSegments; i++) {
-      const trailPos = this.trailPositions[i];
-      const segmentRatio = i / maxTailSegments;
-      const exponentialFade = Math.pow(1 - segmentRatio, 2.5); // Comet-like exponential fade
-      const alpha = cometIntensity * exponentialFade * 0.7;
-
-      if (alpha > 0.03) {
-        positions.push(trailPos.x, trailPos.y);
-
-        // Color shifts from hot orange/yellow to cool blue along the tail
-        const coolFactor = segmentRatio * 0.8;
-        const tailR = Math.max(r - coolFactor * 0.5, r * 0.2);
-        const tailG = Math.max(g - coolFactor * 0.3, g * 0.3);
-        const tailB = Math.min(b + coolFactor * 0.6, 1.0);
-
-        colors.push(tailR, tailG, tailB, alpha);
-      }
-    }
-
-    if (positions.length < 4) return;
-
-    // Create buffers for comet tail
-    const positionBuffer = gl.createBuffer();
-    gl.bindBuffer(gl.ARRAY_BUFFER, positionBuffer);
-    gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(positions), gl.STATIC_DRAW);
-    gl.enableVertexAttribArray(positionLocation);
-    gl.vertexAttribPointer(positionLocation, 2, gl.FLOAT, false, 0, 0);
-
-    const colorBuffer = gl.createBuffer();
-    gl.bindBuffer(gl.ARRAY_BUFFER, colorBuffer);
-    gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(colors), gl.STATIC_DRAW);
-    gl.enableVertexAttribArray(colorLocation);
-    gl.vertexAttribPointer(colorLocation, 4, gl.FLOAT, false, 0, 0);
-
-    // Dynamic line width based on comet intensity and tail width
-    gl.lineWidth(Math.max(1, this.tailWidth * cometIntensity));
-
-    // Draw comet tail as connected line strip
-    gl.drawArrays(gl.LINE_STRIP, 0, positions.length / 2);
 
     // Clean up
     gl.deleteBuffer(positionBuffer);
@@ -732,33 +651,6 @@ const VERTEX_SHADER_SOURCE = `
   }
 `;
 
-// Line vertex shader for trailing streaks
-const LINE_VERTEX_SHADER_SOURCE = `
-  attribute vec2 a_position;
-  attribute vec4 a_color;
-  
-  uniform vec2 u_resolution;
-  
-  varying vec4 v_color;
-  
-  void main() {
-    vec2 position = ((a_position / u_resolution) * 2.0 - 1.0) * vec2(1, -1);
-    gl_Position = vec4(position, 0, 1);
-    v_color = a_color;
-  }
-`;
-
-// Line fragment shader for smooth trails
-const LINE_FRAGMENT_SHADER_SOURCE = `
-  precision mediump float;
-  
-  varying vec4 v_color;
-  
-  void main() {
-    gl_FragColor = v_color;
-  }
-`;
-
 // Enhanced fragment shader for comet-like particles with dynamic attributes
 const FRAGMENT_SHADER_SOURCE = `
   precision mediump float;
@@ -827,6 +719,10 @@ const PARTICLE_SPAWNING = {
   MAX_PARTICLES_BEAT: 200, // Beat particle limit
   BURST_COUNT: 4, // Particles per burst
   BURST_THRESHOLD: 0.7, // Beat pulse needed for burst
+  // WebGL optimized limits
+  WEBGL_MAX_PARTICLES_NORMAL: 150, // Increased count for denser effects
+  WEBGL_MAX_PARTICLES_BEAT: 250, // Higher count during beats
+  WEBGL_BURST_COUNT: 5, // More burst particles
 } as const;
 
 const PARTICLE_APPEARANCE = {
@@ -839,8 +735,8 @@ const PARTICLE_APPEARANCE = {
   BURST_SPEED_MULTIPLIER: 1.5, // Additional burst speed factor
   LIFE_MIN: 120, // Minimum particle life frames
   LIFE_RANGE: 120, // Life range (min + range = max)
-  SIZE_MIN: 1.5, // Minimum particle size
-  SIZE_RANGE: 2.5, // Size range
+  SIZE_MIN: 3.0, // Increased minimum particle size
+  SIZE_RANGE: 4.0, // Increased size range for bigger particles
 } as const;
 
 const ORB_SETTINGS = {
@@ -1000,7 +896,7 @@ export function MotionVisuals({ canvas }: { canvas: CanvasInterface }) {
         particle.renderToCanvas(ctx);
       });
 
-      // Draw orbiting orbs
+      // Draw orbiting orbs with beat warping
       const orbColors = [
         { r: 200, g: 200, b: 255 }, // Blue
         { r: 200, g: 200, b: 255 }, // Blue
@@ -1009,16 +905,16 @@ export function MotionVisuals({ canvas }: { canvas: CanvasInterface }) {
       currentOrbPositions.forEach((pos, index) => {
         const color = orbColors[index];
         const sideOrb = new SideOrb(pos, around, color);
-        sideOrb.renderToCanvas(ctx, canvas);
+        sideOrb.renderToCanvas(ctx, canvas, pulsing.current);
       });
 
-      // Draw main gravity orb
+      // Draw main gravity orb with beat warping
       const middleOrb = new MiddleOrb(
         frontToBack,
         mainOrbColor,
         currentOrbYPixels
       );
-      middleOrb.renderToCanvas(ctx, canvas);
+      middleOrb.renderToCanvas(ctx, canvas, pulsing.current);
       middleOrb.renderBackgroundGlowToCanvas(
         ctx,
         around,
@@ -1030,7 +926,7 @@ export function MotionVisuals({ canvas }: { canvas: CanvasInterface }) {
       ctx.globalAlpha = 1;
       ctx.shadowBlur = 0;
     },
-    [lastSentOrientationRef, elementRef]
+    [lastSentOrientationRef, elementRef, pulsing]
   );
 
   // Particle system animation loop
@@ -1080,29 +976,26 @@ export function MotionVisuals({ canvas }: { canvas: CanvasInterface }) {
 
       const beatPulse = pulsing.current;
 
-      // Spawn new particles - enhanced rates for WebGL performance
+      // Spawn new particles - optimized for performance
       const isWebGL = renderingMode === "webgl";
-      const baseSpawnChance = isWebGL ? 0.8 : 0.4; // Higher spawn rate for WebGL
-      const beatBoost = beatPulse * (isWebGL ? 3.0 : 2.0); // Enhanced beat boost for WebGL
+      const baseSpawnChance = isWebGL ? 0.3 : 0.4; // Slightly increased for better visuals
+      const beatBoost = beatPulse * (isWebGL ? 1.5 : 2.0); // Moderately increased beat boost
       const shouldSpawn = Math.random() < baseSpawnChance + beatBoost;
       const maxParticles = isWebGL
         ? beatPulse > 0.5
-          ? 500
-          : 300 // Much higher limits for WebGL
+          ? PARTICLE_SPAWNING.WEBGL_MAX_PARTICLES_BEAT
+          : PARTICLE_SPAWNING.WEBGL_MAX_PARTICLES_NORMAL
         : beatPulse > 0.5
-        ? 200
-        : 100; // Original limits for canvas
+        ? PARTICLE_SPAWNING.MAX_PARTICLES_BEAT
+        : PARTICLE_SPAWNING.MAX_PARTICLES_NORMAL;
 
       if (shouldSpawn && particles.size < maxParticles) {
-        // For WebGL, potentially spawn from multiple orbs in one frame
-        const orbsToSpawnFrom =
-          isWebGL && Math.random() < 0.4
-            ? currentOrbPositions // Spawn from all orbs simultaneously
-            : [
-                currentOrbPositions[
-                  Math.floor(Math.random() * currentOrbPositions.length)
-                ],
-              ]; // Single orb
+        // Simplified spawning for WebGL performance - single orb only
+        const orbsToSpawnFrom = [
+          currentOrbPositions[
+            Math.floor(Math.random() * currentOrbPositions.length)
+          ],
+        ]; // Always single orb for better performance
 
         for (const sourceOrb of orbsToSpawnFrom) {
           if (particles.size >= maxParticles) break; // Check limit for each spawn
@@ -1135,15 +1028,15 @@ export function MotionVisuals({ canvas }: { canvas: CanvasInterface }) {
               (Math.sin(angle) * radialSpeed) ** 2
           );
 
-          // Create different types of comet particles
-          const isMainComet = Math.random() < 0.3; // 30% chance of being a main comet
+          // Create different types of comet particles with larger sizes
+          const isMainComet = Math.random() < 0.4; // Increased chance for main comets
           const cometSize = isMainComet
-            ? PARTICLE_APPEARANCE.SIZE_MIN * 1.5 +
-              Math.random() * PARTICLE_APPEARANCE.SIZE_RANGE * 1.5 +
-              velocityMagnitude * 0.4
+            ? PARTICLE_APPEARANCE.SIZE_MIN * 2.0 +
+              Math.random() * PARTICLE_APPEARANCE.SIZE_RANGE * 2.0 +
+              velocityMagnitude * 0.6
             : PARTICLE_APPEARANCE.SIZE_MIN +
-              Math.random() * PARTICLE_APPEARANCE.SIZE_RANGE * 0.8 +
-              velocityMagnitude * 0.2;
+              Math.random() * PARTICLE_APPEARANCE.SIZE_RANGE +
+              velocityMagnitude * 0.4;
 
           // Comet life varies - larger comets live longer
           const cometLife = isMainComet
@@ -1174,32 +1067,13 @@ export function MotionVisuals({ canvas }: { canvas: CanvasInterface }) {
 
           particles.add(newParticle);
 
-          // For WebGL, spawn additional particles per frame for denser particle fields
-          if (isWebGL && Math.random() < 0.6 && particles.size < maxParticles) {
-            // Create a second particle with slight variation
-            const secondAngle = angle + (Math.random() - 0.5) * 0.5; // Small angle variation
-            const secondSpeed = radialSpeed * (0.8 + Math.random() * 0.4); // Speed variation
+          // Skip secondary particle spawning for WebGL performance
 
-            const secondParticle = new Particle(
-              particleIdRef.current++,
-              sourceOrb.x + (Math.random() - 0.5) * 25, // More spread
-              sourceOrb.y + (Math.random() - 0.5) * 25,
-              Math.cos(secondAngle) * secondSpeed,
-              Math.sin(secondAngle) * secondSpeed,
-              cometLife * (0.7 + Math.random() * 0.6), // Life variation
-              cometLife * (0.7 + Math.random() * 0.6),
-              cometSize * (0.6 + Math.random() * 0.8), // Size variation
-              baseColor,
-              sourceOrb
-            );
-            particles.add(secondParticle);
-          }
-
-          // During strong beats, spawn multiple particles at once for burst effect
+          // During strong beats, spawn burst particles (reduced for WebGL)
           if (beatPulse > PARTICLE_SPAWNING.BURST_THRESHOLD) {
             const burstCount = isWebGL
-              ? PARTICLE_SPAWNING.BURST_COUNT * 3
-              : PARTICLE_SPAWNING.BURST_COUNT; // Triple bursts for WebGL
+              ? PARTICLE_SPAWNING.WEBGL_BURST_COUNT
+              : PARTICLE_SPAWNING.BURST_COUNT;
             for (let burst = 0; burst < burstCount; burst++) {
               // Enhanced burst effects for WebGL
               const burstAngle = Math.random() * Math.PI * 2;
@@ -1220,7 +1094,7 @@ export function MotionVisuals({ canvas }: { canvas: CanvasInterface }) {
                 Math.sin(burstAngle) * burstSpeed, // vy
                 100 + Math.random() * 100, // life
                 100 + Math.random() * 100, // maxLife
-                2 + Math.random() * 3, // size - slightly larger burst particles
+                3 + Math.random() * 4, // size - larger burst particles for more impact
                 baseColor, // color
                 sourceOrb // linkedOrb
               );
@@ -1239,7 +1113,6 @@ export function MotionVisuals({ canvas }: { canvas: CanvasInterface }) {
 
   // Cache shader programs for performance
   const shaderProgramRef = useRef<WebGLProgram | null>(null);
-  const lineShaderProgramRef = useRef<WebGLProgram | null>(null);
 
   const renderWebGL = useCallback(
     (gl: WebGLRenderingContext) => {
@@ -1255,17 +1128,8 @@ export function MotionVisuals({ canvas }: { canvas: CanvasInterface }) {
         );
       }
 
-      if (!lineShaderProgramRef.current) {
-        lineShaderProgramRef.current = createShaderProgram(
-          gl,
-          LINE_VERTEX_SHADER_SOURCE,
-          LINE_FRAGMENT_SHADER_SOURCE
-        );
-      }
-
       const program = shaderProgramRef.current;
-      const lineProgram = lineShaderProgramRef.current;
-      if (!program || !lineProgram) return;
+      if (!program) return;
       const { frontToBack, around } = lastSentOrientationRef.current;
 
       // Clear WebGL canvas
@@ -1338,31 +1202,9 @@ export function MotionVisuals({ canvas }: { canvas: CanvasInterface }) {
       // Render particle connection lines using WebGL
       if (RENDER_LINES) {
         particlesRef.current.forEach((particle) => {
-          particle.renderConnectionLineToWebGL(
-            gl,
-            program,
-            canvas.width,
-            canvas.height
-          );
+          particle.renderConnectionLineToWebGL(gl, program);
         });
       }
-
-      // Render velocity-based trail streaks with line shader
-      gl.useProgram(lineProgram);
-      const lineResolutionLocation = gl.getUniformLocation(
-        lineProgram,
-        "u_resolution"
-      );
-      gl.uniform2f(lineResolutionLocation, canvas.width, canvas.height);
-
-      particlesRef.current.forEach((particle) => {
-        particle.renderTrailStreakToWebGL(
-          gl,
-          lineProgram,
-          canvas.width,
-          canvas.height
-        );
-      });
 
       // Switch back to particle shader for main particles
       gl.useProgram(program);
@@ -1372,10 +1214,75 @@ export function MotionVisuals({ canvas }: { canvas: CanvasInterface }) {
       );
       gl.uniform2f(particleResolutionLocation, canvas.width, canvas.height);
 
-      // Render particles using WebGL
-      particlesRef.current.forEach((particle) => {
-        particle.renderToWebGL(gl, program, canvas.width, canvas.height);
-      });
+      // Batch render particles for better WebGL performance
+      if (particlesRef.current.size > 0) {
+        const positions: number[] = [];
+        const sizes: number[] = [];
+        const colors: number[] = [];
+
+        particlesRef.current.forEach((particle) => {
+          // Parse color once per particle
+          const colorMatch = particle.color.match(
+            /rgb\((\d+),\s*(\d+),\s*(\d+)\)/
+          );
+          if (colorMatch) {
+            const r = parseInt(colorMatch[1]) / 255;
+            const g = parseInt(colorMatch[2]) / 255;
+            const b = parseInt(colorMatch[3]) / 255;
+            const alpha = particle.life / particle.maxLife;
+            // Main particle
+            positions.push(particle.x, particle.y);
+            sizes.push(particle.size);
+            colors.push(r, g, b, alpha);
+          }
+        });
+
+        if (positions.length > 0) {
+          // Get attribute locations
+          const positionLocation = gl.getAttribLocation(program, "a_position");
+          const sizeLocation = gl.getAttribLocation(program, "a_size");
+          const colorLocation = gl.getAttribLocation(program, "a_color");
+
+          // Create single buffers for all particles
+          const positionBuffer = gl.createBuffer();
+          gl.bindBuffer(gl.ARRAY_BUFFER, positionBuffer);
+          gl.bufferData(
+            gl.ARRAY_BUFFER,
+            new Float32Array(positions),
+            gl.STATIC_DRAW
+          );
+          gl.enableVertexAttribArray(positionLocation);
+          gl.vertexAttribPointer(positionLocation, 2, gl.FLOAT, false, 0, 0);
+
+          const sizeBuffer = gl.createBuffer();
+          gl.bindBuffer(gl.ARRAY_BUFFER, sizeBuffer);
+          gl.bufferData(
+            gl.ARRAY_BUFFER,
+            new Float32Array(sizes),
+            gl.STATIC_DRAW
+          );
+          gl.enableVertexAttribArray(sizeLocation);
+          gl.vertexAttribPointer(sizeLocation, 1, gl.FLOAT, false, 0, 0);
+
+          const colorBuffer = gl.createBuffer();
+          gl.bindBuffer(gl.ARRAY_BUFFER, colorBuffer);
+          gl.bufferData(
+            gl.ARRAY_BUFFER,
+            new Float32Array(colors),
+            gl.STATIC_DRAW
+          );
+          gl.enableVertexAttribArray(colorLocation);
+          gl.vertexAttribPointer(colorLocation, 4, gl.FLOAT, false, 0, 0);
+
+          // Draw all particles at once
+          gl.drawArrays(gl.POINTS, 0, positions.length / 2);
+
+          // Clean up
+          gl.deleteBuffer(positionBuffer);
+          gl.deleteBuffer(sizeBuffer);
+          gl.deleteBuffer(colorBuffer);
+        }
+      }
 
       // Render satellite orbs using WebGL
       const orbColors = [
@@ -1386,21 +1293,21 @@ export function MotionVisuals({ canvas }: { canvas: CanvasInterface }) {
       currentOrbPositions.forEach((pos, index) => {
         const color = orbColors[index];
         const sideOrb = new SideOrb(pos, around, color);
-        sideOrb.renderToWebGL(gl, program, canvas.width, canvas.height);
+        sideOrb.renderToWebGL(gl, program, pulsing.current);
       });
 
-      // Create and render main orb
+      // Create and render main orb with beat warping
       const middleOrb = new MiddleOrb(
         frontToBack,
         mainOrbColor,
         currentOrbYPixels
       );
-      middleOrb.renderToWebGL(gl, program, canvas.width, canvas.height);
+      middleOrb.renderToWebGL(gl, program, pulsing.current);
     },
-    [lastSentOrientationRef, elementRef]
+    [lastSentOrientationRef, elementRef, pulsing]
   );
 
-  // WebGL rendering loop
+  // WebGL rendering loop - reduced to 30 FPS for performance
   useEffect(() => {
     if (renderingMode !== "webgl" || !renderWebGL) return;
 
@@ -1412,13 +1319,19 @@ export function MotionVisuals({ canvas }: { canvas: CanvasInterface }) {
       canvasElement.getContext("experimental-webgl");
     if (!gl || !(gl instanceof WebGLRenderingContext)) return;
 
+    let lastTime = 0;
+    const targetFPS = 30; // Reduced FPS for better performance
+    const frameInterval = 1000 / targetFPS;
     let animationFrameId: number;
 
-    const renderLoop = () => {
-      renderWebGL(gl);
+    const renderLoop = (currentTime: number) => {
+      if (currentTime - lastTime >= frameInterval) {
+        renderWebGL(gl);
+        lastTime = currentTime;
+      }
       animationFrameId = requestAnimationFrame(renderLoop);
     };
-    renderLoop();
+    renderLoop(0);
 
     return () => {
       cancelAnimationFrame(animationFrameId);
