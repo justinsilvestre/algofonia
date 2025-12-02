@@ -33,14 +33,39 @@ This method requires an internet connection and relies on the free "Cloudflare T
     2025-11-25T20:40:52Z INF |  Your quick Tunnel has been created! Visit it at (it may take some time to be reachable):  |
     2025-11-25T20:40:52Z INF |  https://<some>-<random>-<words>-<here>.trycloudflare.com                                     |
     2025-11-25T20:40:52Z INF +--------------------------------------------------------------------------------------------+
-  ```
+   ```
 3. Navigate to the app:
   -  https://<some>-<random>-<words>-<here>.trycloudflare.com/listen for the *output client*
   -  https://<some>-<random>-<words>-<here>.trycloudflare.com for the *input client*
 
 Now, anyone with an Internet connection can access the app from that address, a long as your tunnel is working. You can check your terminal output to make sure the tunnel is still working.
 
-## Learn More
+# Connecting via WebSockets
+
+To subscribe to a room's events (currently `SCHEDULE_BEAT` and `MOTION_INPUT`) via a WebSocket client (e.g. in Touch Designer):
+
+1. **Connect your client** to the correct WebSockets endpoint, paying attention that it ends in `/ws`:
+  - `wss://algofonia.nullstack.io/ws` - production server
+  - `wss://<your-local-ip>:3000/ws` - local dev server running via Method #1 above
+  - `wss://<some>-<random>-<words>-<here>.trycloudflare.com/ws` - local dev server running via Method #2 above
+2. Use your client to **send a message** with type `SUBSCRIBE_TO_ROOM_REQUEST` in JSON format, as shown here. (For the default room, use the room name `"default"`.)
+    ```
+    {
+      type: "SUBSCRIBE_TO_ROOM_REQUEST",
+      roomName: "default"
+    }
+    ```
+3. Confirm that the request was processed successfully by **listening for a message** with type `SUBSCRIBE_TO_ROOM_REPLY`, with the following JSON structure.
+   ```
+   {
+      type: "SUBSCRIBE_TO_ROOM_REPLY",
+      roomName: "default"
+    }
+   ```
+
+Now, once the `/listen` page is opened and the music has started, you'll start receiving messages for certain events from the room, all in JSON format. Currently, you should receive events with type `SCHEDULE_BEAT` events as well as `MOTION_INPUT`. You can find their structure documented in the file [/app/WebSocketMessage.ts](./app/WebSocketMessage.ts).
+
+## Learn Next.js
 
 To learn more about Next.js, take a look at the following resources:
 
