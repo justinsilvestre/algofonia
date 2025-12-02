@@ -12,10 +12,13 @@ type ConnectionsState = {
 type Room = {
   outputClients: Map<WebSocket, number>;
   inputClients: Map<WebSocket, number>;
-  currentBpm: number;
-  lastSyncedBeatNumber: number;
-  lastSyncedBeatTimestamp: number;
   subscriptionsCount: number;
+  beat: {
+    currentBpm: number;
+    startTime: number;
+    lastSyncedBeatNumber: number;
+    lastSyncedBeatTimestamp: number;
+  } | null;
 };
 
 type WebSocketServerOptions = {
@@ -73,6 +76,13 @@ export async function startWebSocketServer(
               inputClients: Array.from(room.inputClients.values()),
               outputClients: Array.from(room.outputClients.values()),
               subscriptionsCount: room.subscriptionsCount,
+              beat: room.beat
+                ? {
+                    bpm: room.beat.currentBpm,
+                    startTimestamp: room.beat.startTime,
+                    ...getBeatTimes(room.beat),
+                  }
+                : null,
             },
           });
       });
@@ -109,15 +119,33 @@ function handleMessage(
   switch (message.type) {
     case "JOIN_ROOM_REQUEST": {
       const room: Room = connectionsState.rooms.get(message.roomName) || {
-        currentBpm: 120,
-        lastSyncedBeatNumber: 0,
-        lastSyncedBeatTimestamp: performance.now() + performance.timeOrigin,
+        beat:
+          message.clientType === "output"
+            ? {
+                currentBpm: 120,
+                startTime: Date.now(),
+                lastSyncedBeatNumber: 0,
+                lastSyncedBeatTimestamp:
+                  performance.now() + performance.timeOrigin,
+              }
+            : null,
         inputClients: new Map<WebSocket, number>(),
         outputClients: new Map<WebSocket, number>(),
         subscriptionsCount: 0,
       };
-      connectionsState.rooms.set(message.roomName, room);
+      if (room && !room.beat && message.clientType === "output") {
+        room.beat = {
+          currentBpm: 120,
+          startTime: Date.now(),
+          lastSyncedBeatNumber: 0,
+          lastSyncedBeatTimestamp: performance.now() + performance.timeOrigin,
+        };
+      }
+
+      console.log("Client joining room:", message.roomName, room.beat);
+
       const userId = connectionsState.nextUserId++;
+      connectionsState.rooms.set(message.roomName, room);
       connectionsState.connectedClients.add(socket);
       room[
         message.clientType === "input" ? "inputClients" : "outputClients"
@@ -126,7 +154,6 @@ function handleMessage(
       const inputClients = Array.from(room.inputClients.values());
       const outputClients = Array.from(room.outputClients.values());
 
-      const { lastBeatNumber, nextBeatTimestamp } = getBeat(room);
       sendToClient(socket, {
         type: "JOIN_ROOM_REPLY",
         userId,
@@ -134,10 +161,14 @@ function handleMessage(
           inputClients,
           outputClients,
           subscriptionsCount: room.subscriptionsCount,
+          beat: room.beat
+            ? {
+                bpm: room.beat.currentBpm,
+                startTimestamp: room.beat.startTime,
+                ...getBeatTimes(room.beat),
+              }
+            : null,
         },
-        bpm: room.currentBpm,
-        lastBeatNumber,
-        nextBeatTimestamp,
       });
       return broadcastToAllClientsInRoom(connectionsState, message.roomName, {
         type: "ROOM_STATE_UPDATE",
@@ -146,6 +177,13 @@ function handleMessage(
           inputClients,
           outputClients,
           subscriptionsCount: room.subscriptionsCount,
+          beat: room.beat
+            ? {
+                bpm: room.beat.currentBpm,
+                startTimestamp: room.beat.startTime,
+                ...getBeatTimes(room.beat),
+              }
+            : null,
         },
       });
     }
@@ -159,13 +197,15 @@ function handleMessage(
 
     case "SET_TEMPO": {
       const room = connectionsState.rooms.get(message.roomName);
-      if (!room) {
-        console.error(`Room ${message.roomName} not found for SET_TEMPO`);
+      if (!room?.beat) {
+        console.error(
+          `Room with beat running ${message.roomName} not found for SET_TEMPO`
+        );
         return;
       }
       const now = performance.now() + performance.timeOrigin;
-      room.currentBpm = message.bpm;
-      room.lastSyncedBeatTimestamp = now;
+      room.beat.currentBpm = message.bpm;
+      room.beat.lastSyncedBeatTimestamp = now;
 
       broadcastToAllClientsInRoom(connectionsState, message.roomName, {
         type: "SET_TEMPO",
@@ -188,13 +228,15 @@ function handleMessage(
         message.beatTimestamp
       );
       const room = connectionsState.rooms.get(message.roomName);
-      if (!room) {
-        console.error(`Room ${message.roomName} not found for SYNC_BEAT`);
+      if (!room?.beat) {
+        console.error(
+          `Room with beat running ${message.roomName} not found for SYNC_BEAT`
+        );
         return;
       }
 
-      room.lastSyncedBeatNumber = message.beatNumber;
-      room.lastSyncedBeatTimestamp = message.beatTimestamp;
+      room.beat.lastSyncedBeatNumber = message.beatNumber;
+      room.beat.lastSyncedBeatTimestamp = message.beatTimestamp;
 
       for (const [outputClient] of room.outputClients) {
         if (
@@ -206,6 +248,7 @@ function handleMessage(
             roomName: message.roomName,
             beatNumber: message.beatNumber,
             beatTimestamp: message.beatTimestamp,
+            bpm: room.beat.currentBpm,
           });
         }
       }
@@ -216,6 +259,7 @@ function handleMessage(
             roomName: message.roomName,
             beatNumber: message.beatNumber,
             beatTimestamp: message.beatTimestamp,
+            bpm: room.beat.currentBpm,
           });
         }
       }
@@ -254,13 +298,20 @@ function handleMessage(
       roomSubscribers.add(socket);
       connectionsState.subscribers.set(message.roomName, roomSubscribers);
       const room = connectionsState.rooms.get(message.roomName);
-      sendToClient(socket, {
+      broadcastToAllClientsInRoom(connectionsState, message.roomName, {
         type: "ROOM_STATE_UPDATE",
         roomName: message.roomName,
         roomState: {
           inputClients: room ? Array.from(room.inputClients.values()) : [],
           outputClients: room ? Array.from(room.outputClients.values()) : [],
           subscriptionsCount: roomSubscribers.size,
+          beat: room?.beat
+            ? {
+                bpm: room.beat.currentBpm,
+                startTimestamp: room.beat.startTime,
+                ...getBeatTimes(room.beat),
+              }
+            : null,
         },
       });
       return sendToClient(socket, {
@@ -318,29 +369,26 @@ function broadcastToAllClientsInRoom(
           client.send(messageString);
         }
       });
+      const roomSubscribers = connectionsState.subscribers.get(roomName);
+      roomSubscribers?.forEach((subscriber) => {
+        if (subscriber.readyState === WebSocket.OPEN) {
+          subscriber.send(messageString);
+        }
+      });
     }
   }
 }
 
-function getNextBeatTimestamp(room: Room): number {
-  const now = performance.now() + performance.timeOrigin;
-  const beatInterval = (60 / room.currentBpm) * 1000;
-  const timeSinceLastBeat = now - room.lastSyncedBeatTimestamp;
-  return (
-    room.lastSyncedBeatTimestamp +
-    Math.ceil(timeSinceLastBeat / beatInterval) * beatInterval
-  );
-}
-function getBeat(room: Room): {
+function getBeatTimes(beat: NonNullable<Room["beat"]>): {
   lastBeatNumber: number;
   nextBeatTimestamp: number;
 } {
   const now = performance.now() + performance.timeOrigin;
-  const beatInterval = (60 / room.currentBpm) * 1000;
-  const timeSinceLastBeat = now - room.lastSyncedBeatTimestamp;
+  const beatInterval = (60 / beat.currentBpm) * 1000;
+  const timeSinceLastBeat = now - beat.lastSyncedBeatTimestamp;
   const beatsSinceLastSync = Math.floor(timeSinceLastBeat / beatInterval);
-  const lastBeatNumber = room.lastSyncedBeatNumber + beatsSinceLastSync;
+  const lastBeatNumber = beat.lastSyncedBeatNumber + beatsSinceLastSync;
   const nextBeatTimestamp =
-    room.lastSyncedBeatTimestamp + (beatsSinceLastSync + 1) * beatInterval;
+    beat.lastSyncedBeatTimestamp + (beatsSinceLastSync + 1) * beatInterval;
   return { lastBeatNumber, nextBeatTimestamp };
 }

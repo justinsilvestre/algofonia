@@ -40,9 +40,9 @@ This method requires an internet connection and relies on the free "Cloudflare T
 
 Now, anyone with an Internet connection can access the app from that address, a long as your tunnel is working. You can check your terminal output to make sure the tunnel is still working.
 
-# Connecting via WebSockets
+## Connecting via WebSockets
 
-To subscribe to a room's events (currently `SCHEDULE_BEAT` and `MOTION_INPUT`) via a WebSocket client (e.g. in Touch Designer):
+To subscribe to a room's events (currently `SCHEDULE_BEAT`, `MOTION_INPUT`, and `ROOM_STATE_UPDATE`) via a WebSocket client (e.g. in Touch Designer):
 
 1. **Connect your client** to the correct WebSockets endpoint, paying attention that it ends in `/ws`:
   - `wss://algofonia.nullstack.io/ws` - production server
@@ -63,7 +63,13 @@ To subscribe to a room's events (currently `SCHEDULE_BEAT` and `MOTION_INPUT`) v
     }
    ```
 
-Now, once the `/listen` page is opened and the music has started, you'll start receiving messages for certain events from the room, all in JSON format. Currently, you should receive events with type `SCHEDULE_BEAT` events as well as `MOTION_INPUT`. You can find their structure documented **with the `MessageToServer` data type** in the file [/app/WebsocketMessage.ts](./app/WebsocketMessage.ts).
+Now, once the `/listen` page is opened and the music has started, you'll start receiving messages for certain events from the room, all in JSON format. Currently, you should receive events with type `SCHEDULE_BEAT`, `MOTION_INPUT`, and `ROOM_STATE_UPDATE`. You can find their structure documented **with the `MessageToServer` data type** in the file [/app/WebsocketMessage.ts](./app/WebsocketMessage.ts).
+
+### Getting beat start times
+
+After subscribing to WebSockets messages, you will immediately receive a `ROOM_STATE_UPDATE` message. If this message has `null` value for `roomState.beat`, that means the beat hasn't started yet. If `roomState.beat` is present, you can use `roomState.beat.startTime` to get the [**milliseconds since the Unix epoch**](https://en.wikipedia.org/wiki/Unix_time) of the first beat.
+
+All the properties available on `roomState` are documented **with the `RoomState` data type** in the file [/app/WebsocketMessage.ts](./app/WebsocketMessage.ts)
 
 ## Learn Next.js
 

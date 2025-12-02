@@ -71,6 +71,7 @@ export default function InputClientPage() {
     inputClients: [],
     outputClients: [],
     subscriptionsCount: 0,
+    beat: null,
   });
 
   const movement = useMovement();
@@ -98,23 +99,9 @@ export default function InputClientPage() {
         console.log("Received message from server:", message);
         switch (message.type) {
           case "JOIN_ROOM_REPLY":
-            beatsCountRef.current = message.lastBeatNumber;
-            nextBeatTimestampRef.current = message.nextBeatTimestamp;
             setUserId(message.userId);
             setRoomState(message.roomState);
-            setBpm(message.bpm);
-            startBeats(
-              message.nextBeatTimestamp,
-              getBpm,
-              beatsCountRef,
-              nextBeatTimestampRef,
-              offsetFromServerTimeRef,
-              () => {
-                console.log("BEAT #" + beatsCountRef.current);
-                // Trigger orb beat pulse
-                pulse();
-              }
-            );
+
             break;
           case "ROOM_STATE_UPDATE":
             setRoomState(message.roomState);
@@ -126,8 +113,25 @@ export default function InputClientPage() {
             break;
           }
           case "SYNC_BEAT": {
-            nextBeatTimestampRef.current = message.beatTimestamp;
+            if (!nextBeatTimestampRef.current) {
+              startBeats(
+                message.beatTimestamp,
+                getBpm,
+                beatsCountRef,
+                nextBeatTimestampRef,
+                offsetFromServerTimeRef,
+                () => {
+                  console.log("BEAT #" + beatsCountRef.current);
+                  // Trigger orb beat pulse
+                  pulse();
+                }
+              );
+            }
             beatsCountRef.current = message.beatNumber - 1; // will be incremented on next beat
+            nextBeatTimestampRef.current = message.beatTimestamp;
+
+            setBpm(message.bpm);
+
             break;
           }
         }

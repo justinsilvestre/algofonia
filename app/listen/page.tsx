@@ -50,6 +50,7 @@ export default function OutputClientPage() {
     inputClients: [],
     outputClients: [],
     subscriptionsCount: 0,
+    beat: null,
   });
   const { connectionState, sendMessage } = useWebsocket({
     handleMessage: useCallback(
@@ -62,15 +63,26 @@ export default function OutputClientPage() {
         switch (message.type) {
           case "JOIN_ROOM_REPLY":
             const { userId } = message;
-            beatsCountRef.current = message.lastBeatNumber;
-            nextBeatTimestampRef.current = message.nextBeatTimestamp;
+
+            const beat = message.roomState.beat;
+            if (!beat) {
+              console.log("Initial beat info not available yet.");
+              setUserId(userId);
+              setRoomState(message.roomState);
+              break;
+            }
+            console.log("Initial beat info:", beat);
+            const { lastBeatNumber, nextBeatTimestamp, bpm } = beat;
+
+            beatsCountRef.current = lastBeatNumber;
+            nextBeatTimestampRef.current = nextBeatTimestamp;
             setUserId(message.userId);
             setRoomState(message.roomState);
             const roomName = getRoomName();
 
-            setBpm(message.bpm);
+            setBpm(bpm);
             startBeats(
-              message.nextBeatTimestamp,
+              nextBeatTimestamp,
               getBpm,
               beatsCountRef,
               nextBeatTimestampRef,
@@ -96,18 +108,19 @@ export default function OutputClientPage() {
                   });
                 }
 
-                const flashContainer =
-                  document.getElementById("flash-container");
-                // Flash white
-                const flashDuration = 100; // Duration of the white flash in milliseconds
-                if (flashContainer)
-                  flashContainer.style.backgroundColor = "white";
-                // Reset background after flash duration
-                setTimeout(() => {
-                  const flashContainer =
-                    document.getElementById("flash-container");
-                  if (flashContainer) flashContainer.style.backgroundColor = "";
-                }, flashDuration);
+                // Flash beat-display using CSS variable
+                const flashDuration = 100; // Duration of the flash in milliseconds
+
+                const beatDisplay = document.getElementById("beat-display");
+                if (beatDisplay) {
+                  beatDisplay.style.setProperty("background-color", "white");
+                  beatDisplay.style.setProperty("color", "black");
+                  setTimeout(() => {
+                    const beatDisplay = document.getElementById("beat-display");
+                    beatDisplay?.style.removeProperty("background-color");
+                    beatDisplay?.style.removeProperty("color");
+                  }, flashDuration);
+                }
               }
             );
             break;
@@ -142,7 +155,7 @@ export default function OutputClientPage() {
               roomState.inputClients
             );
             const channelKey = userIdsToChannelKeys.get(inputUserId)!;
-            inputToTone(channelKey, message);
+            inputToTone(channelKey, message, sendMessage);
 
             // Update the specific input client's state
             setInputClients((prev) => {
@@ -164,13 +177,14 @@ export default function OutputClientPage() {
         }
       },
       [
+        roomState.beat,
+        roomState.inputClients,
+        setBpm,
+        getBpm,
         offsetFromServerTimeRef,
         processSyncReply,
         toneControls,
         inputToTone,
-        setBpm,
-        getBpm,
-        roomState.inputClients,
       ]
     ),
   });
@@ -239,7 +253,7 @@ export default function OutputClientPage() {
 
   return (
     <div id="container" className="w-screen h-screen text-white bg-black">
-      <div id="flash-container" className="w-screen h-screen p-4">
+      <div className="w-screen h-screen p-4">
         <h1>Listen</h1>
         <p>Room name: {getRoomName()}</p>
         <p>
@@ -251,9 +265,18 @@ export default function OutputClientPage() {
         <p>{roomState.inputClients.length} input clients connected</p>
         <p>{roomState.outputClients.length} output clients connected</p>
         <p>{roomState.subscriptionsCount} subscribers</p>
-        {musicState && <p>{musicState.bpm} BPM</p>}
+        {musicState && (
+          <p>
+            <span id="beat-display">{musicState.bpm} BPM ♬</span>
+          </p>
+        )}
         {!toneControls && (
-          <button className="text-white p-8" onClick={tone.start}>
+          <button
+            className="text-white p-4 m-4 border rounded-lg"
+            onClick={() => {
+              tone.start();
+            }}
+          >
             click to start
           </button>
         )}
@@ -282,22 +305,10 @@ export default function OutputClientPage() {
                   around: 0,
                 };
 
-                const blue =
-                  Math.max(
-                    0,
-                    Math.min(255, Math.round((client.frontToBack / 100) * 255))
-                  ) * 0.7;
-                const green =
-                  Math.max(
-                    0,
-                    Math.min(255, Math.round((client.around / 100) * 255))
-                  ) * 0.7;
-
                 return (
                   <div
                     key={userId}
                     className="p-4 rounded-lg border-2 border-white/20"
-                    style={{ backgroundColor: `rgb(0, ${green}, ${blue})` }}
                   >
                     <div className="text-sm font-mono mb-2">
                       {channelKey} {userId <= 0 ? "" : <>(user ID #{userId})</>}
@@ -342,7 +353,11 @@ export default function OutputClientPage() {
                                   nextBeatTimestampRef.current ??
                                   performance.now() + performance.timeOrigin,
                               };
-                              inputToTone(channelKey, simulatedMotionInput);
+                              inputToTone(
+                                channelKey,
+                                simulatedMotionInput,
+                                sendMessage
+                              );
                             }
                           }}
                           className="w-full h-2 bg-white/20 rounded-lg appearance-none cursor-pointer slider"
@@ -387,7 +402,11 @@ export default function OutputClientPage() {
                                   nextBeatTimestampRef.current ??
                                   performance.now() + performance.timeOrigin,
                               };
-                              inputToTone(channelKey, simulatedMotionInput);
+                              inputToTone(
+                                channelKey,
+                                simulatedMotionInput,
+                                sendMessage
+                              );
                             }
                           }}
                           className="w-full h-2 bg-white/20 rounded-lg appearance-none cursor-pointer slider"

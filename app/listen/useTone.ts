@@ -1,6 +1,9 @@
 import { useState, useCallback, useRef, RefObject } from "react";
 import * as Tone from "tone";
-import { MotionInputMessageToClient } from "../WebsocketMessage";
+import {
+  MessageToServer,
+  MotionInputMessageToClient,
+} from "../WebsocketMessage";
 import { getToneControls, ToneControls } from "./tone";
 import { channels } from "./channels";
 
@@ -134,7 +137,11 @@ export function useTone(
   }, [musicState.bpm, nextBeatTimestampRef, offsetFromServerTimeRef]);
 
   const input = useCallback(
-    (channelKey: string, message: MotionInputMessageToClient) => {
+    (
+      channelKey: string,
+      message: MotionInputMessageToClient,
+      sendMessage: (message: MessageToServer) => void
+    ) => {
       if (!controls) {
         console.warn("ToneControls not initialized yet");
         return;

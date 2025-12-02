@@ -10,9 +10,6 @@ export type MessageToClient =
       type: "JOIN_ROOM_REPLY";
       userId: number;
       roomState: RoomState;
-      bpm: number;
-      lastBeatNumber: number;
-      nextBeatTimestamp: number;
     }
   | {
       type: "ROOM_STATE_UPDATE";
@@ -32,6 +29,7 @@ export type MessageToClient =
       roomName: string;
       beatNumber: number;
       beatTimestamp: number;
+      bpm: number;
     }
   | {
       type: "SUBSCRIBE_TO_ROOM_REPLY";
@@ -58,6 +56,12 @@ export type RoomState = {
   inputClients: number[];
   outputClients: number[];
   subscriptionsCount: number;
+  beat: {
+    bpm: number;
+    startTimestamp: number;
+    lastBeatNumber: number;
+    nextBeatTimestamp: number;
+  } | null;
 };
 
 export type MessageToServer =
