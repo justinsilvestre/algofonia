@@ -292,12 +292,19 @@ function handleMessage(
     }
 
     case "SUBSCRIBE_TO_ROOM_REQUEST": {
+      const room: Room = connectionsState.rooms.get(message.roomName) || {
+        beat: null,
+        inputClients: new Map<WebSocket, number>(),
+        outputClients: new Map<WebSocket, number>(),
+        subscriptionsCount: 0,
+      };
+      connectionsState.rooms.set(message.roomName, room);
       const roomSubscribers =
         connectionsState.subscribers.get(message.roomName) ||
         new Set<WebSocket>();
       roomSubscribers.add(socket);
       connectionsState.subscribers.set(message.roomName, roomSubscribers);
-      const room = connectionsState.rooms.get(message.roomName);
+
       broadcastToAllClientsInRoom(connectionsState, message.roomName, {
         type: "ROOM_STATE_UPDATE",
         roomName: message.roomName,
@@ -314,10 +321,11 @@ function handleMessage(
             : null,
         },
       });
-      return sendToClient(socket, {
+      sendToClient(socket, {
         type: "SUBSCRIBE_TO_ROOM_REPLY",
         roomName: message.roomName,
       });
+      return;
     }
 
     case "SCHEDULE_BEAT": {
