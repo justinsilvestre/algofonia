@@ -63,7 +63,7 @@ To subscribe to a room's events (currently `SCHEDULE_BEAT` and `MOTION_INPUT`) v
     }
    ```
 
-Now, once the `/listen` page is opened and the music has started, you'll start receiving messages for certain events from the room, all in JSON format. Currently, you should receive events with type `SCHEDULE_BEAT` events as well as `MOTION_INPUT`. You can find their structure documented in the file [/app/WebsocketMessage.ts](./app/WebsocketMessage.ts).
+Now, once the `/listen` page is opened and the music has started, you'll start receiving messages for certain events from the room, all in JSON format. Currently, you should receive events with type `SCHEDULE_BEAT` events as well as `MOTION_INPUT`. You can find their structure documented **with the `MessageToServer` data type** in the file [/app/WebsocketMessage.ts](./app/WebsocketMessage.ts).
 
 ## Learn Next.js
 
