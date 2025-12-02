@@ -67,7 +67,9 @@ Now, once the `/listen` page is opened and the music has started, you'll start r
 
 ### Getting beat start times
 
-After subscribing to WebSockets messages, you will immediately receive a `ROOM_STATE_UPDATE` message. If this message has `null` value for `roomState.beat`, that means the beat hasn't started yet. If `roomState.beat` is present, you can use `roomState.beat.startTime` to get the [**milliseconds since the Unix epoch**](https://en.wikipedia.org/wiki/Unix_time) of the first beat.
+After subscribing to WebSockets messages, you will immediately receive a `ROOM_STATE_UPDATE` message. You will also receive a `ROOM_STATE_UPDATE` when the room's beat starts, and any time someone joins/leaves the room.
+
+If this message has `null` value for `roomState.beat`, that means the beat hasn't started yet. If `roomState.beat` is present, you can use `roomState.beat.startTime` to get the [**milliseconds since the Unix epoch**](https://en.wikipedia.org/wiki/Unix_time) of the first beat.
 
 All the properties available on `roomState` are documented **with the `RoomState` data type** in the file [/app/WebsocketMessage.ts](./app/WebsocketMessage.ts)
 
