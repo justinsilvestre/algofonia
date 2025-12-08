@@ -16,6 +16,7 @@
     "docker:build": "docker build -t algofonia .",
     "docker:export": "npm run docker:build && docker save -o algofonia.tar algofonia",
     "docker:run": "docker run -p 3000:3000 algofonia",
+    "tsc": "tsc --noEmit",
     "tunnel": "cloudflared tunnel --url http://localhost:3000"
   },
   "dependencies": {
