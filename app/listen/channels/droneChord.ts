@@ -1,43 +1,53 @@
 import * as Tone from "tone";
+import { Chord, Scale, Key, Progression } from "tonal";
+
 import { createChannel } from "../tone";
-import { Chord, Key } from "tonal";
+import { PulseSynth } from "./../synth/pulseSynth";
+
+export type ToneControls = ReturnType<typeof getToneControls>;
 
 export const droneChord = createChannel({
   key: "drone chord",
   initialize: () => {
     console.log("Initializing drone chord channel");
-    const gain1 = new Tone.Gain(1).toDestination();
-    const gain2 = new Tone.Gain(1).toDestination();
-    const synthSettings = {
-      oscillator: { type: "sine" },
-      envelope: { attack: 0.1, decay: 0.1, sustain: 1, release: 0.1 },
-    } as const;
 
-    return {
-      synths: [
-        new Tone.Synth(synthSettings).connect(gain1),
-        new Tone.Synth(synthSettings).connect(gain1),
-        new Tone.Synth(synthSettings).connect(gain2),
-        new Tone.Synth(synthSettings).connect(gain2),
-      ],
-      gain1,
-      gain2,
-    };
+    const synth = new PulseSynth();
+    synth.start();
+
+    const octave = 3;
+    const loopIndex = 0;
+
+    return { loopIndex, synth, octave };
   },
-  onLoop: ({ key, chordRootScaleDegree, getChord }, { synths }, time) => {
-    const currentChord = getChord(key, chordRootScaleDegree);
-    const notes = Chord.get(currentChord).notes.map((letterWithoutNumber) =>
-      Tone.Frequency(letterWithoutNumber + "4").toNote()
+  onLoop: ({ key, mode, chordRootScaleDegree, getChord }, channelState, time) => {
+    channelState.loopIndex += 1;
+
+    const scale  = `${key}${channelState.octave} ${mode}`;
+    const notes  = Scale.get(scale).notes;
+    const offset = channelState.loopIndex % 2; // 0 or 1
+
+    channelState.synth.playChord(
+      [notes[0+offset], notes[3+offset], notes[5+offset]], 
+      "1n", 
+      time+0.1
     );
-    notes.forEach((note, i) =>
-      synths[i].triggerAttackRelease(note, "1m", time)
-    );
+      
+    
+
+    return channelState;
   },
-  respond: (tone, { gain1: gain, gain2 }, { frontToBack, around }) => {
-    const gainValue = frontToBack / 100;
-    gain.gain.rampTo(gainValue);
-    console.log("Drone chord frontToBack:", frontToBack);
-    const gain2Value = around / 100;
-    gain2.gain.rampTo(gain2Value);
+  respond: (tone, { synth }, { frontToBack, around }) => {
+    const gainValue = (frontToBack / 100 * 14) + 2;
+
+    synth.gainLFOLFO.set({ max: gainValue});
+
+    // const frequency = (around / 100 * 16) + 2;
+    // synth.filterLFO.set({ frequency: frequency })
+
+    // const modulationIndex = (around / 3);
+    // synth.synth1.set({ modulationIndex }); 
+
+    // const frequency = (around / 100);
+    // synth.reverbLFO.set({ frequency });
   },
 });

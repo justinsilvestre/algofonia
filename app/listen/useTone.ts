@@ -26,7 +26,7 @@ type MusicControlChannelInputState = {
 };
 
 export function useTone(
-  startBpm: number = 120,
+  startBpm: number = 100,
   nextBeatTimestampRef: RefObject<number | null>,
   offsetFromServerTimeRef?: RefObject<number | null>
 ) {

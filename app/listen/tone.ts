@@ -1,4 +1,5 @@
 import * as Tone from "tone";
+
 import { MotionInputMessageToClient } from "../WebsocketMessage";
 import { Key } from "tonal";
 
@@ -6,38 +7,41 @@ export type ToneControls = ReturnType<typeof getToneControls>;
 export function getToneControls(
   loopCallback: (time: Tone.Unit.Seconds) => void
 ) {
-  const transport = Tone.getTransport();
-  let started = false;
-  const loop = new Tone.Loop((time) => {
-    loopCallback(time);
-  }, "1m");
-  return {
-    get started() {
-      return started;
-    },
-    transport,
-    loop,
-    start: (startBpm: number, startOffsetSeconds: Tone.Unit.Seconds) => {
-      console.log(`Start time offset in seconds: ${startOffsetSeconds}`);
-      transport.start(startOffsetSeconds);
-      // set initial bpm
-      Tone.getTransport().bpm.value = startBpm;
-      loop.start(0);
-      started = true;
-      return Promise.resolve();
-    },
-    setBpm: (bpm: number) => {
-      Tone.getTransport().bpm.value = bpm;
-    },
-    getBpm: () => {
-      return Tone.getTransport().bpm.value;
-    },
-    key: "C",
-    chordRootScaleDegree: 1,
-    getChord: (key: string, chordRootScaleDegree: number) => {
-      return Key.majorKey(key).chords[chordRootScaleDegree - 1];
-    },
-  };
+    const transport = Tone.getTransport();
+    let started = false;
+    const loop = new Tone.Loop((time) => {
+      loopCallback(time);
+    }, "1m");
+
+    return {
+      get started() {
+        return started;
+      },
+      transport,
+      loop,
+      start: (startBpm: number, startOffsetSeconds: Tone.Unit.Seconds) => {
+        console.log(`Start time offset in seconds: ${startOffsetSeconds}`);
+        transport.start(startOffsetSeconds);
+        // set initial bpm
+        Tone.getTransport().bpm.value = startBpm;
+        loop.start(0);
+        started = true;
+
+        return Promise.resolve();
+      },
+      setBpm: (bpm: number) => {
+        Tone.getTransport().bpm.value = bpm;
+      },
+      getBpm: () => {
+        return Tone.getTransport().bpm.value;
+      },
+      key: "E",
+      mode: "minor",
+      chordRootScaleDegree: 1,
+      getChord: (key: string, chordRootScaleDegree: number) => {
+        return Key.majorKey(key).chords[chordRootScaleDegree - 1];
+      },
+    };
 }
 
 export type Channel<ChannelControls = null> = {

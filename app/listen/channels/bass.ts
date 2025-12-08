@@ -3,6 +3,8 @@ import { Chord, Key, Scale } from "tonal";
 import { createChannel } from "../tone";
 import { RecursivePartial } from "tone/build/esm/core/util/Interface";
 
+import { BassSynth } from "./../synth/bassSynth";
+
 const forwardProgression = new Map([
   [1, 5],
   [5, 4],
@@ -37,56 +39,60 @@ const resolution = new Map([
 
 // prettier-ignore
 const rhythmVariations = new Map([
-  [1, [['2n', null, null, null], [null, null, null, null], ['2n', null, null, null], [null, null, null, null]].flat()],
-  [2, [['4n', null, null, null], ['8n', null, '8n', null], ['4n', null, null, null], ['4n', null, null, null]].flat()],
-  [3, [['4n', null, null, null], ['8n', null, '8n', null], ['8n', null, '8n', null], ['4n', null, null, null]].flat()],
+  [0, [['1n', null, null, null], [null , null , null, null], [null , null, null, null], [null, null, null, null]].flat()],
+  [1, [['2n', null, null, null], [null , null , null, null], ['2n' , null, null, null], [null, null, null, null]].flat()],
+  [2, [[null, null, '8n', null], [null , null , '8n', null], [null , null, '8n', null], [null, null, '8n', null]].flat()],
+  [3, [['4n', null, null, null], ['8n' , null , '8n', null], ['8n' , null, '8n', null], ['4n', null, null, null]].flat()],
   [4, [['8n', null, '8n', null], ['16n', '16n', '8n', null], ['16n','16n','16n','16n'], ['8n', null, '8n', null]].flat()],
 ])
 
 export const bass = createChannel({
-  key: "bass",
+  key: "Bass",
   initialize: () => {
     console.log("All scale names", Scale.names());
 
-    const gain = new Tone.Gain(1).toDestination();
-    const synthSettings: RecursivePartial<Tone.SynthOptions> = {
-      oscillator: { type: "sine" },
-      envelope: { attack: 0.1, decay: 0.8, sustain: 0.6, release: 2.5 },
-    };
-    const synth = new Tone.Synth(synthSettings).connect(gain);
+    const synth = new BassSynth();
+    synth.start();
+
+    const octave = 1;
 
     return {
       synth,
-      gain,
-      rhythmSpeed: 1,
+      octave,
+      rhythmSpeed: 0,
+      loopIndex: 0
     };
   },
   onLoop: (
-    { transport, key, chordRootScaleDegree, getChord },
+    { transport, key, mode, chordRootScaleDegree, getChord },
     channelState,
     time
   ) => {
     const { synth } = channelState;
-    const currentChord = getChord(key, chordRootScaleDegree);
-    const notes = Chord.get(currentChord).notes.map(
-      (letterWithoutNumber) => letterWithoutNumber + "3"
-    );
-    console.log("Current chord:", currentChord, "notes:", notes);
+
+    const scaleNotes = Scale.get(`${key} ${mode}`).notes;
+    // const note = `${scaleNotes[channelState.loopIndex % scaleNotes.length]}${channelState.octave}`;
 
     [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15].forEach((i) => {
       transport.schedule((time) => {
+        const note = `${scaleNotes[(channelState.loopIndex) % scaleNotes.length]}${channelState.octave}`;
         // get random note from chord
-        const note = notes[Math.floor(Math.random() * notes.length)];
         const rhythmVariation = rhythmVariations.get(channelState.rhythmSpeed)!;
         const rhythmAtSixteenthBeat = rhythmVariation[i];
+
         if (rhythmAtSixteenthBeat)
           console.log(
             `Playing bass note ${note} at sixteenth beat ${i}, rhythm: ${rhythmAtSixteenthBeat}`
           );
+
         if (rhythmAtSixteenthBeat)
-          synth.triggerAttackRelease(note, rhythmAtSixteenthBeat, time);
-      }, time + Tone.Time("16n").toSeconds() * i);
+          synth.playNote(note, rhythmAtSixteenthBeat, time);
+      }, time + Tone.Time("16n").toSeconds() * (i + 1));
     });
+
+    channelState.loopIndex += 1;
+
+    return channelState;
   },
   respond: (tone, channelState, { frontToBack, around }) => {
     // when frontToBack is high, progress.
