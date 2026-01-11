@@ -88,7 +88,7 @@ If you need to make a commit with Eslint errors for some unavoidable reason, you
 
 In addition, a Github Action is run any time you make a pull request to the `main` branch that does the same thing, plus runs `npm run build` to make sure the build completes, including a TypeScript compile.
 
-These measures are useful, especially if you make **frequent commits**. But in the event that you forget/that's is not possible, more immediate feedback via your editor will save you lots of trouble. Therefore it is helpful to configure your settings/plugins with:
+These measures are useful, especially if you make **frequent commits**. But in the event that you forget/that is not possible, more immediate feedback via your editor will save you lots of trouble. Therefore it is helpful to configure your settings/plugins with:
 
 - ESLint errors/warnings in the editor
 - TypeScript errors/warnings in the editor
