@@ -1,11 +1,11 @@
-import * as Tone from 'tone';
-import { createChannel } from '../tone';
-import { Chord, Scale, Key } from 'tonal';
+import * as Tone from "tone";
+import { createChannel } from "../tone";
+import { Chord, Scale, Key } from "tonal";
 
-import { BrightAmbientPad } from '../synth/brightPad';
+import { BrightAmbientPad } from "../synth/brightPad";
 
 export const brightPad = createChannel({
-  key: 'Bright Ambient Pad',
+  key: "Bright Ambient Pad",
 
   initialize: () => {
     const pad = new BrightAmbientPad();

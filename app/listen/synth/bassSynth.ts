@@ -1,4 +1,4 @@
-import * as Tone from 'tone';
+import * as Tone from "tone";
 
 export class BassSynth {
   private mainSynth: Tone.MonoSynth;
@@ -16,7 +16,7 @@ export class BassSynth {
     // Main bass voice - sawtooth for brightness
     this.mainSynth = new Tone.MonoSynth({
       oscillator: {
-        type: 'square',
+        type: "square",
       },
       envelope: {
         attack: 0.01,
@@ -37,7 +37,7 @@ export class BassSynth {
     // Sub-bass voice - sine wave one octave down
     this.subSynth = new Tone.MonoSynth({
       oscillator: {
-        type: 'sine',
+        type: "sine",
       },
       envelope: {
         attack: 0.01,
@@ -46,7 +46,7 @@ export class BassSynth {
         release: 0.5,
       },
       filter: {
-        type: 'lowpass',
+        type: "lowpass",
         frequency: 150,
         Q: 1,
       },
@@ -115,7 +115,7 @@ export class BassSynth {
 
   playNote(
     note: Tone.Unit.Frequency,
-    duration: Tone.Unit.Time = '8n',
+    duration: Tone.Unit.Time = "8n",
     time?: Tone.Unit.Time
   ): void {
     // Play main note

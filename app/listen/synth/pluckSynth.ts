@@ -1,4 +1,4 @@
-import * as Tone from 'tone';
+import * as Tone from "tone";
 
 export class PluckSynth {
   private synth: Tone.Synth;
@@ -12,7 +12,7 @@ export class PluckSynth {
   constructor() {
     this.synth = new Tone.Synth({
       oscillator: {
-        type: 'square',
+        type: "square",
       },
       envelope: {
         attack: 0.01,
@@ -26,14 +26,14 @@ export class PluckSynth {
     // Bright filter with resonance for that plucky character
     this.filter = new Tone.Filter({
       frequency: 350,
-      type: 'lowpass',
+      type: "lowpass",
       rolloff: -12,
       Q: 5,
     });
 
     // Ping pong delay for stereo width
     this.pingPong = new Tone.PingPongDelay({
-      delayTime: '16t',
+      delayTime: "16t",
       feedback: 0.6,
       wet: 0.25,
     });

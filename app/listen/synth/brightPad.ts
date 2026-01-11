@@ -1,4 +1,4 @@
-import * as Tone from 'tone';
+import * as Tone from "tone";
 
 export class BrightAmbientPad {
   private shimmerLayer: Tone.PolySynth<Tone.FMSynth>;
@@ -38,7 +38,7 @@ export class BrightAmbientPad {
       harmonicity: 3.5,
       modulationIndex: 12,
       oscillator: {
-        type: 'sawtooth',
+        type: "sawtooth",
       },
       envelope: {
         attack: 2.0,
@@ -47,7 +47,7 @@ export class BrightAmbientPad {
         release: 3.5,
       },
       modulation: {
-        type: 'sine',
+        type: "sine",
       },
       modulationEnvelope: {
         attack: 1.5,
@@ -62,7 +62,7 @@ export class BrightAmbientPad {
       harmonicity: 8,
       modulationIndex: 20,
       oscillator: {
-        type: 'triangle',
+        type: "triangle",
       },
       envelope: {
         attack: 0.01,
@@ -71,7 +71,7 @@ export class BrightAmbientPad {
         release: 4.0,
       },
       modulation: {
-        type: 'sine',
+        type: "sine",
       },
       modulationEnvelope: {
         attack: 0.01,
@@ -84,7 +84,7 @@ export class BrightAmbientPad {
     // Warm pad layer
     this.warmLayer = new Tone.PolySynth(Tone.AMSynth, {
       oscillator: {
-        type: 'triangle',
+        type: "triangle",
         // @ts-expect-error not in ToneTypeOscillatorOptions
         count: 4,
         spread: 40,
@@ -100,7 +100,7 @@ export class BrightAmbientPad {
     // High octave sparkle layer
     this.sparkleLayer = new Tone.PolySynth(Tone.Synth, {
       oscillator: {
-        type: 'sine',
+        type: "sine",
         // @ts-expect-error not in ToneTypeOscillatorOptions
         count: 2,
         spread: 10,
@@ -116,7 +116,7 @@ export class BrightAmbientPad {
     // Bright filter with modulation
     this.filter = new Tone.Filter({
       frequency: 3500,
-      type: 'lowpass',
+      type: "lowpass",
       rolloff: -12,
       Q: 2,
     });
@@ -126,7 +126,7 @@ export class BrightAmbientPad {
       frequency: 0.12,
       min: 2500,
       max: 5000,
-      type: 'square',
+      type: "square",
     });
     this.filterLFO.connect(this.filter.frequency);
 
@@ -135,7 +135,7 @@ export class BrightAmbientPad {
       frequency: 0.05,
       min: -500,
       max: 500,
-      type: 'triangle',
+      type: "triangle",
     });
     // this.filterLFO2.connect(this.filter.frequency);
 
@@ -200,13 +200,13 @@ export class BrightAmbientPad {
       frequency: 0.06,
       min: 0.6,
       max: 0.95,
-      type: 'sine',
+      type: "sine",
     });
     this.reverbLFO.connect(this.reverb.wet);
 
     // Delay for space
     this.delay = new Tone.FeedbackDelay({
-      delayTime: '8n',
+      delayTime: "8n",
       feedback: 0.4,
       wet: 0.25,
     });
@@ -216,16 +216,16 @@ export class BrightAmbientPad {
       frequency: 0.15,
       min: 0.3,
       max: 0.5,
-      type: 'sine',
+      type: "sine",
     });
     this.delayLFO.connect(this.delay.delayTime);
 
     // Brightness LFO for sparkle
     this.brightnessLFO = new Tone.LFO({
-      frequency: '8t',
+      frequency: "8t",
       min: 0.5,
       max: 1.0,
-      type: 'sine',
+      type: "sine",
     });
 
     // Layer gains
@@ -277,7 +277,7 @@ export class BrightAmbientPad {
   // Play with optional high octave sparkle
   playChord(
     notes: string | string[],
-    duration = '4n',
+    duration = "4n",
     time: Tone.Unit.Time | undefined = undefined,
     withSparkle = true
   ): void {

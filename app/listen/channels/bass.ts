@@ -1,9 +1,9 @@
-import * as Tone from 'tone';
-import { Chord, Key, Scale } from 'tonal';
-import { createChannel } from '../tone';
-import { RecursivePartial } from 'tone/build/esm/core/util/Interface';
+import * as Tone from "tone";
+import { Chord, Key, Scale } from "tonal";
+import { createChannel } from "../tone";
+import { RecursivePartial } from "tone/build/esm/core/util/Interface";
 
-import { BassSynth } from './../synth/bassSynth';
+import { BassSynth } from "./../synth/bassSynth";
 
 const forwardProgression = new Map([
   [1, 5],
@@ -47,9 +47,9 @@ const rhythmVariations = new Map([
 ])
 
 export const bass = createChannel({
-  key: 'Bass',
+  key: "Bass",
   initialize: () => {
-    console.log('All scale names', Scale.names());
+    console.log("All scale names", Scale.names());
 
     const synth = new BassSynth();
     synth.start();
@@ -91,7 +91,7 @@ export const bass = createChannel({
           if (rhythmAtSixteenthBeat)
             synth.playNote(note, rhythmAtSixteenthBeat, time);
         },
-        time + Tone.Time('16n').toSeconds() * (i + 1)
+        time + Tone.Time("16n").toSeconds() * (i + 1)
       );
     });
 

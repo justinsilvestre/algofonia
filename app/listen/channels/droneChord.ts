@@ -1,15 +1,15 @@
-import * as Tone from 'tone';
-import { Chord, Scale, Key, Progression } from 'tonal';
+import * as Tone from "tone";
+import { Chord, Scale, Key, Progression } from "tonal";
 
-import { createChannel, getToneControls } from '../tone';
-import { PulseSynth } from './../synth/pulseSynth';
+import { createChannel, getToneControls } from "../tone";
+import { PulseSynth } from "./../synth/pulseSynth";
 
 export type ToneControls = ReturnType<typeof getToneControls>;
 
 export const droneChord = createChannel({
-  key: 'drone chord',
+  key: "drone chord",
   initialize: () => {
-    console.log('Initializing drone chord channel');
+    console.log("Initializing drone chord channel");
 
     const synth = new PulseSynth();
     synth.start();
@@ -32,7 +32,7 @@ export const droneChord = createChannel({
 
     channelState.synth.playChord(
       [notes[0 + offset], notes[3 + offset], notes[5 + offset]],
-      '1n',
+      "1n",
       time + 0.1
     );
 

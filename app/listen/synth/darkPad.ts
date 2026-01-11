@@ -1,4 +1,4 @@
-import * as Tone from 'tone';
+import * as Tone from "tone";
 
 export class DarkAmbientPad {
   private layer1: Tone.PolySynth<Tone.FMSynth>;
@@ -30,7 +30,7 @@ export class DarkAmbientPad {
       harmonicity: 1.5,
       modulationIndex: 8,
       oscillator: {
-        type: 'sine',
+        type: "sine",
       },
       envelope: {
         attack: 3.0,
@@ -39,7 +39,7 @@ export class DarkAmbientPad {
         release: 4.0,
       },
       modulation: {
-        type: 'triangle',
+        type: "triangle",
       },
       modulationEnvelope: {
         attack: 2.0,
@@ -52,7 +52,7 @@ export class DarkAmbientPad {
     // Detuned layer for thickness
     this.layer2 = new Tone.PolySynth(Tone.Synth, {
       oscillator: {
-        type: 'sawtooth',
+        type: "sawtooth",
         // @ts-expect-error not in ToneTypeOscillatorOptions
         count: 3,
         spread: 30,
@@ -68,7 +68,7 @@ export class DarkAmbientPad {
     // Sub-harmonic layer for darkness
     this.layer3 = new Tone.PolySynth(Tone.Synth, {
       oscillator: {
-        type: 'sine',
+        type: "sine",
       },
       envelope: {
         attack: 4.0,
@@ -81,7 +81,7 @@ export class DarkAmbientPad {
     // Dark filter with slow LFO modulation
     this.filter = new Tone.Filter({
       frequency: 800,
-      type: 'lowpass',
+      type: "lowpass",
       rolloff: -24,
       Q: 3,
     });
@@ -90,7 +90,7 @@ export class DarkAmbientPad {
       frequency: 0.08,
       min: 400,
       max: 1200,
-      type: 'sine',
+      type: "sine",
     });
     this.filterLFO.connect(this.filter.frequency);
 
@@ -99,7 +99,7 @@ export class DarkAmbientPad {
       frequency: 0.03,
       min: -200,
       max: 200,
-      type: 'triangle',
+      type: "triangle",
     });
     this.filterLFO2.connect(this.filter.frequency);
 
@@ -149,16 +149,16 @@ export class DarkAmbientPad {
       frequency: 0.04,
       min: 0.5,
       max: 0.9,
-      type: 'sine',
+      type: "sine",
     });
     this.reverbLFO.connect(this.reverb.wet);
 
     // Volume LFO for breathing effect
     this.volumeLFO = new Tone.LFO({
-      frequency: '12hz',
+      frequency: "12hz",
       min: 0.2,
       max: 1.0,
-      type: 'triangle',
+      type: "triangle",
     });
 
     // Layer gains for mixing
@@ -205,7 +205,7 @@ export class DarkAmbientPad {
   // Play with optional sub-harmonic (octave down)
   playChord(
     notes: string | string[],
-    duration = '4n',
+    duration = "4n",
     time: Tone.Unit.Time | undefined = undefined,
     withSub = true
   ): void {

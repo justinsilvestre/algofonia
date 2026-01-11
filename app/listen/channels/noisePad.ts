@@ -1,10 +1,10 @@
-import * as Tone from 'tone';
-import { createChannel } from '../tone';
+import * as Tone from "tone";
+import { createChannel } from "../tone";
 
-import { NoisePad } from '../synth/noisePad';
+import { NoisePad } from "../synth/noisePad";
 
 export const noisePad = createChannel({
-  key: 'Noise Pad',
+  key: "Noise Pad",
 
   initialize: () => {
     const pad = new NoisePad();

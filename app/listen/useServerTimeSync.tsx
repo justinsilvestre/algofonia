@@ -1,5 +1,5 @@
-'use client';
-import { useRef, useCallback } from 'react';
+"use client";
+import { useRef, useCallback } from "react";
 
 export function useServerTimeSync() {
   const offsetFromServerTimeRef = useRef<number>(0);

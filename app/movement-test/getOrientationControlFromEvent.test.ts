@@ -1,8 +1,8 @@
-import { describe, it, expect } from 'vitest';
-import { getOrientationControlFromEvent } from './getOrientationControlFromEvent';
+import { describe, it, expect } from "vitest";
+import { getOrientationControlFromEvent } from "./getOrientationControlFromEvent";
 
-describe('getOrientationControlFromEvent', () => {
-  it('converts alpha values correctly to around', () => {
+describe("getOrientationControlFromEvent", () => {
+  it("converts alpha values correctly to around", () => {
     expect({
       0: getOrientationControlFromEvent(0, 0).around,
       90: getOrientationControlFromEvent(90, 0).around,
@@ -23,11 +23,11 @@ describe('getOrientationControlFromEvent', () => {
   // FRONT TO BACK
   // (50 = on back, 100 = upright, 50 = facing down, 0 = upside down)
 
-  it('converts beta values correctly to frontToBack', () => {
+  it("converts beta values correctly to frontToBack", () => {
     expect({
-      '-135': getOrientationControlFromEvent(-0, 135).frontToBack,
-      '-90': getOrientationControlFromEvent(-0, 90).frontToBack,
-      '-45': getOrientationControlFromEvent(-0, 45).frontToBack,
+      "-135": getOrientationControlFromEvent(-0, 135).frontToBack,
+      "-90": getOrientationControlFromEvent(-0, 90).frontToBack,
+      "-45": getOrientationControlFromEvent(-0, 45).frontToBack,
       0: getOrientationControlFromEvent(0, 0).frontToBack,
       45: getOrientationControlFromEvent(0, 45).frontToBack,
       90: getOrientationControlFromEvent(0, 90).frontToBack,
@@ -39,9 +39,9 @@ describe('getOrientationControlFromEvent', () => {
       90: 100,
       135: 50,
       180: 0,
-      '-135': 50,
-      '-90': 100,
-      '-45': 50,
+      "-135": 50,
+      "-90": 100,
+      "-45": 50,
     });
   });
 });

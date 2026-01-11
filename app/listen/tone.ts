@@ -1,7 +1,7 @@
-import * as Tone from 'tone';
+import * as Tone from "tone";
 
-import { MotionInputMessageToClient } from '../WebsocketMessage';
-import { Key } from 'tonal';
+import { MotionInputMessageToClient } from "../WebsocketMessage";
+import { Key } from "tonal";
 
 export type ToneControls = ReturnType<typeof getToneControls>;
 export function getToneControls(
@@ -11,7 +11,7 @@ export function getToneControls(
   let started = false;
   const loop = new Tone.Loop((time) => {
     loopCallback(time);
-  }, '1m');
+  }, "1m");
 
   return {
     get started() {
@@ -35,8 +35,8 @@ export function getToneControls(
     getBpm: () => {
       return Tone.getTransport().bpm.value;
     },
-    key: 'E',
-    mode: 'minor',
+    key: "E",
+    mode: "minor",
     chordRootScaleDegree: 1,
     getChord: (key: string, chordRootScaleDegree: number) => {
       return Key.majorKey(key).chords[chordRootScaleDegree - 1];

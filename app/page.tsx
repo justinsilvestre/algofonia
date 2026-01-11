@@ -1,28 +1,28 @@
-'use client';
-import { useCallback, useEffect, useRef, useState } from 'react';
-import { useWebsocket } from './useWebsocket';
-import { MessageToClient, RoomState } from './WebsocketMessage';
-import { startBeats } from './listen/startBeats';
-import { useServerTimeSync } from './listen/useServerTimeSync';
-import { getOrientationControlFromEvent } from './movement-test/getOrientationControlFromEvent';
-import { getRoomName } from './getRoomName';
-import { useCanvas, MotionVisuals } from './MotionVisuals';
+"use client";
+import { useCallback, useEffect, useRef, useState } from "react";
+import { useWebsocket } from "./useWebsocket";
+import { MessageToClient, RoomState } from "./WebsocketMessage";
+import { startBeats } from "./listen/startBeats";
+import { useServerTimeSync } from "./listen/useServerTimeSync";
+import { getOrientationControlFromEvent } from "./movement-test/getOrientationControlFromEvent";
+import { getRoomName } from "./getRoomName";
+import { useCanvas, MotionVisuals } from "./MotionVisuals";
 
 export default function InputClientPage() {
   const [debug] = useState<boolean>(false);
-  const [debugText, setDebugText] = useState<string>('');
+  const [debugText, setDebugText] = useState<string>("");
   const [visualsAreShowing, setVisualsAreShowing] = useState<boolean>(() => {
-    if (typeof window !== 'undefined') {
+    if (typeof window !== "undefined") {
       const params = new URLSearchParams(window.location.search);
-      const enableVisualsParam = params.get('enable_visuals');
+      const enableVisualsParam = params.get("enable_visuals");
       if (!enableVisualsParam) return true;
-      console.log('enable_visuals param:', enableVisualsParam);
-      console.log('!enableVisualsParam', !enableVisualsParam);
+      console.log("enable_visuals param:", enableVisualsParam);
+      console.log("!enableVisualsParam", !enableVisualsParam);
       console.log(
         "enableVisualsParam === '0' || enableVisualsParam === 'false'",
-        enableVisualsParam === '0' || enableVisualsParam === 'false'
+        enableVisualsParam === "0" || enableVisualsParam === "false"
       );
-      if (enableVisualsParam === '0' || enableVisualsParam === 'false')
+      if (enableVisualsParam === "0" || enableVisualsParam === "false")
         return false;
       return true;
     }
@@ -96,23 +96,23 @@ export default function InputClientPage() {
   const { connectionState, sendMessage } = useWebsocket({
     handleMessage: useCallback(
       (message: MessageToClient) => {
-        console.log('Received message from server:', message);
+        console.log("Received message from server:", message);
         switch (message.type) {
-          case 'JOIN_ROOM_REPLY':
+          case "JOIN_ROOM_REPLY":
             setUserId(message.userId);
             setRoomState(message.roomState);
 
             break;
-          case 'ROOM_STATE_UPDATE':
+          case "ROOM_STATE_UPDATE":
             setRoomState(message.roomState);
             break;
-          case 'SYNC_REPLY': {
+          case "SYNC_REPLY": {
             const { t0, s0 } = message;
             const t1 = performance.now() + performance.timeOrigin;
             processSyncReply({ t0, s0, t1 });
             break;
           }
-          case 'SYNC_BEAT': {
+          case "SYNC_BEAT": {
             if (!nextBeatTimestampRef.current) {
               startBeats(
                 message.beatTimestamp,
@@ -121,7 +121,7 @@ export default function InputClientPage() {
                 nextBeatTimestampRef,
                 offsetFromServerTimeRef,
                 () => {
-                  console.log('BEAT #' + beatsCountRef.current);
+                  console.log("BEAT #" + beatsCountRef.current);
                   // Trigger orb beat pulse
                   pulse();
                 }
@@ -143,17 +143,17 @@ export default function InputClientPage() {
   useEffect(() => {
     const roomName = getRoomName();
 
-    if (connectionState.type === 'connected') {
-      console.log('Sending JOIN_ROOM_REQUEST');
+    if (connectionState.type === "connected") {
+      console.log("Sending JOIN_ROOM_REQUEST");
       sendMessage({
-        type: 'JOIN_ROOM_REQUEST',
+        type: "JOIN_ROOM_REQUEST",
         roomName,
-        clientType: 'input',
+        clientType: "input",
       });
 
       const syncInterval = setInterval(() => {
         sendMessage({
-          type: 'SYNC',
+          type: "SYNC",
           t0: performance.now() + performance.timeOrigin,
         });
         syncRequestsCountRef.current += 1;
@@ -166,15 +166,15 @@ export default function InputClientPage() {
   }, [connectionState.type, sendMessage, syncRequestsCountRef]);
 
   useEffect(() => {
-    console.log('Setting up deviceorientation event listener');
+    console.log("Setting up deviceorientation event listener");
     const handleDeviceOrientationEvent = (event: DeviceOrientationEvent) => {
       console.log(
-        event.absolute ? 'Absolute' : 'Non-absolute',
-        'orientation event'
+        event.absolute ? "Absolute" : "Non-absolute",
+        "orientation event"
       );
       if (event.alpha === null || event.beta === null) {
-        console.warn('DeviceOrientationEvent missing alpha or beta');
-        setDebugText('DeviceOrientationEvent missing alpha or beta');
+        console.warn("DeviceOrientationEvent missing alpha or beta");
+        setDebugText("DeviceOrientationEvent missing alpha or beta");
         return;
       } else {
         const orientation = getOrientationControlFromEvent(
@@ -209,7 +209,7 @@ export default function InputClientPage() {
             newOrientation.around !== lastSentOrientationRef.current.around
           ) {
             sendMessage({
-              type: 'MOTION_INPUT',
+              type: "MOTION_INPUT",
               roomName: getRoomName(),
               userId,
               frontToBack: newOrientation.frontToBack,
@@ -229,25 +229,25 @@ export default function InputClientPage() {
         }
       }
     };
-    window.addEventListener('deviceorientation', handleDeviceOrientationEvent);
+    window.addEventListener("deviceorientation", handleDeviceOrientationEvent);
     return () => {
       window.removeEventListener(
-        'deviceorientation',
+        "deviceorientation",
         handleDeviceOrientationEvent
       );
     };
   }, [sendMessage, userId]);
 
   const start = () => {
-    console.log('Movement permission requested');
+    console.log("Movement permission requested");
     movement
       .requestPermission()
       .then(() => {
-        console.log('Movement permission granted');
+        console.log("Movement permission granted");
       })
       .catch((err) => {
-        console.error('Error requesting movement permission:', err);
-        setDebugText('Error requesting movement permission: ' + err);
+        console.error("Error requesting movement permission:", err);
+        setDebugText("Error requesting movement permission: " + err);
       });
   };
   if (!movement.state.hasPermission) {
@@ -268,7 +268,7 @@ export default function InputClientPage() {
     );
   }
 
-  if (connectionState.type !== 'connected') {
+  if (connectionState.type !== "connected") {
     return (
       <div className="w-screen h-dvh bg-black text-white flex flex-col items-center justify-center p-4">
         <div className="text-center space-y-4"></div>
@@ -277,12 +277,12 @@ export default function InputClientPage() {
           <p className="text-lg mb-2">
             You&apos;ve been disconnected. Refresh the page to reconnect.
           </p>
-          {connectionState.type === 'error' && (
+          {connectionState.type === "error" && (
             <p className="text-red-400 text-sm">
               Error: {connectionState.message}
             </p>
           )}
-          {connectionState.type === 'connecting' && (
+          {connectionState.type === "connecting" && (
             <div className="flex items-center justify-center space-x-2">
               <div className="w-2 h-2 bg-white rounded-full animate-pulse"></div>
               <span className="text-sm">Connecting...</span>
@@ -307,7 +307,7 @@ export default function InputClientPage() {
             className="bg-black  text-white px-3 py-2 rounded-lg  m-4"
             onClick={() => setShowMonitor(!showMonitor)}
           >
-            {showMonitor ? 'Hide Monitor' : 'Show Monitor'}
+            {showMonitor ? "Hide Monitor" : "Show Monitor"}
           </button>
         </div>
 
@@ -379,7 +379,7 @@ export default function InputClientPage() {
                       lastSentOrientationRef.current = newOrientation;
                       const now = performance.now() + performance.timeOrigin;
                       sendMessage({
-                        type: 'MOTION_INPUT',
+                        type: "MOTION_INPUT",
                         roomName: getRoomName(),
                         userId,
                         frontToBack: newValue,
@@ -424,7 +424,7 @@ export default function InputClientPage() {
                       lastSentOrientationRef.current = newOrientation;
                       const now = performance.now() + performance.timeOrigin;
                       sendMessage({
-                        type: 'MOTION_INPUT',
+                        type: "MOTION_INPUT",
                         roomName: getRoomName(),
                         userId,
                         frontToBack: orientationControl.frontToBack,
@@ -445,7 +445,7 @@ export default function InputClientPage() {
                 className="bg-white/10 text-white px-3 py-2 rounded-lg"
                 onClick={() => setVisualsAreShowing(!visualsAreShowing)}
               >
-                {visualsAreShowing ? 'Hide Visuals' : 'Show Visuals'}
+                {visualsAreShowing ? "Hide Visuals" : "Show Visuals"}
               </button>
             </div>
           </div>
@@ -472,7 +472,7 @@ function useMovement() {
         window.DeviceMotionEvent as unknown as {
           requestPermission: () => Promise<string>;
         }
-      ).requestPermission === 'function'
+      ).requestPermission === "function"
     ) {
       try {
         const response = await (
@@ -480,13 +480,13 @@ function useMovement() {
             requestPermission: () => Promise<string>;
           }
         ).requestPermission();
-        if (response === 'granted') {
+        if (response === "granted") {
           setState((prev) => ({ ...prev, hasPermission: true }));
         } else {
           setState((prev) => ({ ...prev, hasPermission: false }));
         }
       } catch (err) {
-        console.error('Error requesting device motion permission:', err);
+        console.error("Error requesting device motion permission:", err);
         setState((prev) => ({ ...prev, hasPermission: false }));
       }
     } else {
@@ -499,6 +499,6 @@ function useMovement() {
 }
 
 function toNearestHundredth(value: number | null) {
-  if (value === null) return 'null';
+  if (value === null) return "null";
   return Math.round(value * 100) / 100;
 }

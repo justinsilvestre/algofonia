@@ -1,11 +1,11 @@
-import * as Tone from 'tone';
-import { createChannel } from '../tone';
-import { Chord, Scale, Key } from 'tonal';
+import * as Tone from "tone";
+import { createChannel } from "../tone";
+import { Chord, Scale, Key } from "tonal";
 
-import { PluckSynth } from '../synth/pluckSynth';
+import { PluckSynth } from "../synth/pluckSynth";
 
 export const arpeggio = createChannel({
-  key: 'arpeggio',
+  key: "arpeggio",
 
   initialize: () => {
     const synth = new PluckSynth();
@@ -32,9 +32,9 @@ export const arpeggio = createChannel({
           const notes = Scale.get(`${key}${noteOctave} ${mode}`).notes;
           const note = notes[arpPatternIndices[i]];
 
-          synth.playNote(note, '4n', t);
+          synth.playNote(note, "4n", t);
         },
-        time + Tone.Time('4n').toSeconds() * (i + 1)
+        time + Tone.Time("4n").toSeconds() * (i + 1)
       );
     }
   },

@@ -1,4 +1,4 @@
-import * as Tone from 'tone';
+import * as Tone from "tone";
 
 export class PulseSynth {
   private synth0: Tone.PolySynth<Tone.DuoSynth>;
@@ -23,7 +23,7 @@ export class PulseSynth {
       // @ts-expect-error -- not available with DuoSynth
       maxPolyphony: 4,
       oscillator: {
-        type: 'triangle',
+        type: "triangle",
         count: 2,
         spread: 50,
       },
@@ -38,7 +38,7 @@ export class PulseSynth {
     this.synth1 = new Tone.PolySynth(Tone.AMSynth, {
       maxPolyphony: 4,
       oscillator: {
-        type: 'sine',
+        type: "sine",
         // @ts-expect-error -- no count on ToneTypeOscillatorOptions
         count: 2,
         spread: 50,
@@ -54,7 +54,7 @@ export class PulseSynth {
 
     this.filter = new Tone.Filter({
       frequency: 4500,
-      type: 'lowpass',
+      type: "lowpass",
       rolloff: -12,
     });
     this.filterLFO = new Tone.LFO(16, 2000, 4500);
@@ -79,7 +79,7 @@ export class PulseSynth {
     });
 
     this.delay = new Tone.PingPongDelay({
-      delayTime: '8t',
+      delayTime: "8t",
       feedback: 0.5,
       wet: 0.9,
     });
@@ -99,7 +99,7 @@ export class PulseSynth {
       frequency: 2,
       min: 0,
       max: 0.125 / 2,
-      type: 'triangle',
+      type: "triangle",
     });
     this.gainLFO.phase = 90;
     this.gainLFO.connect(this.gain.gain);
@@ -109,7 +109,7 @@ export class PulseSynth {
       frequency: 0.1,
       min: 2,
       max: 16,
-      type: 'sine',
+      type: "sine",
     });
     this.gainLFOLFO.connect(this.gainLFO.frequency);
 
@@ -140,7 +140,7 @@ export class PulseSynth {
 
   playChord(
     notes: Tone.Unit.Frequency[],
-    duration: Tone.Unit.Time = '2n',
+    duration: Tone.Unit.Time = "2n",
     time?: Tone.Unit.Time
   ): void {
     this.synth0.triggerAttackRelease(notes, duration, time);
