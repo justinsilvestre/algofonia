@@ -13,6 +13,8 @@
     "export": "next build",
     "test": "vitest",
     "lint": "eslint",
+    "format": "prettier --write .",
+    "prepare": "husky",
     "docker:build": "docker build -t algofonia .",
     "docker:export": "npm run docker:build && docker save -o algofonia.tar algofonia",
     "docker:run": "docker run -p 3000:3000 algofonia",
@@ -42,7 +44,19 @@
     "@types/ws": "^8.18.1",
     "eslint": "^9",
     "eslint-config-next": "16.0.1",
+    "husky": "^9.1.7",
+    "lint-staged": "^15.2.0",
+    "prettier": "^3.7.4",
     "tailwindcss": "^4",
     "typescript": "^5"
+  },
+  "lint-staged": {
+    "*.{js,jsx,ts,tsx}": [
+      "eslint --fix",
+      "prettier --write"
+    ],
+    "*.{json,md,yml,yaml}": [
+      "prettier --write"
+    ]
   }
 }
