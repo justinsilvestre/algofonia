@@ -1,4 +1,4 @@
-import * as Tone from "tone";
+import * as Tone from 'tone';
 
 export class GranularCloud {
   private buffer: Tone.ToneAudioBuffer;
@@ -59,7 +59,7 @@ export class GranularCloud {
       frequency: 0.03,
       min: 0,
       max: 1,
-      type: "sine",
+      type: 'sine',
     });
 
     // Secondary slower LFO for even more drift
@@ -67,7 +67,7 @@ export class GranularCloud {
       frequency: 0.01,
       min: -0.2,
       max: 0.2,
-      type: "triangle",
+      type: 'triangle',
     });
 
     // Grain size modulation for breathing effect
@@ -75,13 +75,13 @@ export class GranularCloud {
       frequency: 0.05,
       min: 0.1,
       max: 0.3,
-      type: "sine",
+      type: 'sine',
     });
 
     // Dark filter for atmospheric quality
     this.filter = new Tone.Filter({
       frequency: 1200,
-      type: "lowpass",
+      type: 'lowpass',
       rolloff: -24,
       Q: 2,
     });
@@ -91,7 +91,7 @@ export class GranularCloud {
       frequency: 0.08,
       min: 800,
       max: 1800,
-      type: "sine",
+      type: 'sine',
     });
     this.filterLFO.connect(this.filter.frequency);
 
@@ -120,7 +120,7 @@ export class GranularCloud {
       frequency: 0.06,
       min: 0.6,
       max: 1.0,
-      type: "sine",
+      type: 'sine',
     });
 
     // Individual gains for mixing

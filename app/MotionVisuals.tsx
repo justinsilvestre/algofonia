@@ -1,4 +1,4 @@
-import { useRef, useEffect, useCallback, useMemo } from "react";
+import { useRef, useEffect, useCallback, useMemo } from 'react';
 
 const Y_MIN_OFFSET = 75; // Pixels to offset minimum Y position for orbs
 
@@ -73,7 +73,7 @@ class MiddleOrb {
 
     // Draw glow first
     ctx.globalAlpha = 1.0;
-    ctx.shadowColor = "transparent";
+    ctx.shadowColor = 'transparent';
     ctx.shadowBlur = 0;
     ctx.fillStyle = gradient;
     ctx.beginPath();
@@ -130,7 +130,7 @@ class MiddleOrb {
         0.7,
         `rgba(255, 255, 255, ${backgroundGlowOpacity * 0.3})`
       );
-      backgroundGradient.addColorStop(1, "rgba(255, 255, 255, 0)");
+      backgroundGradient.addColorStop(1, 'rgba(255, 255, 255, 0)');
 
       ctx.globalAlpha = 1.0;
       ctx.fillStyle = backgroundGradient;
@@ -152,9 +152,9 @@ class MiddleOrb {
     beatPulse = 0
   ) {
     // Get attribute locations
-    const positionLocation = gl.getAttribLocation(program, "a_position");
-    const sizeLocation = gl.getAttribLocation(program, "a_size");
-    const colorLocation = gl.getAttribLocation(program, "a_color");
+    const positionLocation = gl.getAttribLocation(program, 'a_position');
+    const sizeLocation = gl.getAttribLocation(program, 'a_size');
+    const colorLocation = gl.getAttribLocation(program, 'a_color');
 
     if (positionLocation === -1 || sizeLocation === -1 || colorLocation === -1)
       return;
@@ -259,9 +259,9 @@ class SideOrb {
     beatPulse = 0
   ) {
     // Get attribute locations
-    const positionLocation = gl.getAttribLocation(program, "a_position");
-    const sizeLocation = gl.getAttribLocation(program, "a_size");
-    const colorLocation = gl.getAttribLocation(program, "a_color");
+    const positionLocation = gl.getAttribLocation(program, 'a_position');
+    const sizeLocation = gl.getAttribLocation(program, 'a_size');
+    const colorLocation = gl.getAttribLocation(program, 'a_color');
 
     if (positionLocation === -1 || sizeLocation === -1 || colorLocation === -1)
       return;
@@ -437,11 +437,11 @@ class Particle {
 
   renderToWebGL(gl: WebGLRenderingContext, program: WebGLProgram) {
     // Get attribute locations including comet-specific attributes
-    const positionLocation = gl.getAttribLocation(program, "a_position");
-    const sizeLocation = gl.getAttribLocation(program, "a_size");
-    const colorLocation = gl.getAttribLocation(program, "a_color");
-    const nucleusGlowLocation = gl.getAttribLocation(program, "a_nucleusGlow");
-    const velocityLocation = gl.getAttribLocation(program, "a_velocity");
+    const positionLocation = gl.getAttribLocation(program, 'a_position');
+    const sizeLocation = gl.getAttribLocation(program, 'a_size');
+    const colorLocation = gl.getAttribLocation(program, 'a_color');
+    const nucleusGlowLocation = gl.getAttribLocation(program, 'a_nucleusGlow');
+    const velocityLocation = gl.getAttribLocation(program, 'a_velocity');
 
     if (positionLocation === -1 || sizeLocation === -1 || colorLocation === -1)
       return;
@@ -532,8 +532,8 @@ class Particle {
     if (!this.linkedOrb) return;
 
     // Get attribute locations
-    const positionLocation = gl.getAttribLocation(program, "a_position");
-    const colorLocation = gl.getAttribLocation(program, "a_color");
+    const positionLocation = gl.getAttribLocation(program, 'a_position');
+    const colorLocation = gl.getAttribLocation(program, 'a_color');
 
     if (positionLocation === -1 || colorLocation === -1) return;
 
@@ -593,7 +593,7 @@ function createShader(
   gl.compileShader(shader);
 
   if (!gl.getShaderParameter(shader, gl.COMPILE_STATUS)) {
-    console.error("Shader compilation error:", gl.getShaderInfoLog(shader));
+    console.error('Shader compilation error:', gl.getShaderInfoLog(shader));
     gl.deleteShader(shader);
     return null;
   }
@@ -619,7 +619,7 @@ function createShaderProgram(
   gl.linkProgram(program);
 
   if (!gl.getProgramParameter(program, gl.LINK_STATUS)) {
-    console.error("Program linking error:", gl.getProgramInfoLog(program));
+    console.error('Program linking error:', gl.getProgramInfoLog(program));
     gl.deleteProgram(program);
     return null;
   }
@@ -780,7 +780,7 @@ export function useCanvas(
     lastSentOrientationRef,
     pulsing,
     pulse: useCallback(() => {
-      console.log("Canvas pulse triggered");
+      console.log('Canvas pulse triggered');
       pulsing.current = 1.0;
       setTimeout(() => {
         pulsing.current = 0;
@@ -797,25 +797,25 @@ export function MotionVisuals({ canvas }: { canvas: CanvasInterface }) {
 
   // Detect WebGL support once
   const renderingMode = useMemo(() => {
-    if (typeof window === "undefined") return "canvas";
+    if (typeof window === 'undefined') return 'canvas';
 
     try {
       // Create a temporary canvas to test WebGL support
-      const testCanvas = document.createElement("canvas");
+      const testCanvas = document.createElement('canvas');
       const gl =
-        testCanvas.getContext("webgl") ||
-        testCanvas.getContext("experimental-webgl");
+        testCanvas.getContext('webgl') ||
+        testCanvas.getContext('experimental-webgl');
 
       if (gl && gl instanceof WebGLRenderingContext) {
-        console.log("WebGL supported, using WebGL rendering");
-        return "webgl";
+        console.log('WebGL supported, using WebGL rendering');
+        return 'webgl';
       } else {
-        console.log("WebGL not supported, falling back to Canvas 2D");
-        return "canvas";
+        console.log('WebGL not supported, falling back to Canvas 2D');
+        return 'canvas';
       }
     } catch (error) {
-      console.warn("WebGL detection failed, using Canvas 2D fallback:", error);
-      return "canvas";
+      console.warn('WebGL detection failed, using Canvas 2D fallback:', error);
+      return 'canvas';
     }
   }, []);
 
@@ -828,10 +828,10 @@ export function MotionVisuals({ canvas }: { canvas: CanvasInterface }) {
       ctx.clearRect(0, 0, canvas.width, canvas.height);
 
       // Performance optimizations
-      ctx.globalCompositeOperation = "source-over";
+      ctx.globalCompositeOperation = 'source-over';
 
       // Enable glow effects
-      ctx.shadowColor = "transparent";
+      ctx.shadowColor = 'transparent';
       ctx.shadowBlur = 0;
 
       // Calculate current values
@@ -977,7 +977,7 @@ export function MotionVisuals({ canvas }: { canvas: CanvasInterface }) {
       const beatPulse = pulsing.current;
 
       // Spawn new particles - optimized for performance
-      const isWebGL = renderingMode === "webgl";
+      const isWebGL = renderingMode === 'webgl';
       const baseSpawnChance = isWebGL ? 0.3 : 0.4; // Slightly increased for better visuals
       const beatBoost = beatPulse * (isWebGL ? 1.5 : 2.0); // Moderately increased beat boost
       const shouldSpawn = Math.random() < baseSpawnChance + beatBoost;
@@ -986,8 +986,8 @@ export function MotionVisuals({ canvas }: { canvas: CanvasInterface }) {
           ? PARTICLE_SPAWNING.WEBGL_MAX_PARTICLES_BEAT
           : PARTICLE_SPAWNING.WEBGL_MAX_PARTICLES_NORMAL
         : beatPulse > 0.5
-        ? PARTICLE_SPAWNING.MAX_PARTICLES_BEAT
-        : PARTICLE_SPAWNING.MAX_PARTICLES_NORMAL;
+          ? PARTICLE_SPAWNING.MAX_PARTICLES_BEAT
+          : PARTICLE_SPAWNING.MAX_PARTICLES_NORMAL;
 
       if (shouldSpawn && particles.size < maxParticles) {
         // Simplified spawning for WebGL performance - single orb only
@@ -1019,8 +1019,8 @@ export function MotionVisuals({ canvas }: { canvas: CanvasInterface }) {
 
           // Choose color based on which orb spawned it
           const orbIndex = currentOrbPositions.indexOf(sourceOrb);
-          const orbColors = ["rgb(200, 200, 255)", "rgb(255, 200, 200)"];
-          const baseColor = orbColors[orbIndex] || "rgb(255, 255, 255)";
+          const orbColors = ['rgb(200, 200, 255)', 'rgb(255, 200, 200)'];
+          const baseColor = orbColors[orbIndex] || 'rgb(255, 255, 255)';
 
           // Enhanced comet particle with velocity-based properties
           const velocityMagnitude = Math.sqrt(
@@ -1144,7 +1144,7 @@ export function MotionVisuals({ canvas }: { canvas: CanvasInterface }) {
       gl.useProgram(program);
 
       // Set resolution uniform
-      const resolutionLocation = gl.getUniformLocation(program, "u_resolution");
+      const resolutionLocation = gl.getUniformLocation(program, 'u_resolution');
       gl.uniform2f(resolutionLocation, canvas.width, canvas.height);
 
       // Calculate current orb positions and colors (same as canvas version)
@@ -1210,7 +1210,7 @@ export function MotionVisuals({ canvas }: { canvas: CanvasInterface }) {
       gl.useProgram(program);
       const particleResolutionLocation = gl.getUniformLocation(
         program,
-        "u_resolution"
+        'u_resolution'
       );
       gl.uniform2f(particleResolutionLocation, canvas.width, canvas.height);
 
@@ -1239,9 +1239,9 @@ export function MotionVisuals({ canvas }: { canvas: CanvasInterface }) {
 
         if (positions.length > 0) {
           // Get attribute locations
-          const positionLocation = gl.getAttribLocation(program, "a_position");
-          const sizeLocation = gl.getAttribLocation(program, "a_size");
-          const colorLocation = gl.getAttribLocation(program, "a_color");
+          const positionLocation = gl.getAttribLocation(program, 'a_position');
+          const sizeLocation = gl.getAttribLocation(program, 'a_size');
+          const colorLocation = gl.getAttribLocation(program, 'a_color');
 
           // Create single buffers for all particles
           const positionBuffer = gl.createBuffer();
@@ -1309,14 +1309,14 @@ export function MotionVisuals({ canvas }: { canvas: CanvasInterface }) {
 
   // WebGL rendering loop - reduced to 30 FPS for performance
   useEffect(() => {
-    if (renderingMode !== "webgl" || !renderWebGL) return;
+    if (renderingMode !== 'webgl' || !renderWebGL) return;
 
     const canvasElement = elementRef.current;
     if (!canvasElement) return;
 
     const gl =
-      canvasElement.getContext("webgl") ||
-      canvasElement.getContext("experimental-webgl");
+      canvasElement.getContext('webgl') ||
+      canvasElement.getContext('experimental-webgl');
     if (!gl || !(gl instanceof WebGLRenderingContext)) return;
 
     let lastTime = 0;
@@ -1340,12 +1340,12 @@ export function MotionVisuals({ canvas }: { canvas: CanvasInterface }) {
 
   // Canvas 2D rendering loop (fallback)
   useEffect(() => {
-    if (renderingMode !== "canvas") return;
+    if (renderingMode !== 'canvas') return;
 
     const canvasElement = elementRef.current;
     if (!canvasElement) return;
 
-    const ctx = canvasElement.getContext("2d");
+    const ctx = canvasElement.getContext('2d');
     if (!ctx) return;
 
     let animationFrameId: number;
@@ -1371,9 +1371,9 @@ export function MotionVisuals({ canvas }: { canvas: CanvasInterface }) {
       canvas.width = window.innerWidth;
       canvas.height = window.innerHeight;
 
-      if (renderingMode === "webgl") {
+      if (renderingMode === 'webgl') {
         const gl =
-          canvas.getContext("webgl") || canvas.getContext("experimental-webgl");
+          canvas.getContext('webgl') || canvas.getContext('experimental-webgl');
         if (gl && gl instanceof WebGLRenderingContext) {
           gl.viewport(0, 0, canvas.width, canvas.height);
         }
@@ -1381,19 +1381,19 @@ export function MotionVisuals({ canvas }: { canvas: CanvasInterface }) {
     };
 
     resizeCanvas();
-    window.addEventListener("resize", resizeCanvas);
+    window.addEventListener('resize', resizeCanvas);
 
     // Canvas 2D optimizations (only if using canvas fallback)
-    if (renderingMode === "canvas") {
-      const ctx = canvas.getContext("2d");
+    if (renderingMode === 'canvas') {
+      const ctx = canvas.getContext('2d');
       if (ctx) {
         ctx.imageSmoothingEnabled = true;
-        ctx.imageSmoothingQuality = "high";
+        ctx.imageSmoothingQuality = 'high';
       }
     }
 
     return () => {
-      window.removeEventListener("resize", resizeCanvas);
+      window.removeEventListener('resize', resizeCanvas);
     };
   }, [elementRef, renderingMode]);
 
@@ -1402,7 +1402,7 @@ export function MotionVisuals({ canvas }: { canvas: CanvasInterface }) {
       <canvas
         ref={elementRef}
         className="absolute inset-0 pointer-events-none"
-        style={{ width: "100%", height: "100%" }}
+        style={{ width: '100%', height: '100%' }}
       />
     </>
   );

@@ -1,20 +1,20 @@
-import fs from "fs";
-import { createCA, createCert } from "mkcert";
-import { getLocalIp } from "./getLocalIp";
+import fs from 'fs';
+import { createCA, createCert } from 'mkcert';
+import { getLocalIp } from './getLocalIp';
 
 export async function getCert(key: string) {
   const certFileLocation = `./${key}.cert.json`;
   // Check if cert file exists
   try {
-    const certData = await fs.promises.readFile(certFileLocation, "utf-8");
+    const certData = await fs.promises.readFile(certFileLocation, 'utf-8');
     return JSON.parse(certData);
   } catch {
     // Create new cert
     const ca = await createCA({
-      organization: "Algofonia Dev CA",
-      countryCode: "DE",
-      state: "Berlin",
-      locality: "Berlin",
+      organization: 'Algofonia Dev CA',
+      countryCode: 'DE',
+      state: 'Berlin',
+      locality: 'Berlin',
       validity: 365,
     });
 
@@ -24,7 +24,7 @@ export async function getCert(key: string) {
 
     const cert = await createCert({
       ca: { key: ca.key, cert: ca.cert },
-      domains: ["127.0.0.1", "localhost", getLocalIp()!],
+      domains: ['127.0.0.1', 'localhost', getLocalIp()!],
       validity: 365,
     });
 
@@ -33,7 +33,7 @@ export async function getCert(key: string) {
     await fs.promises.writeFile(
       certFileLocation,
       JSON.stringify(json),
-      "utf-8"
+      'utf-8'
     );
     return json;
   }

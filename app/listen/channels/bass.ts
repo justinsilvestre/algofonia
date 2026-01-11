@@ -1,9 +1,9 @@
-import * as Tone from "tone";
-import { Chord, Key, Scale } from "tonal";
-import { createChannel } from "../tone";
-import { RecursivePartial } from "tone/build/esm/core/util/Interface";
+import * as Tone from 'tone';
+import { Chord, Key, Scale } from 'tonal';
+import { createChannel } from '../tone';
+import { RecursivePartial } from 'tone/build/esm/core/util/Interface';
 
-import { BassSynth } from "./../synth/bassSynth";
+import { BassSynth } from './../synth/bassSynth';
 
 const forwardProgression = new Map([
   [1, 5],
@@ -47,9 +47,9 @@ const rhythmVariations = new Map([
 ])
 
 export const bass = createChannel({
-  key: "Bass",
+  key: 'Bass',
   initialize: () => {
-    console.log("All scale names", Scale.names());
+    console.log('All scale names', Scale.names());
 
     const synth = new BassSynth();
     synth.start();
@@ -60,7 +60,7 @@ export const bass = createChannel({
       synth,
       octave,
       rhythmSpeed: 0,
-      loopIndex: 0
+      loopIndex: 0,
     };
   },
   onLoop: (
@@ -74,20 +74,25 @@ export const bass = createChannel({
     // const note = `${scaleNotes[channelState.loopIndex % scaleNotes.length]}${channelState.octave}`;
 
     [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15].forEach((i) => {
-      transport.schedule((time) => {
-        const note = `${scaleNotes[(channelState.loopIndex) % scaleNotes.length]}${channelState.octave}`;
-        // get random note from chord
-        const rhythmVariation = rhythmVariations.get(channelState.rhythmSpeed)!;
-        const rhythmAtSixteenthBeat = rhythmVariation[i];
+      transport.schedule(
+        (time) => {
+          const note = `${scaleNotes[channelState.loopIndex % scaleNotes.length]}${channelState.octave}`;
+          // get random note from chord
+          const rhythmVariation = rhythmVariations.get(
+            channelState.rhythmSpeed
+          )!;
+          const rhythmAtSixteenthBeat = rhythmVariation[i];
 
-        if (rhythmAtSixteenthBeat)
-          console.log(
-            `Playing bass note ${note} at sixteenth beat ${i}, rhythm: ${rhythmAtSixteenthBeat}`
-          );
+          if (rhythmAtSixteenthBeat)
+            console.log(
+              `Playing bass note ${note} at sixteenth beat ${i}, rhythm: ${rhythmAtSixteenthBeat}`
+            );
 
-        if (rhythmAtSixteenthBeat)
-          synth.playNote(note, rhythmAtSixteenthBeat, time);
-      }, time + Tone.Time("16n").toSeconds() * (i + 1));
+          if (rhythmAtSixteenthBeat)
+            synth.playNote(note, rhythmAtSixteenthBeat, time);
+        },
+        time + Tone.Time('16n').toSeconds() * (i + 1)
+      );
     });
 
     channelState.loopIndex += 1;

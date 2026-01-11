@@ -1,7 +1,7 @@
-import { WebSocketServer, WebSocket } from "ws";
-import { createServer as createHttpsServer } from "https";
-import { createServer as createHttpServer } from "http";
-import { MessageToClient, MessageToServer } from "../WebsocketMessage";
+import { WebSocketServer, WebSocket } from 'ws';
+import { createServer as createHttpsServer } from 'https';
+import { createServer as createHttpServer } from 'http';
+import { MessageToClient, MessageToServer } from '../WebsocketMessage';
 
 type ConnectionsState = {
   connectedClients: Set<WebSocket>;
@@ -30,7 +30,7 @@ export async function startWebSocketServer(
 ): Promise<WebSocketServer> {
   const websocketServer = new WebSocketServer({
     noServer: true,
-    path: "/ws",
+    path: '/ws',
   });
 
   const connectedClients = new Set<WebSocket>();
@@ -43,16 +43,16 @@ export async function startWebSocketServer(
     subscribers,
   };
 
-  websocketServer.on("connection", (socket: WebSocket) => {
-    console.log("New WebSocket connection");
+  websocketServer.on('connection', (socket: WebSocket) => {
+    console.log('New WebSocket connection');
 
-    socket.on("message", (data) => {
-      console.log("Received WebSocket message:", data.toString());
+    socket.on('message', (data) => {
+      console.log('Received WebSocket message:', data.toString());
       handleMessage(options, connectionsState, socket, data);
     });
 
-    socket.on("close", () => {
-      console.log("WebSocket connection closed");
+    socket.on('close', () => {
+      console.log('WebSocket connection closed');
       connectedClients.delete(socket);
       subscribers.forEach((roomSubscribers, roomName) => {
         roomSubscribers.delete(socket);
@@ -70,7 +70,7 @@ export async function startWebSocketServer(
           rooms.delete(roomName);
         } else
           broadcastToAllClientsInRoom(connectionsState, roomName, {
-            type: "ROOM_STATE_UPDATE",
+            type: 'ROOM_STATE_UPDATE',
             roomName,
             roomState: {
               inputClients: Array.from(room.inputClients.values()),
@@ -88,14 +88,14 @@ export async function startWebSocketServer(
       });
     });
 
-    socket.on("error", (error) => {
-      console.error("WebSocket error:", error);
+    socket.on('error', (error) => {
+      console.error('WebSocket error:', error);
     });
   });
 
   // Graceful shutdown
   const shutdown = () => {
-    console.log("Shutting down WebSocket server...");
+    console.log('Shutting down WebSocket server...');
     websocketServer.close(() => {
       options.httpServer.close(() => {
         process.exit(0);
@@ -103,8 +103,8 @@ export async function startWebSocketServer(
     });
   };
 
-  process.on("SIGTERM", shutdown);
-  process.on("SIGINT", shutdown);
+  process.on('SIGTERM', shutdown);
+  process.on('SIGINT', shutdown);
 
   return websocketServer;
 }
@@ -117,10 +117,10 @@ function handleMessage(
 ) {
   const message = JSON.parse(data.toString()) as MessageToServer;
   switch (message.type) {
-    case "JOIN_ROOM_REQUEST": {
+    case 'JOIN_ROOM_REQUEST': {
       const room: Room = connectionsState.rooms.get(message.roomName) || {
         beat:
-          message.clientType === "output"
+          message.clientType === 'output'
             ? {
                 currentBpm: 120,
                 startTime: Date.now(),
@@ -133,7 +133,7 @@ function handleMessage(
         outputClients: new Map<WebSocket, number>(),
         subscriptionsCount: 0,
       };
-      if (room && !room.beat && message.clientType === "output") {
+      if (room && !room.beat && message.clientType === 'output') {
         room.beat = {
           currentBpm: 120,
           startTime: Date.now(),
@@ -142,20 +142,20 @@ function handleMessage(
         };
       }
 
-      console.log("Client joining room:", message.roomName, room.beat);
+      console.log('Client joining room:', message.roomName, room.beat);
 
       const userId = connectionsState.nextUserId++;
       connectionsState.rooms.set(message.roomName, room);
       connectionsState.connectedClients.add(socket);
       room[
-        message.clientType === "input" ? "inputClients" : "outputClients"
+        message.clientType === 'input' ? 'inputClients' : 'outputClients'
       ].set(socket, userId);
 
       const inputClients = Array.from(room.inputClients.values());
       const outputClients = Array.from(room.outputClients.values());
 
       sendToClient(socket, {
-        type: "JOIN_ROOM_REPLY",
+        type: 'JOIN_ROOM_REPLY',
         userId,
         roomState: {
           inputClients,
@@ -171,7 +171,7 @@ function handleMessage(
         },
       });
       return broadcastToAllClientsInRoom(connectionsState, message.roomName, {
-        type: "ROOM_STATE_UPDATE",
+        type: 'ROOM_STATE_UPDATE',
         roomName: message.roomName,
         roomState: {
           inputClients,
@@ -188,14 +188,14 @@ function handleMessage(
       });
     }
 
-    case "SYNC":
+    case 'SYNC':
       return sendToClient(socket, {
-        type: "SYNC_REPLY",
+        type: 'SYNC_REPLY',
         t0: message.t0,
         s0: performance.now() + performance.timeOrigin,
       });
 
-    case "SET_TEMPO": {
+    case 'SET_TEMPO': {
       const room = connectionsState.rooms.get(message.roomName);
       if (!room?.beat) {
         console.error(
@@ -208,7 +208,7 @@ function handleMessage(
       room.beat.lastSyncedBeatTimestamp = now;
 
       broadcastToAllClientsInRoom(connectionsState, message.roomName, {
-        type: "SET_TEMPO",
+        type: 'SET_TEMPO',
         roomName: message.roomName,
         bpm: message.bpm,
         actionTimestamp: message.actionTimestamp,
@@ -218,13 +218,13 @@ function handleMessage(
       return;
     }
 
-    case "SYNC_BEAT": {
+    case 'SYNC_BEAT': {
       console.log(
-        "SYNC_BEAT received for room",
+        'SYNC_BEAT received for room',
         message.roomName,
-        "beatNumber",
+        'beatNumber',
         message.beatNumber,
-        "beatTimestamp",
+        'beatTimestamp',
         message.beatTimestamp
       );
       const room = connectionsState.rooms.get(message.roomName);
@@ -244,7 +244,7 @@ function handleMessage(
           outputClient.readyState === WebSocket.OPEN
         ) {
           sendToClient(outputClient, {
-            type: "SYNC_BEAT",
+            type: 'SYNC_BEAT',
             roomName: message.roomName,
             beatNumber: message.beatNumber,
             beatTimestamp: message.beatTimestamp,
@@ -255,7 +255,7 @@ function handleMessage(
       for (const [inputClient] of room.inputClients) {
         if (inputClient.readyState === WebSocket.OPEN) {
           sendToClient(inputClient, {
-            type: "SYNC_BEAT",
+            type: 'SYNC_BEAT',
             roomName: message.roomName,
             beatNumber: message.beatNumber,
             beatTimestamp: message.beatTimestamp,
@@ -266,7 +266,7 @@ function handleMessage(
       return;
     }
 
-    case "MOTION_INPUT": {
+    case 'MOTION_INPUT': {
       const room = connectionsState.rooms.get(message.roomName);
       if (!room) {
         console.error(`Room ${message.roomName} not found for MOTION_INPUT`);
@@ -291,7 +291,7 @@ function handleMessage(
       return;
     }
 
-    case "SUBSCRIBE_TO_ROOM_REQUEST": {
+    case 'SUBSCRIBE_TO_ROOM_REQUEST': {
       const room: Room = connectionsState.rooms.get(message.roomName) || {
         beat: null,
         inputClients: new Map<WebSocket, number>(),
@@ -306,7 +306,7 @@ function handleMessage(
       connectionsState.subscribers.set(message.roomName, roomSubscribers);
 
       broadcastToAllClientsInRoom(connectionsState, message.roomName, {
-        type: "ROOM_STATE_UPDATE",
+        type: 'ROOM_STATE_UPDATE',
         roomName: message.roomName,
         roomState: {
           inputClients: room ? Array.from(room.inputClients.values()) : [],
@@ -322,19 +322,19 @@ function handleMessage(
         },
       });
       sendToClient(socket, {
-        type: "SUBSCRIBE_TO_ROOM_REPLY",
+        type: 'SUBSCRIBE_TO_ROOM_REPLY',
         roomName: message.roomName,
       });
       return;
     }
 
-    case "SCHEDULE_BEAT": {
+    case 'SCHEDULE_BEAT': {
       const roomSubscribers = connectionsState.subscribers.get(
         message.roomName
       );
       if (roomSubscribers) {
         const messageToSend: MessageToClient = {
-          type: "SCHEDULE_BEAT",
+          type: 'SCHEDULE_BEAT',
           roomName: message.roomName,
           beatNumber: message.beatNumber,
           beatTimestamp: message.beatTimestamp,
@@ -349,7 +349,7 @@ function handleMessage(
     }
 
     default: {
-      console.warn("Unknown message type:", message);
+      console.warn('Unknown message type:', message);
     }
   }
 }
@@ -387,7 +387,7 @@ function broadcastToAllClientsInRoom(
   }
 }
 
-function getBeatTimes(beat: NonNullable<Room["beat"]>): {
+function getBeatTimes(beat: NonNullable<Room['beat']>): {
   lastBeatNumber: number;
   nextBeatTimestamp: number;
 } {

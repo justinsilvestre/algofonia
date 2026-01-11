@@ -1,5 +1,5 @@
-"use client";
-import { useState, useCallback, useEffect } from "react";
+'use client';
+import { useState, useCallback, useEffect } from 'react';
 
 type AccelerometerState = {
   x: number;
@@ -26,7 +26,7 @@ export function useAccelerometer() {
         window.DeviceMotionEvent as unknown as {
           requestPermission: () => Promise<string>;
         }
-      ).requestPermission === "function"
+      ).requestPermission === 'function'
     ) {
       try {
         const response = await (
@@ -34,13 +34,13 @@ export function useAccelerometer() {
             requestPermission: () => Promise<string>;
           }
         ).requestPermission();
-        if (response === "granted") {
+        if (response === 'granted') {
           setState((prev) => ({ ...prev, hasPermission: true }));
         } else {
           setState((prev) => ({ ...prev, hasPermission: false }));
         }
       } catch (err) {
-        console.error("Error requesting device motion permission:", err);
+        console.error('Error requesting device motion permission:', err);
         setState((prev) => ({ ...prev, hasPermission: false }));
       }
     } else {

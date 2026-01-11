@@ -1,7 +1,7 @@
-"use client";
+'use client';
 
-import { useState } from "react";
-import { useAccelerometer } from "../useAccelerometer";
+import { useState } from 'react';
+import { useAccelerometer } from '../useAccelerometer';
 
 export default function SoundsTest() {
   const [sliderValues, setSliderValues] = useState({
@@ -123,7 +123,7 @@ export default function SoundsTest() {
                 hover:from-cyan-600 hover:to-blue-600
                 active:scale-95 transition-all duration-150
                 shadow-lg hover:shadow-xl
-                ${num === 5 ? "col-span-2" : ""}
+                ${num === 5 ? 'col-span-2' : ''}
               `}
             >
               {num}
@@ -143,7 +143,7 @@ export default function SoundsTest() {
               max="100"
               value={sliderValues.slider1}
               onChange={(e) =>
-                handleSliderChange("slider1", parseInt(e.target.value))
+                handleSliderChange('slider1', parseInt(e.target.value))
               }
               className="w-full h-2 bg-gray-700 rounded-lg appearance-none cursor-pointer slider"
             />
@@ -159,7 +159,7 @@ export default function SoundsTest() {
               max="100"
               value={sliderValues.slider2}
               onChange={(e) =>
-                handleSliderChange("slider2", parseInt(e.target.value))
+                handleSliderChange('slider2', parseInt(e.target.value))
               }
               className="w-full h-2 bg-gray-700 rounded-lg appearance-none cursor-pointer slider"
             />
@@ -170,8 +170,8 @@ export default function SoundsTest() {
   );
 }
 
-import { useRef, useCallback } from "react";
-import * as Tone from "tone";
+import { useRef, useCallback } from 'react';
+import * as Tone from 'tone';
 
 export function useSounds() {
   const startedRef = useRef(false);
@@ -197,12 +197,12 @@ export function useSounds() {
       pluckRef.current = new Tone.PluckSynth().toDestination();
       const reverb = new Tone.Reverb({ decay: 4, wet: 0.6 }).toDestination();
       const poly = new Tone.PolySynth(Tone.Synth, {
-        oscillator: { type: "sine" },
+        oscillator: { type: 'sine' },
         envelope: { attack: 1.5, decay: 0.2, sustain: 0.8, release: 4 },
       }).connect(reverb);
       polyRef.current = poly;
       reverbRef.current = new Tone.Reverb({ decay: 5, wet: 0.4 });
-      filterRef.current = new Tone.Filter({ type: "lowpass", frequency: 8000 });
+      filterRef.current = new Tone.Filter({ type: 'lowpass', frequency: 8000 });
       pannerRef.current = new Tone.Panner(0);
       // connect chain
       polyRef.current.connect(filterRef.current!);
@@ -212,46 +212,46 @@ export function useSounds() {
 
       startedRef.current = Boolean(
         synthRef.current &&
-          fmRef.current &&
-          noiseRef.current &&
-          membraneRef.current &&
-          pluckRef.current &&
-          polyRef.current &&
-          reverbRef.current &&
-          filterRef.current &&
-          pannerRef.current &&
-          Tone.getContext().state
+        fmRef.current &&
+        noiseRef.current &&
+        membraneRef.current &&
+        pluckRef.current &&
+        polyRef.current &&
+        reverbRef.current &&
+        filterRef.current &&
+        pannerRef.current &&
+        Tone.getContext().state
       );
     });
   }, []);
 
   // Simple demo sounds
   const playSoundA = useCallback(() => {
-    console.log("Playing Sound A", synthRef);
+    console.log('Playing Sound A', synthRef);
     // synthRef.current?.triggerAttackRelease("C4", "8n");
     // Pick a pleasant suspended / airy chord: C–G–D (Csus2)
-    const notes = ["C4", "G4", "D5"];
+    const notes = ['C4', 'G4', 'D5'];
     polyRef.current?.triggerAttackRelease(notes, 4); // 4-sec chord
   }, []);
 
   const playSoundB = useCallback(() => {
-    console.log("Playing Sound B", fmRef);
+    console.log('Playing Sound B', fmRef);
     // fmRef.current?.triggerAttackRelease("G3", "8n");
     // Gadd2 chord: G–A–D
-    const notes = ["G4", "A4", "D5"];
+    const notes = ['G4', 'A4', 'D5'];
     polyRef.current?.triggerAttackRelease(notes, 4);
   }, []);
 
   const playSoundC = useCallback(() => {
-    noiseRef.current?.triggerAttackRelease("8n");
+    noiseRef.current?.triggerAttackRelease('8n');
   }, []);
 
   const playSoundD = useCallback(() => {
-    membraneRef.current?.triggerAttackRelease("C2", "8n");
+    membraneRef.current?.triggerAttackRelease('C2', '8n');
   }, []);
 
   const playSoundE = useCallback(() => {
-    pluckRef.current?.triggerAttack("A3");
+    pluckRef.current?.triggerAttack('A3');
   }, []);
 
   const modulate = (x: number, y: number, magnitude: number) => {

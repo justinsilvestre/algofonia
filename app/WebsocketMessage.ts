@@ -1,23 +1,23 @@
 export type MessageToClient =
   | {
-      type: "SYNC_REPLY";
+      type: 'SYNC_REPLY';
       /** using NTP, client timestamp when sync request was sent */
       t0: number;
       /** server timestamp when sync request was received */
       s0: number;
     }
   | {
-      type: "JOIN_ROOM_REPLY";
+      type: 'JOIN_ROOM_REPLY';
       userId: number;
       roomState: RoomState;
     }
   | {
-      type: "ROOM_STATE_UPDATE";
+      type: 'ROOM_STATE_UPDATE';
       roomName: string;
       roomState: RoomState;
     }
   | {
-      type: "SET_TEMPO";
+      type: 'SET_TEMPO';
       roomName: string;
       bpm: number;
       actionTimestamp: number;
@@ -25,18 +25,18 @@ export type MessageToClient =
       nextBeatTimestamp: number;
     }
   | {
-      type: "SYNC_BEAT";
+      type: 'SYNC_BEAT';
       roomName: string;
       beatNumber: number;
       beatTimestamp: number;
       bpm: number;
     }
   | {
-      type: "SUBSCRIBE_TO_ROOM_REPLY";
+      type: 'SUBSCRIBE_TO_ROOM_REPLY';
       roomName: string;
     }
   | {
-      type: "SCHEDULE_BEAT";
+      type: 'SCHEDULE_BEAT';
       roomName: string;
       beatNumber: number;
       beatTimestamp: number;
@@ -44,7 +44,7 @@ export type MessageToClient =
   | MotionInputMessageToClient;
 
 export type MotionInputMessageToClient = {
-  type: "MOTION_INPUT";
+  type: 'MOTION_INPUT';
   userId: number;
   frontToBack: number;
   around: number;
@@ -66,17 +66,17 @@ export type RoomState = {
 
 export type MessageToServer =
   | {
-      type: "SYNC";
+      type: 'SYNC';
       /** Using NTP, client timestamp when sync request was sent */
       t0: number;
     }
   | {
-      type: "JOIN_ROOM_REQUEST";
+      type: 'JOIN_ROOM_REQUEST';
       roomName: string;
-      clientType: "input" | "output";
+      clientType: 'input' | 'output';
     }
   | {
-      type: "SET_TEMPO";
+      type: 'SET_TEMPO';
       roomName: string;
       bpm: number;
       actionTimestamp: number;
@@ -84,7 +84,7 @@ export type MessageToServer =
       nextBeatTimestamp: number;
     }
   | {
-      type: "MOTION_INPUT";
+      type: 'MOTION_INPUT';
       roomName: string;
       userId: number;
       frontToBack: number;
@@ -94,17 +94,17 @@ export type MessageToServer =
       nextBeatTimestamp: number;
     }
   | {
-      type: "SYNC_BEAT";
+      type: 'SYNC_BEAT';
       roomName: string;
       beatNumber: number;
       beatTimestamp: number;
     }
   | {
-      type: "SUBSCRIBE_TO_ROOM_REQUEST";
+      type: 'SUBSCRIBE_TO_ROOM_REQUEST';
       roomName: string;
     }
   | {
-      type: "SCHEDULE_BEAT";
+      type: 'SCHEDULE_BEAT';
       roomName: string;
       beatNumber: number;
       beatTimestamp: number;

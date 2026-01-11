@@ -1,11 +1,11 @@
-import { useState, useCallback, useRef, RefObject } from "react";
-import * as Tone from "tone";
+import { useState, useCallback, useRef, RefObject } from 'react';
+import * as Tone from 'tone';
 import {
   MessageToServer,
   MotionInputMessageToClient,
-} from "../WebsocketMessage";
-import { getToneControls, ToneControls } from "./tone";
-import { channels } from "./channels";
+} from '../WebsocketMessage';
+import { getToneControls, ToneControls } from './tone';
+import { channels } from './channels';
 
 const VERBOSE_LOGGING = false;
 
@@ -39,11 +39,11 @@ export function useTone(
   const channelsStateRef = useRef<{ [channelKey: string]: unknown }>({});
 
   const start = useCallback(() => {
-    console.log("Starting Tone AudioContext...");
+    console.log('Starting Tone AudioContext...');
     Tone.start().then(() => {
-      console.log("Tone AudioContext started");
+      console.log('Tone AudioContext started');
       const controls = getToneControls((time) => {
-        console.log("Tone loop at time:", time);
+        console.log('Tone loop at time:', time);
         const musicStateOverrides: {
           [channelKey: string]: unknown;
         } = {};
@@ -76,8 +76,8 @@ export function useTone(
           return musicState;
         });
       });
-      console.log("Initializing channels...");
-      const initialChannels: MusicState["channels"] = Object.fromEntries(
+      console.log('Initializing channels...');
+      const initialChannels: MusicState['channels'] = Object.fromEntries(
         channels.map((channel) => [
           channel.key,
           {
@@ -96,7 +96,7 @@ export function useTone(
       );
 
       setMusicState((musicState) => {
-        console.log("Initializing music state with channels");
+        console.log('Initializing music state with channels');
         const newMusicState: MusicState = {
           ...musicState,
           channelsOrder: channels.map((c) => c.key),
@@ -113,7 +113,7 @@ export function useTone(
         const nextBeatTimestamp = nextBeatTimestampRef.current;
         if (nextBeatTimestamp == null) {
           console.warn(
-            "nextBeatTimestampRef is null, starting transport immediately"
+            'nextBeatTimestampRef is null, starting transport immediately'
           );
           return 0;
         }
@@ -131,7 +131,7 @@ export function useTone(
         return Math.max(0, offsetSeconds);
       })();
       controls.start(startBpm, startOffsetSeconds).then(() => {
-        console.log("Tone transport started");
+        console.log('Tone transport started');
       });
     });
   }, [musicState.bpm, nextBeatTimestampRef, offsetFromServerTimeRef]);
@@ -143,22 +143,22 @@ export function useTone(
       sendMessage: (message: MessageToServer) => void
     ) => {
       if (!controls) {
-        console.warn("ToneControls not initialized yet");
+        console.warn('ToneControls not initialized yet');
         return;
       }
       const channelState = channelsStateRef.current[channelKey];
       if (!channelState) {
         // Might be good to eventually show an error message in this case.
-        console.warn("No channel with key", channelKey);
+        console.warn('No channel with key', channelKey);
         return;
       } else {
         const channel = channels.find((c) => c.key === channelKey);
         if (!channel) {
-          console.warn("No channel definition for channelKey", channelKey);
+          console.warn('No channel definition for channelKey', channelKey);
           return;
         }
         if (VERBOSE_LOGGING)
-          console.log("Processing input for channel", channelKey, message);
+          console.log('Processing input for channel', channelKey, message);
         const updatedChannelState = channel.respond(
           controls,
           // eslint-disable-next-line @typescript-eslint/no-explicit-any

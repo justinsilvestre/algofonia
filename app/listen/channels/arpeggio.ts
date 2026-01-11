@@ -1,21 +1,21 @@
-import * as Tone from "tone";
-import { createChannel } from "../tone";
-import { Chord, Scale, Key } from "tonal";
+import * as Tone from 'tone';
+import { createChannel } from '../tone';
+import { Chord, Scale, Key } from 'tonal';
 
-import { PluckSynth } from "../synth/pluckSynth";
+import { PluckSynth } from '../synth/pluckSynth';
 
 export const arpeggio = createChannel({
-  key: "arpeggio",
+  key: 'arpeggio',
 
   initialize: () => {
     const synth = new PluckSynth();
     synth.start();
 
-    const octave         = 3;
+    const octave = 3;
     const octaveJumpProb = 0.0;
 
     // Index of note in Scale.notes array
-    let arpPatternIndices = [4, 2, 2, 4, 5, 1, 6, 3];
+    const arpPatternIndices = [4, 2, 2, 4, 5, 1, 6, 3];
 
     return { synth, octave, octaveJumpProb, arpPatternIndices };
   },
@@ -25,13 +25,17 @@ export const arpeggio = createChannel({
     time
   ) => {
     for (let i = 0; i < arpPatternIndices.length; i += 1) {
-      transport.schedule(t => {
-        const noteOctave = Math.random() >= octaveJumpProb ? octave : octave + 1;
-        const notes      = Scale.get(`${key}${noteOctave} ${mode}`).notes;
-        const note       = notes[arpPatternIndices[i]];
+      transport.schedule(
+        (t) => {
+          const noteOctave =
+            Math.random() >= octaveJumpProb ? octave : octave + 1;
+          const notes = Scale.get(`${key}${noteOctave} ${mode}`).notes;
+          const note = notes[arpPatternIndices[i]];
 
-        synth.playNote(note, '4n', t);
-      }, time + Tone.Time("4n").toSeconds() * (i + 1));
+          synth.playNote(note, '4n', t);
+        },
+        time + Tone.Time('4n').toSeconds() * (i + 1)
+      );
     }
   },
   respond: (tone, channelState, { frontToBack, around }) => {

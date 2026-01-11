@@ -1,14 +1,14 @@
-"use client";
-import { useState, useEffect, useCallback } from "react";
-import { MessageToClient, MessageToServer } from "./WebsocketMessage";
-import { useWebsocketUrl } from "@/app/useWebsocketUrl";
+'use client';
+import { useState, useEffect, useCallback } from 'react';
+import { MessageToClient, MessageToServer } from './WebsocketMessage';
+import { useWebsocketUrl } from '@/app/useWebsocketUrl';
 
 type ConnectionState =
   | {
-      type: "initial" | "connecting" | "connected" | "disconnected";
+      type: 'initial' | 'connecting' | 'connected' | 'disconnected';
     }
   | {
-      type: "error";
+      type: 'error';
       message: string;
     };
 
@@ -29,41 +29,41 @@ export function useWebsocket(options: {
 
   const [socket, setSocket] = useState<WebSocket | null>(null);
   const [connectionState, setConnectionState] = useState<ConnectionState>({
-    type: "initial",
+    type: 'initial',
   });
   const [reconnectAttemptsCount, setReconnectAttemptsCount] = useState(0);
 
   useEffect(() => {
     if (!url) return;
     if (socket?.readyState === WebSocket.OPEN) {
-      console.log("WebSocket already connected");
+      console.log('WebSocket already connected');
       return;
     }
     if (socket?.readyState === WebSocket.CONNECTING) {
-      console.log("WebSocket connection in progress");
+      console.log('WebSocket connection in progress');
       return;
     }
     if (socket?.readyState === WebSocket.CLOSING) {
-      console.log("WebSocket is closing, will not attempt to reconnect now");
+      console.log('WebSocket is closing, will not attempt to reconnect now');
       return;
     }
     if (socket?.readyState === WebSocket.CLOSED) {
-      console.log("WebSocket is closed, attempting to reconnect");
+      console.log('WebSocket is closed, attempting to reconnect');
     }
 
     try {
       console.log(`Connecting to WebSocket at ${url}...`);
-      setConnectionState({ type: "connecting" });
+      setConnectionState({ type: 'connecting' });
       const socket = new WebSocket(url);
 
       socket.onopen = () => {
-        console.log("WebSocket connected");
-        setConnectionState({ type: "connected" });
+        console.log('WebSocket connected');
+        setConnectionState({ type: 'connected' });
         setReconnectAttemptsCount(0);
       };
       socket.onclose = () => {
-        console.log("WebSocket disconnected");
-        setConnectionState({ type: "disconnected" });
+        console.log('WebSocket disconnected');
+        setConnectionState({ type: 'disconnected' });
         if (reconnectAttemptsCount < maxReconnectAttempts) {
           console.log(
             `Reconnecting in ${reconnectInterval}ms... (attempt ${
@@ -75,17 +75,17 @@ export function useWebsocket(options: {
             setSocket(null); // Trigger reconnection
           }, reconnectInterval);
         } else {
-          console.log("Max reconnect attempts reached");
+          console.log('Max reconnect attempts reached');
           setConnectionState({
-            type: "error",
-            message: "Max reconnect attempts reached",
+            type: 'error',
+            message: 'Max reconnect attempts reached',
           });
         }
       };
       socket.onerror = (error) => {
-        console.log("WebSocket error:", error);
+        console.log('WebSocket error:', error);
         setConnectionState({
-          type: "error",
+          type: 'error',
           message: `WebSocket error: ${error.type}`,
         });
       };
@@ -94,8 +94,8 @@ export function useWebsocket(options: {
     } catch (error) {
       console.error(`Failed to create WebSocket connection:`, error);
       setConnectionState({
-        type: "error",
-        message: "Failed to create WebSocket connection",
+        type: 'error',
+        message: 'Failed to create WebSocket connection',
       });
     }
   }, [
@@ -117,7 +117,7 @@ export function useWebsocket(options: {
             message
           )}`
         );
-        return { OK: false, error: "WebSocket is not connected" };
+        return { OK: false, error: 'WebSocket is not connected' };
       }
     },
     [socket]
@@ -131,7 +131,7 @@ export function useWebsocket(options: {
         const message: MessageToClient = JSON.parse(event.data);
         handleMessage(message, sendMessage);
       } catch (error) {
-        console.error("Failed to parse WebSocket message:", error);
+        console.error('Failed to parse WebSocket message:', error);
       }
     };
     return () => {

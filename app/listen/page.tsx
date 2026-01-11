@@ -1,16 +1,16 @@
-"use client";
-import { useCallback, useEffect, useRef, useState } from "react";
+'use client';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import {
   MessageToClient,
   MessageToServer,
   RoomState,
-} from "../WebsocketMessage";
-import { useWebsocket } from "../useWebsocket";
-import { useServerTimeSync } from "./useServerTimeSync";
-import { startBeats } from "./startBeats";
-import { useTone } from "./useTone";
-import { getRoomName } from "../getRoomName";
-import { channels } from "./channels";
+} from '../WebsocketMessage';
+import { useWebsocket } from '../useWebsocket';
+import { useServerTimeSync } from './useServerTimeSync';
+import { startBeats } from './startBeats';
+import { useTone } from './useTone';
+import { getRoomName } from '../getRoomName';
+import { channels } from './channels';
 
 type InputClientState = {
   userId: number;
@@ -22,7 +22,7 @@ const VERBOSE_LOGGING = false;
 
 export default function OutputClientPage() {
   const [debug] = useState<boolean>(false);
-  const [debugText, setDebugText] = useState<string>("");
+  const [debugText, setDebugText] = useState<string>('');
 
   const [userId, setUserId] = useState<number | null>(null);
   const [inputClients, setInputClients] = useState<
@@ -59,19 +59,19 @@ export default function OutputClientPage() {
         sendMessage: (message: MessageToServer) => void
       ) => {
         if (VERBOSE_LOGGING)
-          console.log("Received message from server:", message);
+          console.log('Received message from server:', message);
         switch (message.type) {
-          case "JOIN_ROOM_REPLY":
+          case 'JOIN_ROOM_REPLY':
             const { userId } = message;
 
             const beat = message.roomState.beat;
             if (!beat) {
-              console.log("Initial beat info not available yet.");
+              console.log('Initial beat info not available yet.');
               setUserId(userId);
               setRoomState(message.roomState);
               break;
             }
-            console.log("Initial beat info:", beat);
+            console.log('Initial beat info:', beat);
             const { lastBeatNumber, nextBeatTimestamp, bpm } = beat;
 
             beatsCountRef.current = lastBeatNumber;
@@ -89,9 +89,9 @@ export default function OutputClientPage() {
               offsetFromServerTimeRef,
               () => {
                 if (VERBOSE_LOGGING)
-                  console.log("BEAT #" + beatsCountRef.current);
+                  console.log('BEAT #' + beatsCountRef.current);
                 sendMessage({
-                  type: "SCHEDULE_BEAT",
+                  type: 'SCHEDULE_BEAT',
                   roomName,
                   beatNumber: beatsCountRef.current + 1,
                   beatTimestamp: nextBeatTimestampRef.current!,
@@ -101,7 +101,7 @@ export default function OutputClientPage() {
                 const isFirstOutputClient = outputClients[0] === userId;
                 if (isFirstOutputClient && beatsCountRef.current % 20 === 0) {
                   sendMessage({
-                    type: "SYNC_BEAT",
+                    type: 'SYNC_BEAT',
                     roomName,
                     beatNumber: beatsCountRef.current + 1,
                     beatTimestamp: nextBeatTimestampRef.current!,
@@ -111,20 +111,20 @@ export default function OutputClientPage() {
                 // Flash beat-display using CSS variable
                 const flashDuration = 100; // Duration of the flash in milliseconds
 
-                const beatDisplay = document.getElementById("beat-display");
+                const beatDisplay = document.getElementById('beat-display');
                 if (beatDisplay) {
-                  beatDisplay.style.setProperty("background-color", "white");
-                  beatDisplay.style.setProperty("color", "black");
+                  beatDisplay.style.setProperty('background-color', 'white');
+                  beatDisplay.style.setProperty('color', 'black');
                   setTimeout(() => {
-                    const beatDisplay = document.getElementById("beat-display");
-                    beatDisplay?.style.removeProperty("background-color");
-                    beatDisplay?.style.removeProperty("color");
+                    const beatDisplay = document.getElementById('beat-display');
+                    beatDisplay?.style.removeProperty('background-color');
+                    beatDisplay?.style.removeProperty('color');
                   }, flashDuration);
                 }
               }
             );
             break;
-          case "ROOM_STATE_UPDATE":
+          case 'ROOM_STATE_UPDATE':
             setRoomState(message.roomState);
             // Remove disconnected input clients
             setInputClients((prev) => {
@@ -137,16 +137,16 @@ export default function OutputClientPage() {
               return newMap;
             });
             break;
-          case "SYNC_REPLY": {
+          case 'SYNC_REPLY': {
             const { t0, s0 } = message;
             const t1 = performance.now() + performance.timeOrigin;
             processSyncReply({ t0, s0, t1 });
             break;
           }
-          case "MOTION_INPUT": {
+          case 'MOTION_INPUT': {
             if (!toneControls) {
-              console.warn("No tone controls available for MOTION_INPUT");
-              setDebugText("No tone controls available for MOTION_INPUT");
+              console.warn('No tone controls available for MOTION_INPUT');
+              setDebugText('No tone controls available for MOTION_INPUT');
               break;
             }
 
@@ -170,7 +170,7 @@ export default function OutputClientPage() {
 
             break;
           }
-          case "SET_TEMPO": {
+          case 'SET_TEMPO': {
             // placeholder
             break;
           }
@@ -190,17 +190,17 @@ export default function OutputClientPage() {
   });
 
   useEffect(() => {
-    if (connectionState.type === "connected") {
-      console.log("Sending JOIN_ROOM_REQUEST");
+    if (connectionState.type === 'connected') {
+      console.log('Sending JOIN_ROOM_REQUEST');
       sendMessage({
-        type: "JOIN_ROOM_REQUEST",
+        type: 'JOIN_ROOM_REQUEST',
         roomName: getRoomName(),
-        clientType: "output",
+        clientType: 'output',
       });
 
       const syncInterval = setInterval(() => {
         sendMessage({
-          type: "SYNC",
+          type: 'SYNC',
           t0: performance.now() + performance.timeOrigin,
         });
         syncRequestsCountRef.current += 1;
@@ -211,7 +211,7 @@ export default function OutputClientPage() {
       return () => clearInterval(syncInterval);
     }
   }, [connectionState.type, sendMessage, syncRequestsCountRef]);
-  if (connectionState.type !== "connected") {
+  if (connectionState.type !== 'connected') {
     return (
       <div className="w-screen h-screen bg-black text-white flex items-center justify-center">
         <div className="text-center space-y-4">
@@ -221,22 +221,22 @@ export default function OutputClientPage() {
               Connection status:
               <span
                 className={`ml-2 font-semibold ${
-                  connectionState.type === "connecting"
-                    ? "text-yellow-400"
-                    : connectionState.type === "error"
-                    ? "text-red-400"
-                    : "text-gray-400"
+                  connectionState.type === 'connecting'
+                    ? 'text-yellow-400'
+                    : connectionState.type === 'error'
+                      ? 'text-red-400'
+                      : 'text-gray-400'
                 }`}
               >
                 {connectionState.type}
               </span>
             </p>
-            {connectionState.type === "error" && (
+            {connectionState.type === 'error' && (
               <p className="text-red-400 bg-red-900/20 border border-red-400/30 rounded-lg p-4 max-w-md">
                 Error: {connectionState.message}
               </p>
             )}
-            {connectionState.type === "connecting" && (
+            {connectionState.type === 'connecting' && (
               <div className="flex items-center justify-center space-x-2">
                 <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
                 <span className="text-gray-300">Connecting...</span>
@@ -249,7 +249,7 @@ export default function OutputClientPage() {
   }
 
   const userIdsToChannelKeys = getUserIdsToChannelKeys(roomState.inputClients);
-  console.log("userIdsToChannelKeys:", userIdsToChannelKeys);
+  console.log('userIdsToChannelKeys:', userIdsToChannelKeys);
 
   return (
     <div id="container" className="w-screen h-screen text-white bg-black">
@@ -257,8 +257,8 @@ export default function OutputClientPage() {
         <h1>Listen</h1>
         <p>Room name: {getRoomName()}</p>
         <p>
-          Your user ID: {userId}{" "}
-          {roomState.outputClients[0] === userId ? "(tempo source)" : ""}
+          Your user ID: {userId}{' '}
+          {roomState.outputClients[0] === userId ? '(tempo source)' : ''}
         </p>
         {debug && <p>{debugText}</p>}
 
@@ -311,12 +311,12 @@ export default function OutputClientPage() {
                     className="p-4 rounded-lg border-2 border-white/20"
                   >
                     <div className="text-sm font-mono mb-2">
-                      {channelKey} {userId <= 0 ? "" : <>(user ID #{userId})</>}
+                      {channelKey} {userId <= 0 ? '' : <>(user ID #{userId})</>}
                     </div>
                     <div className="space-y-3">
                       <div className="rounded-lg bg-black/30 p-2">
                         <label className="block text-xs mb-1">
-                          Front-to-back: {Math.round(client.frontToBack)}{" "}
+                          Front-to-back: {Math.round(client.frontToBack)}{' '}
                           (manual override)
                         </label>
                         <input
@@ -341,7 +341,7 @@ export default function OutputClientPage() {
                             // Simulate motion input event
                             if (toneControls) {
                               const simulatedMotionInput = {
-                                type: "MOTION_INPUT" as const,
+                                type: 'MOTION_INPUT' as const,
                                 roomName: getRoomName(),
                                 userId,
                                 frontToBack: newFrontToBack,
@@ -390,7 +390,7 @@ export default function OutputClientPage() {
                             // Simulate motion input event
                             if (toneControls) {
                               const simulatedMotionInput = {
-                                type: "MOTION_INPUT" as const,
+                                type: 'MOTION_INPUT' as const,
                                 roomName: getRoomName(),
                                 userId,
                                 frontToBack: client.frontToBack,

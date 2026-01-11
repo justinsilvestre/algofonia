@@ -1,4 +1,4 @@
-import * as Tone from "tone";
+import * as Tone from 'tone';
 
 export class NoisePad {
   private noise: Tone.Noise;
@@ -16,12 +16,12 @@ export class NoisePad {
     const baseCutoff = 1900;
     const lfoDepth = 800;
     // Create pink noise source (warmer than white noise)
-    this.noise = new Tone.Noise("pink");
+    this.noise = new Tone.Noise('pink');
 
     // Resonant bandpass filter for shaping the noise
     this.filter = new Tone.Filter({
       frequency: baseCutoff,
-      type: "lowpass",
+      type: 'lowpass',
       rolloff: -12,
       Q: 4,
     });
@@ -31,7 +31,7 @@ export class NoisePad {
       frequency: 0.55,
       min: baseCutoff - lfoDepth,
       max: baseCutoff + lfoDepth,
-      type: "sine",
+      type: 'sine',
     });
 
     // Grain delay for texture (creates pitch shifting artifacts)

@@ -1,10 +1,10 @@
-import * as Tone from "tone";
-import { createChannel } from "../tone";
+import * as Tone from 'tone';
+import { createChannel } from '../tone';
 
-import { NoisePad } from "../synth/noisePad";
+import { NoisePad } from '../synth/noisePad';
 
 export const noisePad = createChannel({
-  key: "Noise Pad",
+  key: 'Noise Pad',
 
   initialize: () => {
     const pad = new NoisePad();
@@ -22,8 +22,8 @@ export const noisePad = createChannel({
     return channelState;
   },
   respond: (tone, channelState, { frontToBack, around }) => {
-    const semitones = frontToBack / 100 * 12;
-    const rate      = around / 100 + 0.1;
+    const semitones = (frontToBack / 100) * 12;
+    const rate = around / 100 + 0.1;
 
     channelState.pad.setPitchShift(semitones);
     channelState.pad.setAutoPannerRate(rate);
@@ -31,4 +31,3 @@ export const noisePad = createChannel({
     return channelState;
   },
 });
-
