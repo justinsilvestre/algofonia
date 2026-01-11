@@ -19,9 +19,9 @@ export const darkPad = createChannel({
   onLoop: ({ transport, key, mode }, channelState, time) => {
     if (channelState.isPlaying) return;
 
-    const scale  = `${key}${channelState.octave} ${mode}`;
-    const notes  = Scale.get(scale).notes;
-    
+    const scale = `${key}${channelState.octave} ${mode}`;
+    const notes = Scale.get(scale).notes;
+
     channelState.pad.playChordEternal([notes[0], notes[3], notes[5]], time);
     channelState.isPlaying = true;
 
@@ -29,7 +29,7 @@ export const darkPad = createChannel({
   },
   respond: (tone, channelState, { frontToBack, around }) => {
     const bitcrush = frontToBack / 100;
-    const rate     = around / 100 * 6 + 6;
+    const rate = (around / 100) * 6 + 6;
 
     channelState.pad.setBitCrush(bitcrush);
     channelState.pad.setBreathingRate(`${rate}hz`);
