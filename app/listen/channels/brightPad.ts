@@ -23,9 +23,9 @@ export const brightPad = createChannel({
   onLoop: ({ transport, key, mode }, channelState, time) => {
     if (channelState.isPlaying) return;
 
-    const scale  = `${key}${channelState.octave} ${mode}`;
-    const notes  = Scale.get(scale).notes;
-    
+    const scale = `${key}${channelState.octave} ${mode}`;
+    const notes = Scale.get(scale).notes;
+
     channelState.pad.playChordEternal([notes[0], notes[3], notes[5]], time);
     channelState.isPlaying = true;
 
@@ -34,14 +34,14 @@ export const brightPad = createChannel({
   respond: (tone, channelState, { frontToBack, around }) => {
     const delay = frontToBack / 100;
 
-    const depthMin  = around / 200 + 0.1;
-    const depthMax  = depthMin + 0.4;
-    const rate      = depthMin * 6;
-    
+    const depthMin = around / 200 + 0.1;
+    const depthMax = depthMin + 0.4;
+    const rate = depthMin * 6;
+
     channelState.pad.setDelayAmount(delay);
     channelState.pad.setSparkleRate(rate);
     channelState.pad.setSparkleDepth(depthMin, depthMax);
-    
+
     return channelState;
   },
 });

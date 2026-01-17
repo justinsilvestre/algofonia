@@ -60,7 +60,7 @@ export const bass = createChannel({
       synth,
       octave,
       rhythmSpeed: 0,
-      loopIndex: 0
+      loopIndex: 0,
     };
   },
   onLoop: (
@@ -74,20 +74,25 @@ export const bass = createChannel({
     // const note = `${scaleNotes[channelState.loopIndex % scaleNotes.length]}${channelState.octave}`;
 
     [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15].forEach((i) => {
-      transport.schedule((time) => {
-        const note = `${scaleNotes[(channelState.loopIndex) % scaleNotes.length]}${channelState.octave}`;
-        // get random note from chord
-        const rhythmVariation = rhythmVariations.get(channelState.rhythmSpeed)!;
-        const rhythmAtSixteenthBeat = rhythmVariation[i];
+      transport.schedule(
+        (time) => {
+          const note = `${scaleNotes[channelState.loopIndex % scaleNotes.length]}${channelState.octave}`;
+          // get random note from chord
+          const rhythmVariation = rhythmVariations.get(
+            channelState.rhythmSpeed
+          )!;
+          const rhythmAtSixteenthBeat = rhythmVariation[i];
 
-        if (rhythmAtSixteenthBeat)
-          console.log(
-            `Playing bass note ${note} at sixteenth beat ${i}, rhythm: ${rhythmAtSixteenthBeat}`
-          );
+          if (rhythmAtSixteenthBeat)
+            console.log(
+              `Playing bass note ${note} at sixteenth beat ${i}, rhythm: ${rhythmAtSixteenthBeat}`
+            );
 
-        if (rhythmAtSixteenthBeat)
-          synth.playNote(note, rhythmAtSixteenthBeat, time);
-      }, time + Tone.Time("16n").toSeconds() * (i + 1));
+          if (rhythmAtSixteenthBeat)
+            synth.playNote(note, rhythmAtSixteenthBeat, time);
+        },
+        time + Tone.Time("16n").toSeconds() * (i + 1)
+      );
     });
 
     channelState.loopIndex += 1;

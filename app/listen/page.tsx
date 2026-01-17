@@ -224,8 +224,8 @@ export default function OutputClientPage() {
                   connectionState.type === "connecting"
                     ? "text-yellow-400"
                     : connectionState.type === "error"
-                    ? "text-red-400"
-                    : "text-gray-400"
+                      ? "text-red-400"
+                      : "text-gray-400"
                 }`}
               >
                 {connectionState.type}

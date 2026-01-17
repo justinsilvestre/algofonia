@@ -986,8 +986,8 @@ export function MotionVisuals({ canvas }: { canvas: CanvasInterface }) {
           ? PARTICLE_SPAWNING.WEBGL_MAX_PARTICLES_BEAT
           : PARTICLE_SPAWNING.WEBGL_MAX_PARTICLES_NORMAL
         : beatPulse > 0.5
-        ? PARTICLE_SPAWNING.MAX_PARTICLES_BEAT
-        : PARTICLE_SPAWNING.MAX_PARTICLES_NORMAL;
+          ? PARTICLE_SPAWNING.MAX_PARTICLES_BEAT
+          : PARTICLE_SPAWNING.MAX_PARTICLES_NORMAL;
 
       if (shouldSpawn && particles.size < maxParticles) {
         // Simplified spawning for WebGL performance - single orb only

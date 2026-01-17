@@ -1,4 +1,3 @@
-
 import * as Tone from "tone";
 import { createChannel } from "../tone";
 
@@ -8,7 +7,9 @@ export const granularCloud = createChannel({
   key: "Granular Cloud",
 
   initialize: () => {
-    const cloud = new GranularCloud('/samples/Perry Como - Please Believe Me.mp3');
+    const cloud = new GranularCloud(
+      "/samples/Perry Como - Please Believe Me.mp3"
+    );
 
     cloud.setDriftSpeed(0.02);
     cloud.setGrainSize(0.15, 0.25);
@@ -22,11 +23,14 @@ export const granularCloud = createChannel({
   onLoop: ({ transport, key, mode }, channelState, time) => {
     if (channelState.isPlaying) return;
 
-    channelState.cloud.start().then(() => {;
+    channelState.cloud.start().then(() => {
       channelState.isPlaying = true;
     });
 
     return channelState;
-  }
+  },
+  respond: (tone, channelState, input) => {
+    // Handle motion input for granular cloud
+    return channelState;
+  },
 });
-

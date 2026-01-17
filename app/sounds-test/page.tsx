@@ -212,15 +212,15 @@ export function useSounds() {
 
       startedRef.current = Boolean(
         synthRef.current &&
-          fmRef.current &&
-          noiseRef.current &&
-          membraneRef.current &&
-          pluckRef.current &&
-          polyRef.current &&
-          reverbRef.current &&
-          filterRef.current &&
-          pannerRef.current &&
-          Tone.getContext().state
+        fmRef.current &&
+        noiseRef.current &&
+        membraneRef.current &&
+        pluckRef.current &&
+        polyRef.current &&
+        reverbRef.current &&
+        filterRef.current &&
+        pannerRef.current &&
+        Tone.getContext().state
       );
     });
   }, []);
