@@ -24,13 +24,20 @@ export function getToneControls(
       transport.start(startOffsetSeconds);
       // set initial bpm
       Tone.getTransport().bpm.value = startBpm;
+
+      // @ts-expect-error -- debug
+      window.Tone = Tone;
+
       loop.start(0);
       started = true;
 
       return Promise.resolve();
     },
     setBpm: (bpm: number) => {
-      Tone.getTransport().bpm.value = bpm;
+      const currentBpm = Tone.getTransport().bpm.value;
+      const difference = Math.abs(bpm - currentBpm);
+      const rampTime = difference > 20 ? 1 : difference > 10 ? 0.5 : 0.0;
+      Tone.getTransport().bpm.rampTo(bpm, rampTime);
     },
     getBpm: () => {
       return Tone.getTransport().bpm.value;

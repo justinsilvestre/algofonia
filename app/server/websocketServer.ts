@@ -122,7 +122,7 @@ function handleMessage(
         beat:
           message.clientType === "output"
             ? {
-                currentBpm: 120,
+                currentBpm: message.bpm,
                 startTime: Date.now(),
                 lastSyncedBeatNumber: 0,
                 lastSyncedBeatTimestamp:
@@ -135,7 +135,7 @@ function handleMessage(
       };
       if (room && !room.beat && message.clientType === "output") {
         room.beat = {
-          currentBpm: 120,
+          currentBpm: message.bpm,
           startTime: Date.now(),
           lastSyncedBeatNumber: 0,
           lastSyncedBeatTimestamp: performance.now() + performance.timeOrigin,

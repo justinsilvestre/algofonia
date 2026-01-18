@@ -2,14 +2,16 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useWebsocket } from "./useWebsocket";
 import { MessageToClient, RoomState } from "./WebsocketMessage";
-import { startBeats } from "./listen/startBeats";
+import { useBeatsListener } from "./listen/useBeatsListener";
 import { useServerTimeSync } from "./listen/useServerTimeSync";
 import { getOrientationControlFromEvent } from "./movement-test/getOrientationControlFromEvent";
 import { getRoomName } from "./getRoomName";
 import { useCanvas, MotionVisuals } from "./MotionVisuals";
 
+const SHOW_DEBUG_TEXT = true;
+
 export default function InputClientPage() {
-  const [debug] = useState<boolean>(false);
+  const [debug] = useState<boolean>(SHOW_DEBUG_TEXT);
   const [debugText, setDebugText] = useState<string>("");
   const [visualsAreShowing, setVisualsAreShowing] = useState<boolean>(() => {
     if (typeof window !== "undefined") {
@@ -60,7 +62,7 @@ export default function InputClientPage() {
   const [userId, setUserId] = useState<number>(0);
   const [bpm, setBpm] = useState<number | null>(null);
   const getBpm = useCallback((): number => {
-    return bpm ?? 120;
+    return bpm ?? 100;
   }, [bpm]);
 
   const beatsCountRef = useRef<number>(0);
@@ -93,18 +95,50 @@ export default function InputClientPage() {
   const canvas = useCanvas(lastSentOrientationRef);
   const { pulse } = canvas;
 
+  const [beatsStartTimestamp, setBeatsStartTimestamp] = useState<number | null>(
+    null
+  );
   const { connectionState, sendMessage } = useWebsocket({
     handleMessage: useCallback(
       (message: MessageToClient) => {
         console.log("Received message from server:", message);
         switch (message.type) {
-          case "JOIN_ROOM_REPLY":
+          case "JOIN_ROOM_REPLY": {
+            const { beat } = message.roomState;
+            if (!beat) {
+              setUserId(message.userId);
+              setRoomState(message.roomState);
+              break;
+            }
+
+            const { lastBeatNumber, nextBeatTimestamp, bpm } = beat;
+
+            beatsCountRef.current = lastBeatNumber;
+            nextBeatTimestampRef.current = nextBeatTimestamp;
+            if (nextBeatTimestampRef.current === undefined) {
+              throw new Error("nextBeatTimestamp is undefined");
+            }
             setUserId(message.userId);
             setRoomState(message.roomState);
 
+            setBpm(bpm);
+            setBeatsStartTimestamp(nextBeatTimestamp);
             break;
+          }
           case "ROOM_STATE_UPDATE":
             setRoomState(message.roomState);
+            const { beat } = message.roomState;
+            if (beat) {
+              beatsCountRef.current = beat.lastBeatNumber - 1;
+              nextBeatTimestampRef.current = beat.nextBeatTimestamp;
+              if (nextBeatTimestampRef.current === undefined) {
+                throw new Error("nextBeatTimestamp is undefined");
+              }
+              setBpm(beat.bpm);
+              setBeatsStartTimestamp(
+                (startTimestamp) => startTimestamp ?? beat.nextBeatTimestamp
+              );
+            }
             break;
           case "SYNC_REPLY": {
             const { t0, s0 } = message;
@@ -113,32 +147,32 @@ export default function InputClientPage() {
             break;
           }
           case "SYNC_BEAT": {
-            if (!nextBeatTimestampRef.current) {
-              startBeats(
-                message.beatTimestamp,
-                getBpm,
-                beatsCountRef,
-                nextBeatTimestampRef,
-                offsetFromServerTimeRef,
-                () => {
-                  console.log("BEAT #" + beatsCountRef.current);
-                  // Trigger orb beat pulse
-                  pulse();
-                }
-              );
-            }
-            beatsCountRef.current = message.beatNumber - 1; // will be incremented on next beat
-            nextBeatTimestampRef.current = message.beatTimestamp;
-
             setBpm(message.bpm);
 
             break;
           }
         }
       },
-      [offsetFromServerTimeRef, getBpm, processSyncReply, pulse]
+      [processSyncReply]
     ),
   });
+
+  useBeatsListener(
+    beatsStartTimestamp,
+    getBpm,
+    beatsCountRef,
+    nextBeatTimestampRef,
+    offsetFromServerTimeRef,
+    useCallback(
+      (n) => {
+        console.log("BEAT #" + beatsCountRef.current);
+
+        // Trigger orb beat pulse
+        pulse();
+      },
+      [pulse]
+    )
+  );
 
   useEffect(() => {
     const roomName = getRoomName();
@@ -172,9 +206,14 @@ export default function InputClientPage() {
         event.absolute ? "Absolute" : "Non-absolute",
         "orientation event"
       );
-      if (event.alpha === null || event.beta === null) {
-        console.warn("DeviceOrientationEvent missing alpha or beta");
-        setDebugText("DeviceOrientationEvent missing alpha or beta");
+      if (event.alpha === null) {
+        console.warn("DeviceOrientationEvent missing alpha");
+        setDebugText("DeviceOrientationEvent missing alpha");
+        return;
+      }
+      if (event.beta === null) {
+        console.warn("DeviceOrientationEvent missing beta");
+        setDebugText("DeviceOrientationEvent missing beta");
         return;
       } else {
         const orientation = getOrientationControlFromEvent(
@@ -250,7 +289,7 @@ export default function InputClientPage() {
         setDebugText("Error requesting movement permission: " + err);
       });
   };
-  if (!movement.state.hasPermission) {
+  if (!movement.state.hasMotionPermission) {
     return (
       <div
         className="w-screen h-screen bg-black text-center flex flex-col items-center justify-center"
@@ -458,13 +497,15 @@ export default function InputClientPage() {
 }
 
 type MovementState = {
-  hasPermission: boolean | null;
+  hasMotionPermission: boolean | null;
+  hasOrientationPermission: boolean | null;
 };
 function useMovement() {
   const [state, setState] = useState<MovementState>({
-    hasPermission: null,
+    hasMotionPermission: null,
+    hasOrientationPermission: null,
   });
-  const requestPermission = useCallback(async () => {
+  const requestMotionPermission = useCallback(async () => {
     // Feature-detect the old “DeviceMotionEvent.requestPermission” API (iOS)
     if (
       window.DeviceMotionEvent &&
@@ -481,19 +522,55 @@ function useMovement() {
           }
         ).requestPermission();
         if (response === "granted") {
-          setState((prev) => ({ ...prev, hasPermission: true }));
+          setState((prev) => ({ ...prev, hasMotionPermission: true }));
         } else {
-          setState((prev) => ({ ...prev, hasPermission: false }));
+          setState((prev) => ({ ...prev, hasMotionPermission: false }));
         }
       } catch (err) {
         console.error("Error requesting device motion permission:", err);
-        setState((prev) => ({ ...prev, hasPermission: false }));
+        setState((prev) => ({ ...prev, hasMotionPermission: false }));
       }
     } else {
       // Non-iOS or browsers where no explicit permission API needed
-      setState((prev) => ({ ...prev, hasPermission: true }));
+      setState((prev) => ({ ...prev, hasMotionPermission: true }));
     }
   }, []);
+
+  const requestOrientationPermission = useCallback(async () => {
+    // Feature-detect the old “DeviceOrientationEvent.requestPermission” API (iOS)
+    if (
+      window.DeviceOrientationEvent &&
+      typeof (
+        window.DeviceOrientationEvent as unknown as {
+          requestPermission: () => Promise<string>;
+        }
+      ).requestPermission === "function"
+    ) {
+      try {
+        const response = await (
+          window.DeviceOrientationEvent as unknown as {
+            requestPermission: () => Promise<string>;
+          }
+        ).requestPermission();
+        if (response === "granted") {
+          setState((prev) => ({ ...prev, hasOrientationPermission: true }));
+        } else {
+          setState((prev) => ({ ...prev, hasOrientationPermission: false }));
+        }
+      } catch (err) {
+        console.error("Error requesting device orientation permission:", err);
+        setState((prev) => ({ ...prev, hasOrientationPermission: false }));
+      }
+    } else {
+      // Non-iOS or browsers where no explicit permission API needed
+      setState((prev) => ({ ...prev, hasOrientationPermission: true }));
+    }
+  }, []);
+
+  const requestPermission = useCallback(async () => {
+    await requestMotionPermission();
+    await requestOrientationPermission();
+  }, [requestMotionPermission, requestOrientationPermission]);
 
   return { requestPermission, state };
 }

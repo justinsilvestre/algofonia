@@ -1,10 +1,8 @@
-import { droneChord } from "./droneChord";
-import { arpeggio } from "./arpeggio";
-import { darkPad } from "./darkPad";
-import { brightPad } from "./brightPad";
-import { noisePad } from "./noisePad";
-import { granularCloud } from "./granularCloud";
-import { bass } from "./bass";
-import { bassDrum } from "./bassDrum";
+import { padSynth } from "./padSynth";
+import { drums } from "./drums";
+import { hiHat } from "./hiHat";
+import { syncopatedDrums } from "./syncopatedDrums";
+import { voice } from "./voice";
+import { tempo } from "./tempo";
 
-export const channels = [darkPad, brightPad, noisePad, bass, granularCloud];
+export const channels = [padSynth, voice, drums, hiHat, syncopatedDrums, tempo];

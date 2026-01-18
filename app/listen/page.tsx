@@ -7,7 +7,7 @@ import {
 } from "../WebsocketMessage";
 import { useWebsocket } from "../useWebsocket";
 import { useServerTimeSync } from "./useServerTimeSync";
-import { startBeats } from "./startBeats";
+import { useBeatsListener } from "./useBeatsListener";
 import { useTone } from "./useTone";
 import { getRoomName } from "../getRoomName";
 import { channels } from "./channels";
@@ -18,7 +18,9 @@ type InputClientState = {
   around: number;
 };
 
-const VERBOSE_LOGGING = false;
+const VERBOSE_LOGGING = true;
+
+const START_BPM = 100;
 
 export default function OutputClientPage() {
   const [debug] = useState<boolean>(false);
@@ -33,16 +35,15 @@ export default function OutputClientPage() {
     useServerTimeSync();
 
   const nextBeatTimestampRef = useRef<number | null>(null);
-  const tone = useTone(100, nextBeatTimestampRef, offsetFromServerTimeRef);
-  const {
-    controls: toneControls,
-    musicState,
-    input: inputToTone,
-    setBpm,
-  } = tone;
+  const tone = useTone(
+    START_BPM,
+    nextBeatTimestampRef,
+    offsetFromServerTimeRef
+  );
+  const { musicState, input: inputToTone, setBpm } = tone;
   const getBpm = useCallback(() => {
-    return toneControls ? toneControls.getBpm() : 120;
-  }, [toneControls]);
+    return tone?.controls ? tone.controls.getBpm() : START_BPM;
+  }, [tone.controls]);
 
   const beatsCountRef = useRef<number>(0);
 
@@ -52,6 +53,10 @@ export default function OutputClientPage() {
     subscriptionsCount: 0,
     beat: null,
   });
+
+  const [beatsStartTimestamp, setBeatsStartTimestamp] = useState<number | null>(
+    null
+  );
   const { connectionState, sendMessage } = useWebsocket({
     handleMessage: useCallback(
       (
@@ -78,51 +83,9 @@ export default function OutputClientPage() {
             nextBeatTimestampRef.current = nextBeatTimestamp;
             setUserId(message.userId);
             setRoomState(message.roomState);
-            const roomName = getRoomName();
 
             setBpm(bpm);
-            startBeats(
-              nextBeatTimestamp,
-              getBpm,
-              beatsCountRef,
-              nextBeatTimestampRef,
-              offsetFromServerTimeRef,
-              () => {
-                if (VERBOSE_LOGGING)
-                  console.log("BEAT #" + beatsCountRef.current);
-                sendMessage({
-                  type: "SCHEDULE_BEAT",
-                  roomName,
-                  beatNumber: beatsCountRef.current + 1,
-                  beatTimestamp: nextBeatTimestampRef.current!,
-                });
-
-                const outputClients = message.roomState.outputClients;
-                const isFirstOutputClient = outputClients[0] === userId;
-                if (isFirstOutputClient && beatsCountRef.current % 20 === 0) {
-                  sendMessage({
-                    type: "SYNC_BEAT",
-                    roomName,
-                    beatNumber: beatsCountRef.current + 1,
-                    beatTimestamp: nextBeatTimestampRef.current!,
-                  });
-                }
-
-                // Flash beat-display using CSS variable
-                const flashDuration = 100; // Duration of the flash in milliseconds
-
-                const beatDisplay = document.getElementById("beat-display");
-                if (beatDisplay) {
-                  beatDisplay.style.setProperty("background-color", "white");
-                  beatDisplay.style.setProperty("color", "black");
-                  setTimeout(() => {
-                    const beatDisplay = document.getElementById("beat-display");
-                    beatDisplay?.style.removeProperty("background-color");
-                    beatDisplay?.style.removeProperty("color");
-                  }, flashDuration);
-                }
-              }
-            );
+            setBeatsStartTimestamp(nextBeatTimestamp);
             break;
           case "ROOM_STATE_UPDATE":
             setRoomState(message.roomState);
@@ -144,7 +107,7 @@ export default function OutputClientPage() {
             break;
           }
           case "MOTION_INPUT": {
-            if (!toneControls) {
+            if (!tone.controls) {
               console.warn("No tone controls available for MOTION_INPUT");
               setDebugText("No tone controls available for MOTION_INPUT");
               break;
@@ -176,18 +139,56 @@ export default function OutputClientPage() {
           }
         }
       },
-      [
-        roomState.beat,
-        roomState.inputClients,
-        setBpm,
-        getBpm,
-        offsetFromServerTimeRef,
-        processSyncReply,
-        toneControls,
-        inputToTone,
-      ]
+      [roomState.inputClients, setBpm, processSyncReply, tone, inputToTone]
     ),
   });
+
+  useBeatsListener(
+    beatsStartTimestamp,
+    getBpm,
+    beatsCountRef,
+    nextBeatTimestampRef,
+    offsetFromServerTimeRef,
+    () => {
+      if (VERBOSE_LOGGING) console.log("BEAT #" + beatsCountRef.current);
+      sendMessage({
+        type: "SCHEDULE_BEAT",
+        roomName: getRoomName(),
+        beatNumber: beatsCountRef.current + 1,
+        beatTimestamp: nextBeatTimestampRef.current!,
+      });
+
+      // perhaps should limit this action to one output client, in case multiple are connected?
+      if (beatsCountRef.current % 20 === 0) {
+        sendMessage({
+          type: "SYNC_BEAT",
+          roomName: getRoomName(),
+          beatNumber: beatsCountRef.current + 1,
+          beatTimestamp: nextBeatTimestampRef.current!,
+        });
+      }
+
+      // Flash beat-display using CSS variable
+      const flashDuration = 100; // Duration of the flash in milliseconds
+
+      const beatDisplay = document.getElementById("beat-display");
+      if (beatDisplay) {
+        beatDisplay.style.setProperty("background-color", "white");
+        beatDisplay.style.setProperty("color", "black");
+        setTimeout(() => {
+          const beatDisplay = document.getElementById("beat-display");
+          beatDisplay?.style.removeProperty("background-color");
+          beatDisplay?.style.removeProperty("color");
+        }, flashDuration);
+      }
+    }
+  );
+
+  const [bpmDisplay, setBpmDisplay] = useState<number>(START_BPM);
+  const currentBpm = getBpm();
+  useEffect(() => {
+    setBpmDisplay(currentBpm);
+  }, [currentBpm]);
 
   useEffect(() => {
     if (connectionState.type === "connected") {
@@ -196,6 +197,7 @@ export default function OutputClientPage() {
         type: "JOIN_ROOM_REQUEST",
         roomName: getRoomName(),
         clientType: "output",
+        bpm: START_BPM,
       });
 
       const syncInterval = setInterval(() => {
@@ -249,7 +251,6 @@ export default function OutputClientPage() {
   }
 
   const userIdsToChannelKeys = getUserIdsToChannelKeys(roomState.inputClients);
-  console.log("userIdsToChannelKeys:", userIdsToChannelKeys);
 
   return (
     <div id="container" className="w-screen h-screen text-white bg-black">
@@ -267,10 +268,10 @@ export default function OutputClientPage() {
         <p>{roomState.subscriptionsCount} subscribers</p>
         {musicState && (
           <p>
-            <span id="beat-display">{musicState.bpm} BPM ♬</span>
+            <span id="beat-display">{bpmDisplay} BPM ♬</span>
           </p>
         )}
-        {!toneControls && (
+        {!tone.controls && (
           <button
             className="text-white p-4 m-4 border rounded-lg"
             onClick={() => {
@@ -283,7 +284,7 @@ export default function OutputClientPage() {
 
         {/* Individual Input Client Displays */}
         <div className="mt-6 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-          {toneControls &&
+          {tone.controls &&
             channels
               .flatMap((channel, i) => {
                 const userIdsForChannel = Array.from(
@@ -339,7 +340,7 @@ export default function OutputClientPage() {
                             });
 
                             // Simulate motion input event
-                            if (toneControls) {
+                            if (tone.controls) {
                               const simulatedMotionInput = {
                                 type: "MOTION_INPUT" as const,
                                 roomName: getRoomName(),
@@ -388,7 +389,7 @@ export default function OutputClientPage() {
                             });
 
                             // Simulate motion input event
-                            if (toneControls) {
+                            if (tone.controls) {
                               const simulatedMotionInput = {
                                 type: "MOTION_INPUT" as const,
                                 roomName: getRoomName(),

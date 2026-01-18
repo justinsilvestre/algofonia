@@ -1,4 +1,4 @@
-import { useState, useCallback, useRef, RefObject } from "react";
+import { useState, useCallback, useRef, RefObject, useMemo } from "react";
 import * as Tone from "tone";
 import {
   MessageToServer,
@@ -10,7 +10,7 @@ import { channels } from "./channels";
 const VERBOSE_LOGGING = false;
 
 type MusicState = {
-  bpm: number;
+  // bpm: number;
   channels: {
     [channelKey: string]: {
       channelKey: string;
@@ -32,7 +32,7 @@ export function useTone(
 ) {
   const [controls, setControls] = useState<ToneControls | null>(null);
   const [musicState, setMusicState] = useState<MusicState>({
-    bpm: startBpm,
+    // bpm: startBpm,
     channels: {},
     channelsOrder: [],
   });
@@ -49,6 +49,7 @@ export function useTone(
         } = {};
         for (const channel of channels) {
           const channelState = channelsStateRef.current[channel.key];
+
           const newChannelState = channel.onLoop(
             controls,
             // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -107,7 +108,6 @@ export function useTone(
 
       setControls(controls);
       // wait till the next beat and then start
-      const startBpm = musicState.bpm;
 
       const startOffsetSeconds = (() => {
         const nextBeatTimestamp = nextBeatTimestampRef.current;
@@ -134,7 +134,7 @@ export function useTone(
         console.log("Tone transport started");
       });
     });
-  }, [musicState.bpm, nextBeatTimestampRef, offsetFromServerTimeRef]);
+  }, [startBpm, nextBeatTimestampRef, offsetFromServerTimeRef]);
 
   const input = useCallback(
     (
@@ -198,5 +198,14 @@ export function useTone(
     [controls]
   );
 
-  return { controls, musicState, start, input, setBpm };
+  return useMemo(
+    () => ({
+      controls,
+      musicState,
+      start,
+      input,
+      setBpm,
+    }),
+    [controls, musicState, start, input, setBpm]
+  );
 }
