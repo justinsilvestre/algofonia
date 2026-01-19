@@ -29,6 +29,7 @@
     "next": "16.0.1",
     "react": "19.2.0",
     "react-dom": "19.2.0",
+    "react-screen-wake-lock": "^3.1.1",
     "tonal": "^6.4.2",
     "tone": "^15.1.22",
     "tsx": "^4.20.6",
