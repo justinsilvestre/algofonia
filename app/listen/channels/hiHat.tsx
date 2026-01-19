@@ -19,6 +19,7 @@ export const hiHat = createChannel({
       closedHiHat: getClosedHiHatSynth(),
       closedHiHat2: getClosedHiHatSynth(),
       pattern: "SILENT" as "SILENT" | "OFF-BEATS" | "FILLED" | "CONSTANT",
+      openHiHatVolume: -15,
     };
     state.hiHat.disable();
     state.closedHiHat.disable();
@@ -71,23 +72,59 @@ export const hiHat = createChannel({
       channelState.pattern = "OFF-BEATS";
       channelState.hiHat.enable();
       channelState.hiHat.synth.volume.value += volumeAdjustment;
+      channelState.openHiHatVolume = channelState.hiHat.synth.volume.value;
       channelState.closedHiHat.disable();
       channelState.closedHiHat2.disable();
     } else if (frontToBack < 93) {
       channelState.pattern = "FILLED";
       channelState.hiHat.enable();
       channelState.hiHat.synth.volume.value += volumeAdjustment;
+      channelState.openHiHatVolume = channelState.hiHat.synth.volume.value;
       channelState.closedHiHat.enable();
       channelState.closedHiHat2.disable();
     } else {
       channelState.pattern = "CONSTANT";
       channelState.hiHat.enable();
       channelState.hiHat.synth.volume.value += volumeAdjustment;
+      channelState.openHiHatVolume = channelState.hiHat.synth.volume.value;
       channelState.closedHiHat.enable();
       channelState.closedHiHat2.enable();
     }
 
     return channelState;
+  },
+  renderMonitorDisplay: (channelState, tone, { frontToBack, around }) => {
+    const pattern = channelState.pattern;
+    const openHiHatReverb =
+      channelState.hiHat?.reverb?.wet?.value?.toFixed(2) ?? "-";
+    const openHiHatVolume = channelState.openHiHatVolume.toFixed(2);
+
+    return (
+      <div className="text-xs bg-gray-950 rounded-lg p-3 shadow-sm border border-gray-600">
+        <div className="flex flex-col gap-2">
+          <div className="flex flex-col items-start">
+            <span className="text-gray-400">Pattern</span>
+            <span className="font-mono text-base text-gray-100 uppercase tracking-wide">
+              {pattern}
+            </span>
+          </div>
+          <div className="grid grid-cols-2 gap-4">
+            <div className="flex flex-col items-start">
+              <span className="text-gray-400">Open HH Reverb</span>
+              <span className="font-mono text-green-400 text-base">
+                {openHiHatReverb}
+              </span>
+            </div>
+            <div className="flex flex-col items-start">
+              <span className="text-gray-400">Open HH Vol</span>
+              <span className="font-mono text-blue-400 text-base">
+                {openHiHatVolume}dB
+              </span>
+            </div>
+          </div>
+        </div>
+      </div>
+    );
   },
 });
 

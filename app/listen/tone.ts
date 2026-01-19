@@ -1,4 +1,5 @@
 import * as Tone from "tone";
+import { ReactNode } from "react";
 
 import { MotionInputMessageToClient } from "../WebsocketMessage";
 import { Key } from "tonal";
@@ -42,7 +43,7 @@ export function getToneControls(
     getBpm: () => {
       return Tone.getTransport().bpm.value;
     },
-    key: "E",
+    key: "C",
     mode: "minor",
     chordRootScaleDegree: 1,
     getChord: (key: string, chordRootScaleDegree: number) => {
@@ -64,6 +65,11 @@ export type Channel<ChannelControls = null> = {
     channelControls: ChannelControls,
     input: MotionInputMessageToClient
   ) => ChannelControls | void;
+  renderMonitorDisplay?: (
+    channelControls: ChannelControls,
+    toneControls: ToneControls,
+    latestInput: { frontToBack: number; around: number }
+  ) => ReactNode;
 };
 
 export const createChannel = <ChannelState>({
@@ -71,6 +77,7 @@ export const createChannel = <ChannelState>({
   initialize,
   onLoop = (tone, channelState) => channelState,
   respond,
+  renderMonitorDisplay,
 }: {
   key: string;
   initialize: (tone: ToneControls) => ChannelState;
@@ -84,11 +91,17 @@ export const createChannel = <ChannelState>({
     channel: ChannelState,
     input: MotionInputMessageToClient
   ) => ChannelState | void;
+  renderMonitorDisplay?: (
+    channelState: ChannelState,
+    toneControls: ToneControls,
+    latestInput: { frontToBack: number; around: number }
+  ) => ReactNode;
 }): Channel<ChannelState> => {
   return {
     key,
     initialize,
     onLoop,
     respond,
+    renderMonitorDisplay,
   };
 };

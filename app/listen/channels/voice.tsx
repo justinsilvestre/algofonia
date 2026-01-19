@@ -51,6 +51,31 @@ export const voice = createChannel({
 
     return channelState;
   },
+  renderMonitorDisplay: (channelState, tone, { frontToBack, around }) => {
+    // Get values directly from the synth state
+    const f1 = Math.round(channelState.voiceSynth.formantTargetValues.f1);
+    const f2 = Math.round(channelState.voiceSynth.formantTargetValues.f2);
+    const volume = Math.round(channelState.voiceSynth.volumeTargetValue);
+
+    return (
+      <div className="flex-1 text-xs bg-gray-950 rounded-lg p-3 shadow-sm border border-gray-600">
+        <div className="grid grid-cols-3 gap-4">
+          <div className="flex flex-col items-start">
+            <span className="text-gray-400">Volume</span>
+            <span className="font-mono text-base text-red-400">{volume}dB</span>
+          </div>
+          <div className="flex flex-col items-start">
+            <span className="text-gray-400">F1</span>
+            <span className="font-mono text-base text-green-400">{f1}Hz</span>
+          </div>
+          <div className="flex flex-col items-start">
+            <span className="text-gray-400">F2</span>
+            <span className="font-mono text-base text-blue-400">{f2}Hz</span>
+          </div>
+        </div>
+      </div>
+    );
+  },
 });
 
 function getVoiceSynth() {
@@ -76,25 +101,34 @@ function getVoiceSynth() {
   formant2.connect(formantSum);
   formantSum.toDestination();
 
+  let volumeTargetValue = -3;
   const player = new Tone.Player({
     url: "/samples/Perry Como - Please Believe Me.mp3",
     loop: true,
     autostart: false,
     playbackRate: 1,
-    volume: -3, // Increased from -12dB for audibility
+    volume: volumeTargetValue,
   }).connect(chorus);
 
+  const formantTargetValues = { f1: 800, f2: 1200 };
   return {
     player,
     formant1,
     formant2,
+    formantTargetValues,
+    get volumeTargetValue() {
+      return volumeTargetValue;
+    },
     setFormants: (f1: number, f2: number) => {
       // Use smooth parameter changes to prevent clicking
       formant1.frequency.rampTo(f1, 0.1);
       formant2.frequency.rampTo(f2, 0.1);
+      formantTargetValues.f1 = f1;
+      formantTargetValues.f2 = f2;
     },
     setVolume: (volume: number) => {
       player.volume.rampTo(volume, 0.1);
+      volumeTargetValue = volume;
     },
   };
 }

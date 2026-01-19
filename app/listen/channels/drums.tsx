@@ -116,6 +116,40 @@ export const drums = createChannel({
 
     return channelState;
   },
+  renderMonitorDisplay: (channelState, tone, { frontToBack, around }) => {
+    // Calculate the same values as in respond function
+    const distortionAmount = (1 - around / 100).toFixed(2);
+    const durationMultiplier = 1 + (around / 100) * 1;
+    const baseDuration = 0.35;
+    const kickDuration = (baseDuration * durationMultiplier).toFixed(2);
+
+    return (
+      <div className="text-xs bg-gray-950 rounded-lg p-3 shadow-sm border border-gray-600">
+        <div className="flex flex-col gap-2">
+          <div className="flex flex-col items-start">
+            <span className="text-gray-400">Pattern</span>
+            <span className="font-mono text-base text-gray-100 uppercase tracking-wide">
+              {channelState.pattern.replace(/_/g, " ")}
+            </span>
+          </div>
+          <div className="grid grid-cols-2 gap-4">
+            <div className="flex flex-col items-start">
+              <span className="text-gray-400">Kick Distort</span>
+              <span className="font-mono text-green-400 text-base">
+                {distortionAmount}
+              </span>
+            </div>
+            <div className="flex flex-col items-start">
+              <span className="text-gray-400">Kick Duration</span>
+              <span className="font-mono text-blue-400 text-base">
+                {kickDuration}s
+              </span>
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  },
 });
 
 function get909KickSynth() {

@@ -81,6 +81,28 @@ export const syncopatedDrums = createChannel({
 
     return channelState;
   },
+  renderMonitorDisplay: (channelState, tone, { frontToBack, around }) => {
+    return (
+      <div className="text-xs bg-gray-950 rounded-lg p-3 shadow-sm border border-gray-600 flex-1">
+        <div className="flex flex-col gap-2">
+          <div className="grid grid-cols-2 gap-4">
+            <div className="flex flex-col items-start">
+              <span className="text-gray-400">Clap Pattern</span>
+              <span className="font-mono text-base text-gray-100 uppercase tracking-wide">
+                {channelState.clapPattern}
+              </span>
+            </div>
+            <div className="flex flex-col items-start">
+              <span className="text-gray-400">Tom Pattern</span>
+              <span className="font-mono text-base text-gray-100 uppercase tracking-wide">
+                {channelState.tomPattern}
+              </span>
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  },
 });
 
 function getClapSynth() {

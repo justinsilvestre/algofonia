@@ -187,7 +187,7 @@ export default function OutputClientPage() {
   const [bpmDisplay, setBpmDisplay] = useState<number>(START_BPM);
   const currentBpm = getBpm();
   useEffect(() => {
-    setBpmDisplay(currentBpm);
+    setBpmDisplay(Math.round(currentBpm));
   }, [currentBpm]);
 
   useEffect(() => {
@@ -309,13 +309,27 @@ export default function OutputClientPage() {
                 return (
                   <div
                     key={userId}
-                    className="p-4 rounded-lg border-2 border-white/20"
+                    className="p-4 rounded-lg border-2 border-white/20 flex flex-col"
                   >
-                    <div className="text-sm font-mono mb-2">
+                    <div className="text-sm font-mono mb-2 flex-0">
                       {channelKey} {userId <= 0 ? "" : <>(user ID #{userId})</>}
                     </div>
-                    <div className="space-y-3">
-                      <div className="rounded-lg bg-black/30 p-2">
+                    <div className="flex-1 flex flex-col  content-start">
+                      {channel.renderMonitorDisplay && (
+                        <>
+                          {channel.renderMonitorDisplay(
+                            // @ts-expect-error -- maybe needs some more parameterization love
+                            musicState.channels[channelKey].state,
+                            tone.controls!,
+                            {
+                              frontToBack: client.frontToBack,
+                              around: client.around,
+                            }
+                          )}
+                        </>
+                      )}
+
+                      <div className="rounded-lg bg-black/30 p-2 flex-0">
                         <label className="block text-xs mb-1">
                           Front-to-back: {Math.round(client.frontToBack)}{" "}
                           (manual override)
@@ -368,7 +382,7 @@ export default function OutputClientPage() {
                         />
                       </div>
 
-                      <div className="rounded-lg bg-black/30 p-2">
+                      <div className="rounded-lg bg-black/30 p-2 flex-0">
                         <label className="block text-xs mb-1">
                           Around: {Math.round(client.around)} (manual override)
                         </label>

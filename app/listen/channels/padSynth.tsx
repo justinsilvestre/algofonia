@@ -73,7 +73,7 @@ export const padSynth = createChannel({
     // 10 to 30
     const modulationIndex = 10 + (frontToBack / 100) * 20;
     // 1.5 to 2.5
-    const harmonicity = 1.5 + ((100 - around) / 100) * 1.0;
+    const harmonicity = 1.5 + (around / 100) * 1.0;
 
     channelState.fmSynth.set({
       modulationIndex,
@@ -81,5 +81,28 @@ export const padSynth = createChannel({
     });
 
     return channelState;
+  },
+  renderMonitorDisplay: (channelState, tone, { frontToBack, around }) => {
+    const modulationIndex = channelState.fmSynth.get().modulationIndex;
+    const harmonicity = channelState.fmSynth.get().harmonicity;
+
+    return (
+      <div className="flex-1 text-xs bg-gray-950 rounded-lg p-3 shadow-sm border border-gray-600">
+        <div className="grid grid-cols-2 gap-4">
+          <div className="flex flex-col items-start">
+            <span className="text-gray-400">Modulation Index</span>
+            <span className="font-mono text-base text-red-400">
+              {modulationIndex}
+            </span>
+          </div>
+          <div className="flex flex-col items-start">
+            <span className="text-gray-400">Harmonicity</span>
+            <span className="font-mono text-base text-green-400">
+              {harmonicity}
+            </span>
+          </div>
+        </div>
+      </div>
+    );
   },
 });

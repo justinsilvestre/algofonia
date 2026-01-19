@@ -8,6 +8,19 @@ import { getOrientationControlFromEvent } from "./movement-test/getOrientationCo
 import { getRoomName } from "./getRoomName";
 import { useCanvas, MotionVisuals } from "./MotionVisuals";
 
+// Type declarations for Screen Wake Lock API
+interface WakeLockSentinel {
+  released: boolean;
+  type: "screen";
+  release(): Promise<void>;
+}
+
+interface Navigator {
+  wakeLock?: {
+    request(type: "screen"): Promise<WakeLockSentinel>;
+  };
+}
+
 const SHOW_DEBUG_TEXT = true;
 
 export default function InputClientPage() {
@@ -98,6 +111,44 @@ export default function InputClientPage() {
   const [beatsStartTimestamp, setBeatsStartTimestamp] = useState<number | null>(
     null
   );
+
+  // Screen wake lock to prevent screen from sleeping
+  useEffect(() => {
+    let wakeLock: WakeLockSentinel | null = null;
+
+    const requestWakeLock = async () => {
+      try {
+        if ("wakeLock" in navigator) {
+          wakeLock = await navigator.wakeLock.request("screen");
+          console.log("Screen wake lock activated");
+        }
+      } catch (error) {
+        console.warn("Failed to request screen wake lock:", error);
+      }
+    };
+
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === "visible" && !wakeLock) {
+        requestWakeLock();
+      }
+    };
+
+    // Request wake lock on component mount
+    requestWakeLock();
+
+    // Re-request wake lock when page becomes visible
+    document.addEventListener("visibilitychange", handleVisibilityChange);
+
+    return () => {
+      // Clean up
+      document.removeEventListener("visibilitychange", handleVisibilityChange);
+      if (wakeLock) {
+        wakeLock.release().catch((error) => {
+          console.warn("Failed to release screen wake lock:", error);
+        });
+      }
+    };
+  }, []);
   const { connectionState, sendMessage } = useWebsocket({
     handleMessage: useCallback(
       (message: MessageToClient) => {
