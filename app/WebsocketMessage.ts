@@ -73,7 +73,13 @@ export type MessageToServer =
   | {
       type: "JOIN_ROOM_REQUEST";
       roomName: string;
-      clientType: "input" | "output";
+      clientType: "input";
+    }
+  | {
+      type: "JOIN_ROOM_REQUEST";
+      roomName: string;
+      clientType: "output";
+      bpm: number;
     }
   | {
       type: "SET_TEMPO";

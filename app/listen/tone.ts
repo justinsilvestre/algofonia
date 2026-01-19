@@ -1,4 +1,5 @@
 import * as Tone from "tone";
+import { ReactNode } from "react";
 
 import { MotionInputMessageToClient } from "../WebsocketMessage";
 import { Key } from "tonal";
@@ -24,18 +25,25 @@ export function getToneControls(
       transport.start(startOffsetSeconds);
       // set initial bpm
       Tone.getTransport().bpm.value = startBpm;
+
+      // @ts-expect-error -- debug
+      window.Tone = Tone;
+
       loop.start(0);
       started = true;
 
       return Promise.resolve();
     },
     setBpm: (bpm: number) => {
-      Tone.getTransport().bpm.value = bpm;
+      const currentBpm = Tone.getTransport().bpm.value;
+      const difference = Math.abs(bpm - currentBpm);
+      const rampTime = difference > 20 ? 1 : difference > 10 ? 0.5 : 0.0;
+      Tone.getTransport().bpm.rampTo(bpm, rampTime);
     },
     getBpm: () => {
       return Tone.getTransport().bpm.value;
     },
-    key: "E",
+    key: "C",
     mode: "minor",
     chordRootScaleDegree: 1,
     getChord: (key: string, chordRootScaleDegree: number) => {
@@ -57,6 +65,11 @@ export type Channel<ChannelControls = null> = {
     channelControls: ChannelControls,
     input: MotionInputMessageToClient
   ) => ChannelControls | void;
+  renderMonitorDisplay?: (
+    channelControls: ChannelControls,
+    toneControls: ToneControls,
+    latestInput: { frontToBack: number; around: number }
+  ) => ReactNode;
 };
 
 export const createChannel = <ChannelState>({
@@ -64,6 +77,7 @@ export const createChannel = <ChannelState>({
   initialize,
   onLoop = (tone, channelState) => channelState,
   respond,
+  renderMonitorDisplay,
 }: {
   key: string;
   initialize: (tone: ToneControls) => ChannelState;
@@ -77,11 +91,17 @@ export const createChannel = <ChannelState>({
     channel: ChannelState,
     input: MotionInputMessageToClient
   ) => ChannelState | void;
+  renderMonitorDisplay?: (
+    channelState: ChannelState,
+    toneControls: ToneControls,
+    latestInput: { frontToBack: number; around: number }
+  ) => ReactNode;
 }): Channel<ChannelState> => {
   return {
     key,
     initialize,
     onLoop,
     respond,
+    renderMonitorDisplay,
   };
 };

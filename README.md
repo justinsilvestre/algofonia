@@ -102,3 +102,10 @@ To learn more about Next.js, take a look at the following resources:
 - [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
 
 You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+
+## Tone.js
+
+Some helpful references for working with Tone.js:
+
+- [Tone.js homepage](https://tonejs.github.io/) - You can test APIs by opening the console. There is an instance of `Tone` available there for you to play with.
+- [Tone.js wiki - Time](https://github.com/Tonejs/Tone.js/wiki/Time) - Details about the time notation not covered clearly in the API docs
