@@ -1,10 +1,8 @@
 import * as Tone from "tone";
 import { Chord, Scale, Key, Progression } from "tonal";
 
-import { createChannel, getToneControls } from "../tone";
+import { createChannel } from "../tone";
 import { PulseSynth } from "./../synth/pulseSynth";
-
-export type ToneControls = ReturnType<typeof getToneControls>;
 
 export const droneChord = createChannel({
   key: "drone chord",
@@ -18,6 +16,9 @@ export const droneChord = createChannel({
     const loopIndex = 0;
 
     return { loopIndex, synth, octave };
+  },
+  teardown: (channelState) => {
+    channelState.synth.dispose();
   },
   onLoop: (
     { key, mode, chordRootScaleDegree, getChord },

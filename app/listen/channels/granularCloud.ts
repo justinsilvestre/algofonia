@@ -20,6 +20,7 @@ export const granularCloud = createChannel({
 
     return { cloud, isPlaying };
   },
+  teardown: () => {}, // placeholder
   onLoop: ({ transport, key, mode }, channelState, time) => {
     if (channelState.isPlaying) return;
 

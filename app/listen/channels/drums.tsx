@@ -11,29 +11,47 @@ import { channel } from "diagnostics_channel";
 export const drums = createChannel({
   key: "Drums",
   initialize: () => {
-    const state = {
-      startKick: get909KickSynth(),
-      fourOnFloorKick: get909KickSynth(),
-      twoStepOffbeatKick: get909KickSynth(),
-      syncopatedKick: get909KickSynth(),
-      snare: getSnareSynth(),
+    const startKick = get909KickSynth();
+    const fourOnFloorKick = get909KickSynth();
+    const twoStepOffbeatKick = get909KickSynth();
+    const syncopatedKick = get909KickSynth();
+    const snare = getSnareSynth();
+
+    startKick.disable();
+    fourOnFloorKick.disable();
+    twoStepOffbeatKick.disable();
+    syncopatedKick.disable();
+    snare.disable();
+
+    return {
       pattern: "SILENT" as
         | "SILENT"
         | "TWO_STEP_KICK"
         | "TWO_STEP_KICK_AND_SNARE"
         | "FOUR_ON_FLOOR"
         | "ADDED_SYNCOPATION",
+      startKick,
+      fourOnFloorKick,
+      twoStepOffbeatKick,
+      syncopatedKick,
+      snare,
     };
-
-    state.startKick.disable();
-    state.fourOnFloorKick.disable();
-    state.twoStepOffbeatKick.disable();
-    state.syncopatedKick.disable();
-    state.snare.disable();
-
-    return state;
   },
-  onLoop: ({ transport }, channelState, time) => {
+  teardown: ({
+    startKick,
+    fourOnFloorKick,
+    twoStepOffbeatKick,
+    syncopatedKick,
+    snare,
+  }) => {
+    startKick.dispose();
+    fourOnFloorKick.dispose();
+    twoStepOffbeatKick.dispose();
+    syncopatedKick.dispose();
+    snare.dispose();
+  },
+  onLoop: (tone, channelState, time) => {
+    console.log("Drums onLoop at time", time);
     const {
       startKick,
       fourOnFloorKick,
@@ -62,59 +80,68 @@ export const drums = createChannel({
     return channelState;
   },
   respond: (tone, channelState, { frontToBack, around }) => {
+    const {
+      startKick,
+      fourOnFloorKick,
+      twoStepOffbeatKick,
+      syncopatedKick,
+      snare,
+    } = channelState;
     // Control kick distortion based on around input (0-100)
     const distortionAmount = 1 - around / 100; // Convert to 0-1
     // const distortionAmount = 0;
-    channelState.startKick.setDistortion(distortionAmount);
-    channelState.fourOnFloorKick.setDistortion(distortionAmount);
-    channelState.twoStepOffbeatKick.setDistortion(distortionAmount);
+    startKick.setDistortion(distortionAmount);
+    fourOnFloorKick.setDistortion(distortionAmount);
+    twoStepOffbeatKick.setDistortion(distortionAmount);
 
     // Control kick duration based on around - lower values = longer duration
     const durationMultiplier = 1 + (around / 100) * 1; // 1x to 2x duration
     const baseDuration = 0.35;
     const newDuration = baseDuration * durationMultiplier;
-    channelState.startKick.setDuration(newDuration);
-    channelState.fourOnFloorKick.setDuration(newDuration);
-    channelState.twoStepOffbeatKick.setDuration(newDuration);
+    startKick.setDuration(newDuration);
+    fourOnFloorKick.setDuration(newDuration);
+    twoStepOffbeatKick.setDuration(newDuration);
 
-    if (frontToBack < 25) {
+    if (frontToBack < 26) {
       channelState.pattern = "SILENT";
-      channelState.startKick.disable();
-      channelState.fourOnFloorKick.disable();
-      channelState.twoStepOffbeatKick.disable();
-      channelState.syncopatedKick.disable();
-      channelState.snare.disable();
+      startKick.disable();
+      fourOnFloorKick.disable();
+      twoStepOffbeatKick.disable();
+      syncopatedKick.disable();
+      snare.disable();
     } else if (frontToBack < 30) {
       channelState.pattern = "TWO_STEP_KICK";
-      channelState.startKick.enable();
-      channelState.fourOnFloorKick.disable();
-      channelState.twoStepOffbeatKick.enable();
-      channelState.syncopatedKick.disable();
-      channelState.snare.disable();
+      startKick.enable();
+      fourOnFloorKick.disable();
+      twoStepOffbeatKick.enable();
+      syncopatedKick.disable();
+      snare.disable();
     } else if (frontToBack < 60) {
       channelState.pattern = "TWO_STEP_KICK_AND_SNARE";
-      channelState.startKick.enable();
-      channelState.fourOnFloorKick.disable();
-      channelState.twoStepOffbeatKick.enable();
-      channelState.syncopatedKick.disable();
-      channelState.snare.enable();
+      startKick.enable();
+      fourOnFloorKick.disable();
+      twoStepOffbeatKick.enable();
+      syncopatedKick.disable();
+      snare.enable();
     } else if (frontToBack < 90) {
       channelState.pattern = "FOUR_ON_FLOOR";
-      channelState.startKick.enable();
-      channelState.fourOnFloorKick.enable();
-      channelState.twoStepOffbeatKick.disable();
-      channelState.syncopatedKick.disable();
-      channelState.snare.enable();
+      startKick.enable();
+      fourOnFloorKick.enable();
+      twoStepOffbeatKick.disable();
+      syncopatedKick.disable();
+      snare.enable();
     } else {
       channelState.pattern = "ADDED_SYNCOPATION";
-      channelState.startKick.enable();
-      channelState.fourOnFloorKick.enable();
-      channelState.twoStepOffbeatKick.enable();
-      channelState.syncopatedKick.enable();
-      channelState.snare.enable();
+      startKick.enable();
+      fourOnFloorKick.enable();
+      twoStepOffbeatKick.enable();
+      syncopatedKick.enable();
+      snare.enable();
     }
 
-    return channelState;
+    console.log("Responded!", channelState.pattern, { frontToBack, around });
+
+    return { ...channelState };
   },
   renderMonitorDisplay: (channelState, tone, { frontToBack, around }) => {
     // Calculate the same values as in respond function
@@ -198,7 +225,7 @@ function get909KickSynth() {
       const seconds = Tone.Time(time).toSeconds();
 
       // tonal body with variable duration
-      bodySynth.triggerAttack("C1", time);
+      bodySynth.triggerAttack("C2", time);
       bodySynth.frequency.setValueAtTime(140, time);
       bodySynth.frequency.exponentialRampToValueAtTime(55, seconds + 0.02);
     },
@@ -237,6 +264,14 @@ function get909KickSynth() {
       clickSynth.volume.value = 0;
       bodySynth.volume.value = 0;
     },
+    dispose: () => {
+      clickSynth.dispose();
+      bodySynth.dispose();
+      drive.dispose();
+      crusher.dispose();
+      freqShifter.dispose();
+      filter.dispose();
+    },
   };
 }
 
@@ -251,6 +286,7 @@ function getSnareSynth() {
   })
     .connect(new Tone.Filter(2200, "highpass"))
     .toDestination();
+
   return {
     synth,
     hit: (time: Tone.Unit.Time) => {
@@ -263,6 +299,9 @@ function getSnareSynth() {
     },
     enable: () => {
       synth.volume.value = 0;
+    },
+    dispose: () => {
+      synth.dispose();
     },
   };
 }

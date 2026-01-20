@@ -1,21 +1,25 @@
-import { useState, useCallback, useRef, RefObject, useMemo } from "react";
+import { useState, useCallback, RefObject, useMemo } from "react";
 import * as Tone from "tone";
 import {
   MessageToServer,
   MotionInputMessageToClient,
 } from "../WebsocketMessage";
-import { getToneControls, ToneControls } from "./tone";
+import { Channel, getToneControls, startLoop, ToneControls } from "./tone";
 import { channels } from "./channels";
+import { useDidChange } from "./useDidChange";
+import { produce } from "immer";
 
 const VERBOSE_LOGGING = false;
 
+type AnyChannelState = unknown;
+
 type MusicState = {
-  // bpm: number;
   channels: {
     [channelKey: string]: {
       channelKey: string;
       input: MusicControlChannelInputState;
-      state: unknown;
+      state: AnyChannelState;
+      def: Channel<AnyChannelState>;
     };
   };
   channelsOrder: string[];
@@ -25,58 +29,180 @@ type MusicControlChannelInputState = {
   around: number;
 };
 
+let lastLoopTime = 0;
+
 export function useTone(
   startBpm: number = 100,
   nextBeatTimestampRef: RefObject<number | null>,
   offsetFromServerTimeRef?: RefObject<number | null>
 ) {
-  const [controls, setControls] = useState<ToneControls | null>(null);
   const [musicState, setMusicState] = useState<MusicState>({
-    // bpm: startBpm,
     channels: {},
     channelsOrder: [],
   });
-  const channelsStateRef = useRef<{ [channelKey: string]: unknown }>({});
+
+  const [controls] = useState(() => getToneControls(startBpm));
+  const [loop, setLoop] = useState<Tone.Loop | null>(null);
+
+  const loopCallback = useCallback(
+    (time: Tone.Unit.Seconds, controls: ToneControls) => {
+      console.log("Tone loop at time:", time);
+
+      // caching onLoop results to prevent double call in React strict mode
+      setMusicState((currentMusicState) => {
+        if (time <= lastLoopTime) {
+          return currentMusicState;
+        }
+        lastLoopTime = time;
+        const musicStateOverrides: {
+          [channelKey: string]: AnyChannelState;
+        } = {};
+
+        for (const channel of channels) {
+          if (currentMusicState.channels[channel.key] == null) {
+            continue;
+          }
+          const channelState = currentMusicState.channels[channel.key]?.state;
+
+          // );
+
+          const newChannelState = produce(channelState, (draft) => {
+            channel.onLoop(
+              controls,
+              // eslint-disable-next-line @typescript-eslint/no-explicit-any
+              draft as unknown as any,
+              time
+            );
+          });
+          if (newChannelState && newChannelState !== channelState) {
+            musicStateOverrides[channel.key] = newChannelState;
+          }
+        }
+
+        let musicState = currentMusicState;
+        for (const channelKey in musicStateOverrides) {
+          musicState = {
+            ...musicState,
+            channels: {
+              ...musicState.channels,
+              [channelKey]: {
+                ...musicState.channels[channelKey],
+                state: musicStateOverrides[channelKey],
+              },
+            },
+          };
+        }
+        return musicState;
+      });
+    },
+    []
+  );
+
+  useDidChange(channels, (channels) => {});
+
+  useDidChange(
+    loopCallback,
+    useCallback(
+      (loopCallback) => {
+        if (!loop) return;
+        // disconnect all active synths and audio nodes from destination
+
+        console.log("playSound function changed, updating loop callback");
+        loop.callback = (time) => loopCallback(time, controls);
+        // reinitialize channels state
+        const newMusicState: MusicState = { ...musicState };
+        newMusicState.channels = { ...musicState.channels };
+        newMusicState.channelsOrder = [...channels.map((c) => c.key)];
+        for (const channel of channels) {
+          const channelState = newMusicState.channels[channel.key];
+
+          if (channelState && channel !== channelState?.def) {
+            console.log("Tearing down old channel", channel.key, channelState);
+            channel.teardown(
+              // eslint-disable-next-line @typescript-eslint/no-explicit-any
+              newMusicState.channels[channel.key].state as unknown as any
+            );
+            const initialState = channel.initialize(controls);
+
+            console.log(
+              "Reinitializing channel",
+              channel.key,
+              // musicState.channels[channel.key]
+              newMusicState.channels[channel.key]
+            );
+            // const initialMotionInputState = musicState.channels[channel.key]
+            const initialMotionInputState = newMusicState.channels[channel.key]
+              ?.input || {
+              frontToBack: 0,
+              around: 0,
+            };
+            newMusicState.channels[channel.key] = {
+              channelKey: channel.key,
+              def: channel as Channel<AnyChannelState>,
+              state: produce(initialState, (draft) => {
+                channel.respond(
+                  controls,
+                  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+                  draft as unknown as any,
+                  initialMotionInputState
+                );
+              }),
+              input: initialMotionInputState,
+            };
+          }
+
+          if (!channelState) {
+            console.log("Initializing new channel", channel.key);
+            const initialState = channel.initialize(controls);
+            newMusicState.channels[channel.key] = {
+              channelKey: channel.key,
+              def: channel as Channel<AnyChannelState>,
+              state: initialState,
+              input: {
+                frontToBack: 0,
+                around: 0,
+              },
+            };
+          }
+        }
+        // teardown channels that are no longer present
+        for (const channelKey in newMusicState.channels) {
+          if (!channels.find((c) => c.key === channelKey)) {
+            const channelState = newMusicState.channels[channelKey];
+            if (channelState) {
+              console.log(
+                "Tearing down removed channel",
+                channelKey,
+                channelState
+              );
+              channelState.def.teardown(
+                // eslint-disable-next-line @typescript-eslint/no-explicit-any
+                channelState.state as unknown as any
+              );
+              delete newMusicState.channels[channelKey];
+              newMusicState.channelsOrder = newMusicState.channelsOrder.filter(
+                (key) => key !== channelKey
+              );
+            }
+          }
+        }
+
+        setMusicState(newMusicState);
+      },
+      [controls, loop, musicState]
+    )
+  );
+
+  // useEffect(() => {
+  //   if (!loop) return;
+  //   loop.callback = (time) => loopCallback(time, controls);
+  // }, [loopCallback, controls, loop]);
 
   const start = useCallback(() => {
     console.log("Starting Tone AudioContext...");
     Tone.start().then(() => {
       console.log("Tone AudioContext started");
-      const controls = getToneControls((time) => {
-        console.log("Tone loop at time:", time);
-        const musicStateOverrides: {
-          [channelKey: string]: unknown;
-        } = {};
-        for (const channel of channels) {
-          const channelState = channelsStateRef.current[channel.key];
 
-          const newChannelState = channel.onLoop(
-            controls,
-            // eslint-disable-next-line @typescript-eslint/no-explicit-any
-            channelState as unknown as any,
-            time
-          );
-          if (newChannelState && newChannelState !== channelState) {
-            channelsStateRef.current[channel.key] = newChannelState;
-            musicStateOverrides[channel.key] = newChannelState;
-          }
-        }
-        setMusicState((musicState) => {
-          for (const channelKey in musicStateOverrides) {
-            musicState = {
-              ...musicState,
-              channels: {
-                ...musicState.channels,
-                [channelKey]: {
-                  ...musicState.channels[channelKey],
-                  state: musicStateOverrides[channelKey],
-                },
-              },
-            };
-          }
-          return musicState;
-        });
-      });
       console.log("Initializing channels...");
       const initialChannels: MusicState["channels"] = Object.fromEntries(
         channels.map((channel) => [
@@ -85,17 +211,13 @@ export function useTone(
             channelKey: channel.key,
             input: { frontToBack: 0, around: 0 },
             state: channel.initialize(controls),
+            def: channel as Channel<AnyChannelState>,
           },
         ])
       );
-      // set ref
-      channelsStateRef.current = Object.fromEntries(
-        channels.map((channel) => [
-          channel.key,
-          initialChannels[channel.key].state,
-        ])
-      );
+      console.log({ initialChannels });
 
+      console.log("Initializing music state with channels!!");
       setMusicState((musicState) => {
         console.log("Initializing music state with channels");
         const newMusicState: MusicState = {
@@ -106,7 +228,6 @@ export function useTone(
         return newMusicState;
       });
 
-      setControls(controls);
       // wait till the next beat and then start
 
       const startOffsetSeconds = (() => {
@@ -130,11 +251,31 @@ export function useTone(
         );
         return Math.max(0, offsetSeconds);
       })();
-      controls.start(startBpm, startOffsetSeconds).then(() => {
-        console.log("Tone transport started");
-      });
+      const loop = startLoop(
+        startBpm,
+        startOffsetSeconds,
+        controls,
+        loopCallback
+      );
+      console.log("Tone transport started");
+      setLoop(loop);
     });
-  }, [startBpm, nextBeatTimestampRef, offsetFromServerTimeRef]);
+
+    return () => {
+      console.log("Stopping Tone AudioContext...");
+      const transport = Tone.getTransport();
+      transport.stop();
+      transport.cancel(0);
+
+      console.log("Tone AudioContext stopped");
+    };
+  }, [
+    startBpm,
+    controls,
+    loopCallback,
+    nextBeatTimestampRef,
+    offsetFromServerTimeRef,
+  ]);
 
   const input = useCallback(
     (
@@ -146,10 +287,35 @@ export function useTone(
         console.warn("ToneControls not initialized yet");
         return;
       }
-      const channelState = channelsStateRef.current[channelKey];
+      const channelState = musicState.channels[channelKey]?.state as
+        | AnyChannelState
+        | undefined;
       if (!channelState) {
         // Might be good to eventually show an error message in this case.
         console.warn("No channel with key", channelKey);
+        const channelDef = channels.find((c) => c.key === channelKey);
+        if (channelDef) {
+          setMusicState((musicState) => ({
+            ...musicState,
+            channels: {
+              ...musicState.channels,
+              [channelKey]: {
+                // ...musicState.channels[channelKey],
+                channelKey,
+                input: {
+                  frontToBack: message.frontToBack,
+                  around: message.around,
+                },
+                state: channelDef.initialize(controls),
+                def: channelDef as Channel<AnyChannelState>,
+              },
+            },
+            channelsOrder: musicState.channelsOrder.includes(channelKey)
+              ? musicState.channelsOrder
+              : [...musicState.channelsOrder, channelKey],
+          }));
+          console.log("Initialized missing channel state for", channelKey);
+        }
         return;
       } else {
         const channel = channels.find((c) => c.key === channelKey);
@@ -159,15 +325,16 @@ export function useTone(
         }
         if (VERBOSE_LOGGING)
           console.log("Processing input for channel", channelKey, message);
-        const updatedChannelState = channel.respond(
-          controls,
-          // eslint-disable-next-line @typescript-eslint/no-explicit-any
-          channelState as unknown as any,
-          message
-        );
+        const updatedChannelState = produce(channelState, (draft) => {
+          channel.respond(
+            controls,
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
+            draft as unknown as any,
+            message
+          );
+        });
 
         if (updatedChannelState && updatedChannelState !== channelState) {
-          channelsStateRef.current[channelKey] = updatedChannelState;
           setMusicState((musicState) => ({
             ...musicState,
             channels: {
@@ -175,6 +342,7 @@ export function useTone(
               [channelKey]: {
                 ...musicState.channels[channelKey],
                 state: updatedChannelState,
+                def: channel as Channel<AnyChannelState>,
                 input: {
                   frontToBack: message.frontToBack,
                   around: message.around,
@@ -185,12 +353,13 @@ export function useTone(
         }
       }
     },
-    [controls, channelsStateRef]
+    [controls, musicState]
   );
 
   const setBpm = useCallback(
     (bpm: number) => {
       if (controls) {
+        console.log("Setting BPM to", bpm);
         controls.setBpm(bpm);
         setMusicState((state) => ({ ...state, bpm }));
       }
@@ -205,7 +374,10 @@ export function useTone(
       start,
       input,
       setBpm,
+      get started() {
+        return loop != null;
+      },
     }),
-    [controls, musicState, start, input, setBpm]
+    [controls, musicState, start, input, setBpm, loop]
   );
 }

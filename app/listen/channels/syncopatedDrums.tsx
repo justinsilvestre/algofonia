@@ -23,6 +23,12 @@ export const syncopatedDrums = createChannel({
       tomPattern: "SILENT" as "SILENT" | "SINGLE" | "DOUBLE",
     };
   },
+  teardown: ({ clapSynth1, clapSynth2, lowTomSynth, lowTomSynth2 }) => {
+    clapSynth1.dispose();
+    clapSynth2.dispose();
+    lowTomSynth.dispose();
+    lowTomSynth2.dispose();
+  },
   onLoop: (tone, channelState, time) => {
     const { clapSynth1, clapSynth2, lowTomSynth, lowTomSynth2 } = channelState;
 
@@ -136,6 +142,10 @@ function getClapSynth() {
   return {
     burstSynth,
     tailSynth,
+    dispose: () => {
+      burstSynth.dispose();
+      tailSynth.dispose();
+    },
     hit: (time: Tone.Unit.Time = Tone.now()) => {
       // rapid burst cluster (the “hands”)
       const timeSeconds = Tone.Time(time).toSeconds();
@@ -205,6 +215,12 @@ function getLowTomSynth() {
   return {
     synth: fundamentalSynth, // Keep for compatibility
     subSynth,
+    dispose: () => {
+      fundamentalSynth.dispose();
+      subSynth.dispose();
+      filter.dispose();
+      distortion.dispose();
+    },
     hit: (
       highTone: Tone.Unit.Frequency,
       lowTone: Tone.Unit.Frequency,

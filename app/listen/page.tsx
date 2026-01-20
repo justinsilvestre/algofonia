@@ -11,6 +11,7 @@ import { useBeatsListener } from "./useBeatsListener";
 import { useTone } from "./useTone";
 import { getRoomName } from "../getRoomName";
 import { channels } from "./channels";
+import { useDidChange } from "./useDidChange";
 
 type InputClientState = {
   userId: number;
@@ -18,7 +19,7 @@ type InputClientState = {
   around: number;
 };
 
-const VERBOSE_LOGGING = true;
+const VERBOSE_LOGGING = false;
 
 const START_BPM = 100;
 
@@ -41,9 +42,6 @@ export default function OutputClientPage() {
     offsetFromServerTimeRef
   );
   const { musicState, input: inputToTone, setBpm } = tone;
-  const getBpm = useCallback(() => {
-    return tone?.controls ? tone.controls.getBpm() : START_BPM;
-  }, [tone.controls]);
 
   const beatsCountRef = useRef<number>(0);
 
@@ -145,7 +143,7 @@ export default function OutputClientPage() {
 
   useBeatsListener(
     beatsStartTimestamp,
-    getBpm,
+    tone.controls.getBpm,
     beatsCountRef,
     nextBeatTimestampRef,
     offsetFromServerTimeRef,
@@ -185,13 +183,13 @@ export default function OutputClientPage() {
   );
 
   const [bpmDisplay, setBpmDisplay] = useState<number>(START_BPM);
-  const currentBpm = getBpm();
+  const currentBpm = tone.controls.getBpm();
   useEffect(() => {
     setBpmDisplay(Math.round(currentBpm));
   }, [currentBpm]);
 
-  useEffect(() => {
-    if (connectionState.type === "connected") {
+  useDidChange(connectionState.type, (connectionStateType) => {
+    if (connectionStateType === "connected") {
       console.log("Sending JOIN_ROOM_REQUEST");
       sendMessage({
         type: "JOIN_ROOM_REQUEST",
@@ -199,7 +197,11 @@ export default function OutputClientPage() {
         clientType: "output",
         bpm: START_BPM,
       });
+    }
+  });
 
+  useEffect(() => {
+    if (connectionState.type === "connected") {
       const syncInterval = setInterval(() => {
         sendMessage({
           type: "SYNC",
@@ -271,7 +273,7 @@ export default function OutputClientPage() {
             <span id="beat-display">{bpmDisplay} BPM ♬</span>
           </p>
         )}
-        {!tone.controls && (
+        {!tone.started && (
           <button
             className="text-white p-4 m-4 border rounded-lg"
             onClick={() => {
@@ -284,7 +286,7 @@ export default function OutputClientPage() {
 
         {/* Individual Input Client Displays */}
         <div className="mt-6 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-          {tone.controls &&
+          {tone.started &&
             channels
               .flatMap((channel, i) => {
                 const userIdsForChannel = Array.from(
@@ -305,29 +307,38 @@ export default function OutputClientPage() {
                   frontToBack: 0,
                   around: 0,
                 };
+                const channelState = musicState.channels[channelKey];
 
                 return (
                   <div
-                    key={userId}
+                    key={channelKey + "-" + userId}
                     className="p-4 rounded-lg border-2 border-white/20 flex flex-col"
                   >
                     <div className="text-sm font-mono mb-2 flex-0">
-                      {channelKey} {userId <= 0 ? "" : <>(user ID #{userId})</>}
+                      {channelKey}{" "}
+                      {userId <= 0 ? (
+                        <span className="text-gray-500 text-xs">
+                          (no connection)
+                        </span>
+                      ) : (
+                        <>(user ID #{userId})</>
+                      )}
                     </div>
                     <div className="flex-1 flex flex-col  content-start">
-                      {channel.renderMonitorDisplay && (
-                        <>
-                          {channel.renderMonitorDisplay(
-                            // @ts-expect-error -- maybe needs some more parameterization love
-                            musicState.channels[channelKey].state,
-                            tone.controls!,
-                            {
-                              frontToBack: client.frontToBack,
-                              around: client.around,
-                            }
-                          )}
-                        </>
-                      )}
+                      {channel.renderMonitorDisplay &&
+                        Boolean(channelState) && (
+                          <>
+                            {channel.renderMonitorDisplay(
+                              // @ts-expect-error -- maybe needs some more parameterization love
+                              channelState.state,
+                              tone.controls,
+                              {
+                                frontToBack: channelState.input.frontToBack,
+                                around: channelState.input.around,
+                              }
+                            )}
+                          </>
+                        )}
 
                       <div className="rounded-lg bg-black/30 p-2 flex-0">
                         <label className="block text-xs mb-1">

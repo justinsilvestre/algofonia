@@ -20,6 +20,7 @@ export const brightPad = createChannel({
 
     return { pad, octave, isPlaying };
   },
+  teardown: () => {}, // placeholder
   onLoop: ({ transport, key, mode }, channelState, time) => {
     if (channelState.isPlaying) return;
 

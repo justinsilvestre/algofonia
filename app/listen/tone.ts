@@ -1,47 +1,34 @@
 import * as Tone from "tone";
-import { ReactNode } from "react";
+import { ReactNode, useEffect, useMemo, useState } from "react";
 
 import { MotionInputMessageToClient } from "../WebsocketMessage";
 import { Key } from "tonal";
 
 export type ToneControls = ReturnType<typeof getToneControls>;
-export function getToneControls(
-  loopCallback: (time: Tone.Unit.Seconds) => void
-) {
-  const transport = Tone.getTransport();
-  let started = false;
-  const loop = new Tone.Loop((time) => {
-    loopCallback(time);
-  }, "1m");
-
+export function getToneControls(startBpm: number) {
   return {
-    get started() {
-      return started;
-    },
-    transport,
-    loop,
-    start: (startBpm: number, startOffsetSeconds: Tone.Unit.Seconds) => {
-      console.log(`Start time offset in seconds: ${startOffsetSeconds}`);
-      transport.start(startOffsetSeconds);
-      // set initial bpm
-      Tone.getTransport().bpm.value = startBpm;
-
-      // @ts-expect-error -- debug
-      window.Tone = Tone;
-
-      loop.start(0);
-      started = true;
-
-      return Promise.resolve();
+    get transport() {
+      return Tone.getTransport();
     },
     setBpm: (bpm: number) => {
       const currentBpm = Tone.getTransport().bpm.value;
       const difference = Math.abs(bpm - currentBpm);
+      if (!difference) return;
       const rampTime = difference > 20 ? 1 : difference > 10 ? 0.5 : 0.0;
+      if (rampTime === 0.0) {
+        Tone.getTransport().bpm.value = bpm;
+        return;
+      }
+
+      console.log(
+        `Ramping BPM from ${currentBpm} to ${bpm} over ${rampTime} seconds`
+      );
       Tone.getTransport().bpm.rampTo(bpm, rampTime);
     },
     getBpm: () => {
-      return Tone.getTransport().bpm.value;
+      const transport = Tone.getTransport();
+
+      return transport?.bpm?.value ?? startBpm;
     },
     key: "C",
     mode: "minor",
@@ -52,21 +39,45 @@ export function getToneControls(
   };
 }
 
-export type Channel<ChannelControls = null> = {
+export function startLoop(
+  startBpm: number,
+  startOffsetSeconds: Tone.Unit.Seconds,
+  controls: ToneControls,
+  loopCallback: (time: Tone.Unit.Seconds, controls: ToneControls) => void
+) {
+  const transport = Tone.getTransport();
+  console.log(`Start time offset in seconds: ${startOffsetSeconds}`);
+  transport.start(startOffsetSeconds);
+  // set initial bpm
+  transport.bpm.value = startBpm;
+
+  // @ts-expect-error -- debug
+  window.Tone = Tone;
+
+  const loop = new Tone.Loop((time) => {
+    loopCallback(time, controls);
+  }, "1m");
+  loop.start(0);
+
+  return loop;
+}
+
+export type Channel<ChannelState = null> = {
   key: string;
-  initialize: (tone: ToneControls) => ChannelControls;
+  initialize: (tone: ToneControls) => ChannelState;
+  teardown: (channelState: ChannelState) => void;
   onLoop: (
     tone: ToneControls,
-    channel: ChannelControls,
+    channel: ChannelState,
     time: Tone.Unit.Seconds
-  ) => ChannelControls | void;
+  ) => void;
   respond: (
     toneControls: ToneControls,
-    channelControls: ChannelControls,
-    input: MotionInputMessageToClient
-  ) => ChannelControls | void;
+    channelState: ChannelState,
+    input: { frontToBack: number; around: number }
+  ) => void;
   renderMonitorDisplay?: (
-    channelControls: ChannelControls,
+    channelState: ChannelState,
     toneControls: ToneControls,
     latestInput: { frontToBack: number; around: number }
   ) => ReactNode;
@@ -75,22 +86,24 @@ export type Channel<ChannelControls = null> = {
 export const createChannel = <ChannelState>({
   key,
   initialize,
+  teardown,
   onLoop = (tone, channelState) => channelState,
   respond,
   renderMonitorDisplay,
 }: {
   key: string;
   initialize: (tone: ToneControls) => ChannelState;
+  teardown: (channelState: ChannelState) => void;
   onLoop?: (
     tone: ToneControls,
     channel: ChannelState,
     time: Tone.Unit.Seconds
-  ) => ChannelState | void;
+  ) => void;
   respond: (
     tone: ToneControls,
     channel: ChannelState,
-    input: MotionInputMessageToClient
-  ) => ChannelState | void;
+    input: { frontToBack: number; around: number }
+  ) => void;
   renderMonitorDisplay?: (
     channelState: ChannelState,
     toneControls: ToneControls,
@@ -100,6 +113,7 @@ export const createChannel = <ChannelState>({
   return {
     key,
     initialize,
+    teardown,
     onLoop,
     respond,
     renderMonitorDisplay,

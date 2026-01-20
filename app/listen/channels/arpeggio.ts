@@ -19,6 +19,9 @@ export const arpeggio = createChannel({
 
     return { synth, octave, octaveJumpProb, arpPatternIndices };
   },
+  teardown: (channelState) => {
+    channelState.synth.dispose();
+  },
   onLoop: (
     { key, mode, transport },
     { synth, octave, octaveJumpProb, arpPatternIndices },

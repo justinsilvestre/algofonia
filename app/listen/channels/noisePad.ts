@@ -13,6 +13,7 @@ export const noisePad = createChannel({
 
     return { pad, isPlaying };
   },
+  teardown: () => {}, // placeholder
   onLoop: ({ transport, key, mode }, channelState, time) => {
     if (channelState.isPlaying) return;
 

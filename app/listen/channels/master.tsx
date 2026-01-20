@@ -5,6 +5,7 @@ export const master = createChannel({
   initialize: () => {
     return {};
   },
+  teardown: () => {},
   onLoop: (tone, channelState, time) => {
     return channelState;
   },
