@@ -102,7 +102,7 @@ export const drums = createChannel({
     fourOnFloorKick.setDuration(newDuration);
     twoStepOffbeatKick.setDuration(newDuration);
 
-    if (frontToBack < 26) {
+    if (frontToBack < 25) {
       channelState.pattern = "SILENT";
       startKick.disable();
       fourOnFloorKick.disable();
@@ -225,7 +225,7 @@ function get909KickSynth() {
       const seconds = Tone.Time(time).toSeconds();
 
       // tonal body with variable duration
-      bodySynth.triggerAttack("C2", time);
+      bodySynth.triggerAttack("C1", time);
       bodySynth.frequency.setValueAtTime(140, time);
       bodySynth.frequency.exponentialRampToValueAtTime(55, seconds + 0.02);
     },
