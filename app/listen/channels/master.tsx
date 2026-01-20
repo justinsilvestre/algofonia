@@ -6,9 +6,7 @@ export const master = createChannel({
     return {};
   },
   teardown: () => {},
-  onLoop: (tone, channelState, time) => {
-    return channelState;
-  },
+  onLoop: (tone, channelState, time) => {},
   respond: (tone, channelState, { frontToBack }) => {
     const bpm = tone.getBpm();
     // min bpm of 60, max of 180
@@ -17,8 +15,6 @@ export const master = createChannel({
       tone.setBpm(newBpm);
       console.log("Setting new BPM to", newBpm);
     }
-
-    return channelState;
   },
   renderMonitorDisplay: (channelState, tone, { frontToBack, around }) => {
     const bpm = tone.getBpm();

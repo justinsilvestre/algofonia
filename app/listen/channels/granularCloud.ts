@@ -27,11 +27,8 @@ export const granularCloud = createChannel({
     channelState.cloud.start().then(() => {
       channelState.isPlaying = true;
     });
-
-    return channelState;
   },
   respond: (tone, channelState, input) => {
     // Handle motion input for granular cloud
-    return channelState;
   },
 });

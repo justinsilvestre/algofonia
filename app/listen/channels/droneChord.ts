@@ -36,8 +36,6 @@ export const droneChord = createChannel({
       "1n",
       time + 0.1
     );
-
-    return channelState;
   },
   respond: (tone, { synth }, { frontToBack, around }) => {
     const gainValue = (frontToBack / 100) * 14 + 2;

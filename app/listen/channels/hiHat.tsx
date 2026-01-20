@@ -59,8 +59,6 @@ export const hiHat = createChannel({
     closedHiHat2.hit("+0:1:0");
     closedHiHat2.hit("+0:2:0");
     closedHiHat2.hit("+0:3:0");
-
-    return channelState;
   },
   respond: (tone, channelState, { frontToBack, around }) => {
     // Adjust open hi-hat reverb and panning based on around input (0-100)
@@ -97,8 +95,6 @@ export const hiHat = createChannel({
       channelState.closedHiHat.enable();
       channelState.closedHiHat2.enable();
     }
-
-    return channelState;
   },
   renderMonitorDisplay: (channelState, tone, { frontToBack, around }) => {
     const pattern = channelState.pattern;

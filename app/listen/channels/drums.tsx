@@ -76,8 +76,6 @@ export const drums = createChannel({
     fourOnFloorKick.hit("+0:3");
     fourOnFloorKick.triggerRelease("+0:3");
     snare.hit("+0:3");
-
-    return channelState;
   },
   respond: (tone, channelState, { frontToBack, around }) => {
     const {

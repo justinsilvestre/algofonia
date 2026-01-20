@@ -25,8 +25,6 @@ export const darkPad = createChannel({
 
     channelState.pad.playChordEternal([notes[0], notes[3], notes[5]], time);
     channelState.isPlaying = true;
-
-    return channelState;
   },
   respond: (tone, channelState, { frontToBack, around }) => {
     const bitcrush = frontToBack / 100;
@@ -34,7 +32,5 @@ export const darkPad = createChannel({
 
     channelState.pad.setBitCrush(bitcrush);
     channelState.pad.setBreathingRate(`${rate}hz`);
-
-    return channelState;
   },
 });

@@ -29,8 +29,6 @@ export const brightPad = createChannel({
 
     channelState.pad.playChordEternal([notes[0], notes[3], notes[5]], time);
     channelState.isPlaying = true;
-
-    return channelState;
   },
   respond: (tone, channelState, { frontToBack, around }) => {
     const delay = frontToBack / 100;
@@ -42,7 +40,5 @@ export const brightPad = createChannel({
     channelState.pad.setDelayAmount(delay);
     channelState.pad.setSparkleRate(rate);
     channelState.pad.setSparkleDepth(depthMin, depthMax);
-
-    return channelState;
   },
 });

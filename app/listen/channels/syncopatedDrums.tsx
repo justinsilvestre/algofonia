@@ -48,8 +48,6 @@ export const syncopatedDrums = createChannel({
 
     lowTomSynth2.hit("F3", "F2", "+0:1:3");
     lowTomSynth2.hit("F3", "F2", "+0:2:4");
-
-    return channelState;
   },
   respond: (tone, channelState, input) => {
     if (input.frontToBack < 33) {
@@ -84,8 +82,6 @@ export const syncopatedDrums = createChannel({
       channelState.lowTomSynth.enable();
       channelState.lowTomSynth2.enable();
     }
-
-    return channelState;
   },
   renderMonitorDisplay: (channelState, tone, { frontToBack, around }) => {
     return (

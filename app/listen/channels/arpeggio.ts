@@ -43,7 +43,5 @@ export const arpeggio = createChannel({
   },
   respond: (tone, channelState, { frontToBack, around }) => {
     channelState.octaveJumpProb = around / 100;
-
-    return channelState;
   },
 });

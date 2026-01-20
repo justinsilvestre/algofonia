@@ -36,8 +36,6 @@ export const synth = createChannel({
       "4n",
       time + Tone.Time("4n").toSeconds() * 3
     );
-
-    return channelState;
   },
   respond: (tone, channelState, { frontToBack, around }) => {
     console.log("synth respond called", frontToBack, around);
@@ -64,7 +62,5 @@ export const synth = createChannel({
     } else {
       channelState.note = "C7";
     }
-
-    return channelState;
   },
 });

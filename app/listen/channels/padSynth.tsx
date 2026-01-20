@@ -21,8 +21,6 @@ export const padSynth = createChannel({
     const notes = [scaleNotes[0], scaleNotes[3], scaleNotes[5]];
     fmSynth.releaseAll(time);
     fmSynth.triggerAttack(notes, time);
-
-    return channelState;
   },
   respond: (tone, channelState, { frontToBack, around }) => {
     // 10 to 30
@@ -34,8 +32,6 @@ export const padSynth = createChannel({
       modulationIndex,
       harmonicity,
     });
-
-    return channelState;
   },
   renderMonitorDisplay: (channelState, tone, { frontToBack, around }) => {
     const modulationIndex = channelState.padSynth.fmSynth.get().modulationIndex;

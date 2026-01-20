@@ -21,8 +21,6 @@ export const voice = createChannel({
     if (voiceSynth.player.state !== "started" && voiceSynth.player.loaded) {
       voiceSynth.player.start(time);
     }
-
-    return channelState;
   },
   respond: (tone, channelState, { frontToBack, around }) => {
     // Map around to F2 frequency
@@ -51,8 +49,6 @@ export const voice = createChannel({
 
     channelState.voiceSynth.setFormants(f1, f2);
     channelState.voiceSynth.setVolume(volume);
-
-    return channelState;
   },
   renderMonitorDisplay: (channelState, tone, { frontToBack, around }) => {
     // Get values directly from the synth state

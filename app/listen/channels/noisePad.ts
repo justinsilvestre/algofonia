@@ -19,8 +19,6 @@ export const noisePad = createChannel({
 
     channelState.pad.start();
     channelState.isPlaying = true;
-
-    return channelState;
   },
   respond: (tone, channelState, { frontToBack, around }) => {
     const semitones = (frontToBack / 100) * 12;
@@ -28,7 +26,5 @@ export const noisePad = createChannel({
 
     channelState.pad.setPitchShift(semitones);
     channelState.pad.setAutoPannerRate(rate);
-
-    return channelState;
   },
 });

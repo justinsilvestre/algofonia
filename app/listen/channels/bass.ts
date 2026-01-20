@@ -99,8 +99,6 @@ export const bass = createChannel({
     });
 
     channelState.loopIndex += 1;
-
-    return channelState;
   },
   respond: (tone, channelState, { frontToBack, around }) => {
     // when frontToBack is high, progress.
