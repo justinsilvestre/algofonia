@@ -27,6 +27,13 @@ export const hiHat = createChannel({
 
     return state;
   },
+  teardown: (channelState) => {
+    channelState.hiHat.synth.dispose();
+    channelState.hiHat.reverb.dispose();
+    channelState.hiHat.panner.dispose();
+    channelState.closedHiHat.synth.dispose();
+    channelState.closedHiHat2.synth.dispose();
+  },
   onLoop: (tone, channelState, time) => {
     const { hiHat, closedHiHat, closedHiHat2 } = channelState;
 

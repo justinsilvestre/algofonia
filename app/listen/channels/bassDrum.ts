@@ -18,6 +18,10 @@ export const bassDrum = createChannel({
       note: "C1",
     };
   },
+  teardown: ({ synth, gain }) => {
+    synth.dispose();
+    gain.dispose();
+  },
   onLoop: (tone, { synth, note }, time) => {
     console.log("Looping bass drum at time:", time);
     synth.triggerAttackRelease(note, "8n", time);

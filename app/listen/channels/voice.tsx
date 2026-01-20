@@ -11,6 +11,9 @@ export const voice = createChannel({
 
     return { voiceSynth };
   },
+  teardown: ({ voiceSynth }) => {
+    voiceSynth.dispose();
+  },
   onLoop: (tone, channelState, time) => {
     const { voiceSynth } = channelState;
 
@@ -110,25 +113,42 @@ function getVoiceSynth() {
     volume: volumeTargetValue,
   }).connect(chorus);
 
-  const formantTargetValues = { f1: 800, f2: 1200 };
-  return {
+  // const formantTargetVals = { f1: 800, f2: 1200 };
+  let f1TargetVal = 800;
+  let f2TargetVal = 1200;
+  const synthInterface = {
     player,
     formant1,
     formant2,
-    formantTargetValues,
+    formantTargetValues: {
+      get f1() {
+        return f1TargetVal;
+      },
+      get f2() {
+        return f2TargetVal;
+      },
+    },
     get volumeTargetValue() {
       return volumeTargetValue;
     },
-    setFormants: (f1: number, f2: number) => {
+    dispose: () => {
+      player.dispose();
+      formant1.dispose();
+      formant2.dispose();
+      formantSum.dispose();
+      chorus.dispose(); // Runtime InvalidAccessError
+    },
+    setFormants: (f1Hz: number, f2Hz: number) => {
       // Use smooth parameter changes to prevent clicking
-      formant1.frequency.rampTo(f1, 0.1);
-      formant2.frequency.rampTo(f2, 0.1);
-      formantTargetValues.f1 = f1;
-      formantTargetValues.f2 = f2;
+      formant1.frequency.rampTo(f1Hz, 0.1);
+      formant2.frequency.rampTo(f2Hz, 0.1);
+      f1TargetVal = f1Hz;
+      f2TargetVal = f2Hz;
     },
     setVolume: (volume: number) => {
       player.volume.rampTo(volume, 0.1);
       volumeTargetValue = volume;
     },
   };
+  return synthInterface;
 }

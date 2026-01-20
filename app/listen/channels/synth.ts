@@ -15,6 +15,9 @@ export const synth = createChannel({
 
     return { synth, octave, note: "C4" };
   },
+  teardown: (channelState) => {
+    channelState.synth.dispose();
+  },
   onLoop: (tone, channelState, time) => {
     const { synth } = channelState;
     synth.triggerAttackRelease(channelState.note, "4n", time);

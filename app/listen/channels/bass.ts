@@ -63,6 +63,9 @@ export const bass = createChannel({
       loopIndex: 0,
     };
   },
+  teardown: (channelState) => {
+    channelState.synth.dispose();
+  },
   onLoop: (
     { transport, key, mode, chordRootScaleDegree, getChord },
     channelState,
