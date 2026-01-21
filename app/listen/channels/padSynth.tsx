@@ -32,11 +32,7 @@ export const padSynth = createChannel({
     padSynth.dispose();
     loop.loop.dispose();
   },
-  respond: (
-    { key, mode, currentMeasureStartTime },
-    { getState, setState },
-    { frontToBack, around }
-  ) => {
+  respond: (tone, { getState, setState }, { frontToBack, around }) => {
     const { padSynth } = getState();
 
     // Control effects based on inputs
@@ -51,6 +47,7 @@ export const padSynth = createChannel({
     });
 
     // Update chord notes based on current key/mode
+    const { key, mode } = tone;
     const scale = `${key}${octave} ${mode}`;
     const scaleNotes = Scale.get(scale).notes;
     const newChordNotes = [scaleNotes[0], scaleNotes[3], scaleNotes[5]];
@@ -64,10 +61,7 @@ export const padSynth = createChannel({
       // Restart loop with new notes
       currentState.loop.loop.dispose();
 
-      const newLoop = getLoop(
-        { key, mode, currentMeasureStartTime } as ToneControls,
-        padSynth
-      );
+      const newLoop = getLoop(tone, padSynth);
 
       setState((state) => ({
         ...state,

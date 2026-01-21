@@ -136,9 +136,5 @@ export const bass = createChannel({
         sequence: newSequence,
       }));
     }
-
-    // Update chord progression based on frontToBack
-    // This will be handled by the tone context, we just need to trigger the change
-    // The actual chordRootScaleDegree update should happen in the tone context
   },
 });

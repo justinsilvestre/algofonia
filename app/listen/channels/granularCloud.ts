@@ -1,4 +1,3 @@
-import * as Tone from "tone";
 import { createChannel } from "../tone";
 
 import { GranularCloud } from "../synth/granularCloud";

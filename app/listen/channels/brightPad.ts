@@ -40,11 +40,7 @@ export const brightPad = createChannel({
     pad.dispose();
     loop.loop.dispose();
   },
-  respond: (
-    { key, mode, currentMeasureStartTime },
-    { getState, setState },
-    { frontToBack, around }
-  ) => {
+  respond: (tone, { getState, setState }, { frontToBack, around }) => {
     const { pad } = getState();
 
     // Control effects based on inputs
@@ -58,6 +54,7 @@ export const brightPad = createChannel({
     pad.setSparkleDepth(depthMin, depthMax);
 
     // Update chord notes based on current key/mode
+    const { key, mode } = tone;
     const scale = `${key}${octave} ${mode}`;
     const notes = Scale.get(scale).notes;
     const newChordNotes = [notes[0], notes[3], notes[5]];
@@ -71,10 +68,7 @@ export const brightPad = createChannel({
       // Restart sequence with new notes
       currentState.loop.loop.dispose();
 
-      const newLoop = getLoop(
-        { key, mode, currentMeasureStartTime } as ToneControls,
-        pad
-      );
+      const newLoop = getLoop(tone, pad);
 
       setState((state) => ({
         ...state,
