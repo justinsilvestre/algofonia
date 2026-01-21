@@ -4,25 +4,23 @@ import { createChannel } from "../tone";
 export const voice = createChannel({
   key: "Voice",
 
-  initialize: () => {
-    const voiceSynth = getVoiceSynth();
-    voiceSynth.setFormants(300, 800);
-    voiceSynth.setVolume(-12);
+  initialize: (tone) => {
+    const voiceSynth = getVoiceSynth((player) => {
+      const { currentMeasureStartTime } = tone;
+      player.start(currentMeasureStartTime);
+    });
+    const formant1 = 300;
+    const formant2 = 800;
+    const volume = -12;
+    voiceSynth.setFormants(formant1, formant2);
+    voiceSynth.setVolume(volume);
 
-    return { voiceSynth };
+    return { voiceSynth, formant1, formant2, volume };
   },
   teardown: ({ voiceSynth }) => {
     voiceSynth.dispose();
   },
-  onLoop: (tone, channelState, time) => {
-    const { voiceSynth } = channelState;
-
-    // Only start if not already playing to avoid crackling from frequent restarts
-    if (voiceSynth.player.state !== "started" && voiceSynth.player.loaded) {
-      voiceSynth.player.start(time);
-    }
-  },
-  respond: (tone, channelState, { frontToBack, around }) => {
+  respond: (tone, { getState, setState }, { frontToBack, around }) => {
     // Map around to F2 frequency
     const f2 = 800 + (around / 100) * 1400; // 800Hz to 2200Hz
 
@@ -47,10 +45,12 @@ export const voice = createChannel({
       f1 = 300;
     }
 
-    channelState.voiceSynth.setFormants(f1, f2);
-    channelState.voiceSynth.setVolume(volume);
+    const { voiceSynth } = getState();
+    voiceSynth.setFormants(f1, f2);
+    voiceSynth.setVolume(volume);
+    setState((state) => ({ ...state, formant1: f1, formant2: f2, volume }));
   },
-  renderMonitorDisplay: (channelState, tone, { frontToBack, around }) => {
+  renderMonitorDisplay: (channelState) => {
     // Get values directly from the synth state
     const f1 = Math.round(channelState.voiceSynth.formantTargetValues.f1);
     const f2 = Math.round(channelState.voiceSynth.formantTargetValues.f2);
@@ -77,7 +77,7 @@ export const voice = createChannel({
   },
 });
 
-function getVoiceSynth() {
+function getVoiceSynth(onLoadBuffer: (player: Tone.Player) => void) {
   const chorus = new Tone.Chorus({
     frequency: 0.3,
     delayTime: 8,
@@ -107,6 +107,9 @@ function getVoiceSynth() {
     autostart: false,
     playbackRate: 1,
     volume: volumeTargetValue,
+    onload: () => {
+      onLoadBuffer(player);
+    },
   }).connect(chorus);
 
   // const formantTargetVals = { f1: 800, f2: 1200 };

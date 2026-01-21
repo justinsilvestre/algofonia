@@ -1,47 +1,61 @@
 import * as Tone from "tone";
-import { createChannel } from "../tone";
-import { Chord, Scale, Key } from "tonal";
+import { createChannel, ToneControls } from "../tone";
+import { Scale } from "tonal";
 
 import { PluckSynth } from "../synth/pluckSynth";
 
 export const arpeggio = createChannel({
   key: "arpeggio",
 
-  initialize: () => {
+  initialize: (tone) => {
     const synth = new PluckSynth();
     synth.start();
 
-    const octave = 3;
     const octaveJumpProb = 0.0;
 
-    // Index of note in Scale.notes array
-    const arpPatternIndices = [4, 2, 2, 4, 5, 1, 6, 3];
+    const pattern = getArpeggioPattern(tone, synth, octaveJumpProb);
+    pattern.start(tone.currentMeasureStartTime);
 
-    return { synth, octave, octaveJumpProb, arpPatternIndices };
+    return { synth, pattern };
   },
   teardown: (channelState) => {
     channelState.synth.dispose();
+    channelState.pattern.dispose();
   },
-  onLoop: (
-    { key, mode, transport },
-    { synth, octave, octaveJumpProb, arpPatternIndices },
-    time
-  ) => {
-    for (let i = 0; i < arpPatternIndices.length; i += 1) {
-      transport.schedule(
-        (t) => {
-          const noteOctave =
-            Math.random() >= octaveJumpProb ? octave : octave + 1;
-          const notes = Scale.get(`${key}${noteOctave} ${mode}`).notes;
-          const note = notes[arpPatternIndices[i]];
-
-          synth.playNote(note, "4n", t);
-        },
-        time + Tone.Time("4n").toSeconds() * (i + 1)
-      );
-    }
-  },
-  respond: (tone, channelState, { frontToBack, around }) => {
-    channelState.octaveJumpProb = around / 100;
+  respond: (tone, { setState }, { around }) => {
+    const octaveJumpProb = around / 100;
+    setState((state) => ({
+      ...state,
+      pattern: getArpeggioPattern(tone, state.synth, octaveJumpProb),
+    }));
   },
 });
+
+type ArpeggioNoteEvent = {
+  scaleDegree: number;
+  octaveOffset: number;
+};
+const arpPatternIndices = [4, 2, 2, 4, 5, 1, 6, 3];
+function getArpeggioPattern(
+  tone: ToneControls,
+  synth: PluckSynth,
+  octaveJumpProb: number
+) {
+  const notes: ArpeggioNoteEvent[] = arpPatternIndices.map((scaleDegree) => {
+    return {
+      scaleDegree,
+      octaveOffset: 3 + (Math.random() < octaveJumpProb ? 1 : 0),
+    };
+  });
+  return new Tone.Pattern(
+    (time, noteEvent) => {
+      const { key, mode } = tone;
+      const noteOctave = 3 + noteEvent.octaveOffset;
+      const notes = Scale.get(`${key}${noteOctave} ${mode}`).notes;
+      const note = notes[noteEvent.scaleDegree];
+      synth.playNote(note, "4n", time);
+    },
+    notes,
+    "up"
+  );
+}

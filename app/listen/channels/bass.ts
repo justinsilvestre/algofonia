@@ -37,89 +37,108 @@ const resolution = new Map([
 //   [7, 1], // vii° to I
 // ]);
 
+type RhythmEvent = Tone.Unit.Time | null;
+type RhythmSpeed = 0 | 1 | 2 | 3 | 4;
+
 // prettier-ignore
-const rhythmVariations = new Map([
-  [0, [['1n', null, null, null], [null , null , null, null], [null , null, null, null], [null, null, null, null]].flat()],
-  [1, [['2n', null, null, null], [null , null , null, null], ['2n' , null, null, null], [null, null, null, null]].flat()],
-  [2, [[null, null, '8n', null], [null , null , '8n', null], [null , null, '8n', null], [null, null, '8n', null]].flat()],
-  [3, [['4n', null, null, null], ['8n' , null , '8n', null], ['8n' , null, '8n', null], ['4n', null, null, null]].flat()],
-  [4, [['8n', null, '8n', null], ['16n', '16n', '8n', null], ['16n','16n','16n','16n'], ['8n', null, '8n', null]].flat()],
-])
+const rhythmVariations = new Map<RhythmSpeed, RhythmEvent[]>([
+  [0, ['1n', null, null, null, null, null, null, null, null, null, null, null, null, null, null, null]],
+  [1, ['2n', null, null, null, null, null, null, null, '2n', null, null, null, null, null, null, null]],
+  [2, [null, null, '8n', null, null, null, '8n', null, null, null, '8n', null, null, null, '8n', null]],
+  [3, ['4n', null, null, null, '8n', null, '8n', null, '8n', null, '8n', null, '4n', null, null, null]],
+  [4, ['8n', null, '8n', null, '16n', '16n', '8n', null, '16n','16n','16n','16n', '8n', null, '8n', null]],
+]);
+
+function getSequenceForRhythm(
+  rhythmSpeed: RhythmSpeed,
+  synth: BassSynth,
+  getNote: () => string
+) {
+  const rhythm = rhythmVariations.get(rhythmSpeed)!;
+
+  return new Tone.Sequence<RhythmEvent>(
+    (time, rhythmEvent) => {
+      if (rhythmEvent) {
+        const note = getNote();
+        synth.playNote(note, rhythmEvent, time);
+      }
+    },
+    rhythm,
+    "16n"
+  );
+}
 
 export const bass = createChannel({
   key: "Bass",
-  initialize: () => {
+  initialize: ({ currentMeasureStartTime, key, mode }) => {
     console.log("All scale names", Scale.names());
 
     const synth = new BassSynth();
     synth.start();
 
     const octave = 1;
+    const rhythmSpeed = 0 as RhythmSpeed;
+    let loopIndex = 0;
+
+    const getNote = () => {
+      const scaleNotes = Scale.get(`${key} ${mode}`).notes;
+      const note = `${scaleNotes[loopIndex % scaleNotes.length]}${octave}`;
+      loopIndex += 1;
+      return note;
+    };
+
+    const sequence = getSequenceForRhythm(rhythmSpeed, synth, getNote);
+    sequence.start(currentMeasureStartTime);
 
     return {
       synth,
+      sequence,
       octave,
-      rhythmSpeed: 0,
-      loopIndex: 0,
+      rhythmSpeed,
+      loopIndex,
+      getNote,
     };
   },
-  teardown: (channelState) => {
-    channelState.synth.dispose();
+  teardown: ({ synth, sequence }) => {
+    synth.dispose();
+    sequence?.dispose();
   },
-  onLoop: (
-    { transport, key, mode, chordRootScaleDegree, getChord },
-    channelState,
-    time
+  respond: (
+    { currentMeasureStartTime },
+    { getState, setState },
+    { around }
   ) => {
-    const { synth } = channelState;
+    const { sequence, synth, getNote } = getState();
 
-    const scaleNotes = Scale.get(`${key} ${mode}`).notes;
-    // const note = `${scaleNotes[channelState.loopIndex % scaleNotes.length]}${channelState.octave}`;
-
-    [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15].forEach((i) => {
-      transport.schedule(
-        (time) => {
-          const note = `${scaleNotes[channelState.loopIndex % scaleNotes.length]}${channelState.octave}`;
-          // get random note from chord
-          const rhythmVariation = rhythmVariations.get(
-            channelState.rhythmSpeed
-          )!;
-          const rhythmAtSixteenthBeat = rhythmVariation[i];
-
-          if (rhythmAtSixteenthBeat)
-            console.log(
-              `Playing bass note ${note} at sixteenth beat ${i}, rhythm: ${rhythmAtSixteenthBeat}`
-            );
-
-          if (rhythmAtSixteenthBeat)
-            synth.playNote(note, rhythmAtSixteenthBeat, time);
-        },
-        time + Tone.Time("16n").toSeconds() * (i + 1)
-      );
-    });
-
-    channelState.loopIndex += 1;
-  },
-  respond: (tone, channelState, { frontToBack, around }) => {
-    // when frontToBack is high, progress.
-    // when low, resolve.
-    if (frontToBack > 50) {
-      tone.chordRootScaleDegree = forwardProgression.get(
-        tone.chordRootScaleDegree
-      )!;
-    } else {
-      tone.chordRootScaleDegree = resolution.get(tone.chordRootScaleDegree)!;
-    }
-    // when around is high, faster rhythm.
-    // when low, slower.
+    // Determine new rhythm speed based on around input
+    let newRhythmSpeed: RhythmSpeed;
     if (around <= 24) {
-      channelState.rhythmSpeed = 1;
+      newRhythmSpeed = 1;
     } else if (around <= 49) {
-      channelState.rhythmSpeed = 2;
+      newRhythmSpeed = 2;
     } else if (around <= 74) {
-      channelState.rhythmSpeed = 3;
+      newRhythmSpeed = 3;
     } else {
-      channelState.rhythmSpeed = 4;
+      newRhythmSpeed = 4;
     }
+
+    // Update sequence if rhythm speed changed
+    const currentState = getState();
+    if (newRhythmSpeed !== currentState.rhythmSpeed) {
+      if (sequence) sequence.dispose();
+
+      const newSequence = getSequenceForRhythm(newRhythmSpeed, synth, getNote);
+      newSequence.start(currentMeasureStartTime);
+
+      setState((state) => ({
+        ...state,
+        rhythmSpeed: newRhythmSpeed,
+        sequence: newSequence,
+      }));
+    }
+
+    // Update chord progression based on frontToBack
+    // This will be handled by the tone context, we just need to trigger the change
+    // The actual chordRootScaleDegree update should happen in the tone context
   },
 });
