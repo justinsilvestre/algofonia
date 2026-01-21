@@ -54,11 +54,11 @@ export type Channel<ChannelState = null> = {
   teardown: (channelState: ChannelState) => void;
   respond: (
     toneControls: ToneControls,
-    channel: ChannelStateHelpers<ChannelState>,
+    ChannelStateHelpers: ChannelStateHelpers<ChannelState>,
     input: { frontToBack: number; around: number }
   ) => void;
   renderMonitorDisplay?: (
-    channel: ChannelState,
+    channelState: ChannelState,
     toneControls: ToneControls,
     latestInput: { frontToBack: number; around: number }
   ) => ReactNode;
