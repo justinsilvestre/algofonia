@@ -34,14 +34,14 @@ describe("getOrientationControlFromEvent", () => {
       135: getOrientationControlFromEvent(0, 135).frontToBack,
       180: getOrientationControlFromEvent(0, 180).frontToBack,
     }).toEqual({
-      0: 0,
-      45: 50,
-      90: 100,
-      135: 50,
-      180: 0,
       "-135": 50,
-      "-90": 100,
       "-45": 50,
+      "-90": 0,
+      "0": 100,
+      "45": 50,
+      "90": 0,
+      "135": 50,
+      "180": 100,
     });
   });
 });
