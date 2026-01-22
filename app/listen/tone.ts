@@ -4,6 +4,7 @@ import { Key } from "tonal";
 
 export type ToneControls = ReturnType<typeof getToneControls>;
 export function getToneControls(startBpm: number) {
+  let targetBpm = startBpm;
   return {
     get currentMeasureStartTime() {
       const position = Tone.getTransport().position as string;
@@ -25,7 +26,11 @@ export function getToneControls(startBpm: number) {
         `Ramping BPM from ${currentBpm} to ${bpm} over ${rampTime} seconds`
       );
       Tone.getTransport().bpm.rampTo(bpm, rampTime);
+      targetBpm = bpm;
     },
+    /** The current bpm OR the BPM that has been set as the target for ramping */
+    getTargetBpm: () => targetBpm,
+    /** Gets current bpm, which may be in the process of ramping to the target bpm */
     getBpm: () => {
       const transport = Tone.getTransport();
 

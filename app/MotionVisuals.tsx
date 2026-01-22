@@ -1,6 +1,6 @@
 import { useRef, useEffect, useCallback, useMemo } from "react";
 
-const Y_MIN_OFFSET = 75; // Pixels to offset minimum Y position for orbs
+const Y_MIN_OFFSET = 0;
 
 // Visual element classes
 class MiddleOrb {
@@ -17,7 +17,10 @@ class MiddleOrb {
   ) {
     // Apply warping based on beat pulse
     const warpFactor = beatPulse * 0.3; // 0-0.3 warping strength
-    const mainOrbRadius = ORB_SETTINGS.MAIN_ORB_RADIUS * (1 + warpFactor);
+    // Scale orb based on frontToBack (0 = small/upright, 100 = large/extreme)
+    const frontToBackScale = 1 + (this.frontToBack / 100) * 2.5; // Scale from 1x to 3.5x
+    const mainOrbRadius =
+      ORB_SETTINGS.MAIN_ORB_RADIUS * (1 + warpFactor) * frontToBackScale;
     const orbCenterX = canvas.width / 2;
     const orbCenterY = this.currentOrbYPixels;
     const glowRadius = 80 * (1 + warpFactor * 1.5); // Glow expands more dramatically
@@ -171,8 +174,14 @@ class MiddleOrb {
 
     // Apply warping to size based on beat pulse
     const warpFactor = beatPulse * 0.3;
+    // Scale orb based on frontToBack (0 = small/upright, 100 = large/extreme)
+    const frontToBackScale = 1 + (this.frontToBack / 100) * 3.5; // Scale from 1x to 2.5x
     const warpedSize =
-      ORB_SETTINGS.MAIN_ORB_RADIUS * 2 * 2.0 * (1 + warpFactor);
+      ORB_SETTINGS.MAIN_ORB_RADIUS *
+      2 *
+      2.0 *
+      (1 + warpFactor) *
+      frontToBackScale;
 
     // Set up vertex data with warped size for WebGL
     const positions = new Float32Array([orbX, orbY]);

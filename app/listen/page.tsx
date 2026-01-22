@@ -184,7 +184,7 @@ export default function OutputClientPage() {
   );
 
   const [bpmDisplay, setBpmDisplay] = useState<number>(START_BPM);
-  const currentBpm = tone.controls.getBpm();
+  const currentBpm = tone.controls.getTargetBpm();
   useEffect(() => {
     setBpmDisplay(Math.round(currentBpm));
   }, [currentBpm]);
@@ -196,7 +196,7 @@ export default function OutputClientPage() {
         type: "JOIN_ROOM_REQUEST",
         roomName: getRoomName(),
         clientType: "output",
-        bpm: START_BPM,
+        bpm: currentBpm,
       });
     }
   });
