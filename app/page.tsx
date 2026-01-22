@@ -1,5 +1,6 @@
 "use client";
 import { useCallback, useEffect, useRef, useState } from "react";
+import * as Tone from "tone";
 import { useWebsocket } from "./useWebsocket";
 import { MessageToClient, RoomState } from "./WebsocketMessage";
 import { useBeatsListener } from "./listen/useBeatsListener";
@@ -9,6 +10,8 @@ import { getRoomName } from "./getRoomName";
 import { useCanvas, MotionVisuals } from "./MotionVisuals";
 import { useWakeLock } from "react-screen-wake-lock";
 import { useMovement } from "./useMovement";
+import { useTutorial } from "./useTutorial";
+import { TutorialOverlay } from "./TutorialOverlay";
 
 const SHOW_DEBUG_TEXT = true;
 
@@ -112,6 +115,41 @@ export default function InputClientPage() {
     null
   );
 
+  // Function to set up and sync Tone.js transport with server beats
+  const setupTransport = useCallback(
+    (bpm: number, nextBeatTimestamp: number) => {
+      const transport = Tone.getTransport();
+      // Set Tone.js BPM
+      transport.bpm.value = bpm;
+
+      // Calculate when to start the transport to align with server beats
+      const currentTime = performance.now() + performance.timeOrigin;
+      const timeUntilBeat = nextBeatTimestamp - currentTime;
+
+      // Stop any existing transport
+      transport.stop();
+      transport.cancel();
+
+      if (timeUntilBeat > 0) {
+        // Schedule transport to start at the next beat
+        const secondsUntilBeat = timeUntilBeat / 1000;
+        transport.start(`+${secondsUntilBeat.toFixed(3)}`);
+      } else {
+        // We're past the beat time, start immediately
+        // and calculate the phase offset
+        const beatDuration = (60 / bpm) * 1000; // ms per beat
+        const beatsPassed = Math.floor(Math.abs(timeUntilBeat) / beatDuration);
+        const phaseOffset = Math.abs(timeUntilBeat) % beatDuration;
+
+        transport.start(`+${phaseOffset / 1000}`);
+        console.log(
+          `Tone.js transport started with ${beatsPassed} beats offset`
+        );
+      }
+    },
+    []
+  );
+
   const { connectionState, sendMessage } = useWebsocket({
     handleMessage: useCallback(
       (message: MessageToClient) => {
@@ -137,6 +175,9 @@ export default function InputClientPage() {
 
             setBpm(bpm);
             setBeatsStartTimestamp(nextBeatTimestamp);
+
+            // Set up Tone.js transport for tutorial timing
+            setupTransport(bpm, nextBeatTimestamp);
             break;
           }
           case "ROOM_STATE_UPDATE":
@@ -152,6 +193,9 @@ export default function InputClientPage() {
               setBeatsStartTimestamp(
                 (startTimestamp) => startTimestamp ?? beat.nextBeatTimestamp
               );
+
+              // Update Tone.js transport if BPM changed
+              setupTransport(beat.bpm, beat.nextBeatTimestamp);
             }
             break;
           case "SYNC_REPLY": {
@@ -162,13 +206,35 @@ export default function InputClientPage() {
           }
           case "SYNC_BEAT": {
             setBpm(message.bpm);
-
+            break;
+          }
+          case "TUTORIAL_START":
+          case "TUTORIAL_END":
+          case "TUTORIAL_PROGRESS": {
+            // Tutorial messages are handled by roomState updates
+            // but we can add specific handling here if needed
+            console.log("Tutorial message received:", message.type);
             break;
           }
         }
       },
       [processSyncReply]
     ),
+  });
+
+  // Cleanup Tone.js transport on unmount
+  useEffect(() => {
+    return () => {
+      Tone.getTransport().stop();
+      Tone.getTransport().cancel();
+    };
+  }, []);
+
+  // Tutorial hook
+  const tutorial = useTutorial({
+    roomState,
+    userId,
+    sendMessage,
   });
 
   useBeatsListener(
@@ -255,29 +321,35 @@ export default function InputClientPage() {
           !controlsOverrideStateRef.current.frontToBack &&
           !controlsOverrideStateRef.current.around
         ) {
-          const now = performance.now() + performance.timeOrigin;
-          if (
-            newOrientation.frontToBack !==
-              lastSentOrientationRef.current.frontToBack ||
-            newOrientation.around !== lastSentOrientationRef.current.around
-          ) {
-            sendMessage({
-              type: "MOTION_INPUT",
-              roomName: getRoomName(),
-              userId,
-              frontToBack: newOrientation.frontToBack,
-              around: newOrientation.around,
-              actionTimestamp: now,
-              lastBeatNumber: beatsCountRef.current,
-              nextBeatTimestamp: nextBeatTimestampRef.current ?? now,
-            });
-            lastSentOrientationRef.current = {
-              frontToBack: newOrientation.frontToBack,
-              around: newOrientation.around,
-              alpha: newOrientation.alpha,
-              beta: newOrientation.beta,
-              gamma: newOrientation.gamma,
-            };
+          // Only send motion input if no tutorial is active OR this user is the active tutorial user
+          const canSendMotionInput =
+            !roomState.tutorial || roomState.tutorial.currentUserId === userId;
+
+          if (canSendMotionInput) {
+            const now = performance.now() + performance.timeOrigin;
+            if (
+              newOrientation.frontToBack !==
+                lastSentOrientationRef.current.frontToBack ||
+              newOrientation.around !== lastSentOrientationRef.current.around
+            ) {
+              sendMessage({
+                type: "MOTION_INPUT",
+                roomName: getRoomName(),
+                userId,
+                frontToBack: newOrientation.frontToBack,
+                around: newOrientation.around,
+                actionTimestamp: now,
+                lastBeatNumber: beatsCountRef.current,
+                nextBeatTimestamp: nextBeatTimestampRef.current ?? now,
+              });
+              lastSentOrientationRef.current = {
+                frontToBack: newOrientation.frontToBack,
+                around: newOrientation.around,
+                alpha: newOrientation.alpha,
+                beta: newOrientation.beta,
+                gamma: newOrientation.gamma,
+              };
+            }
           }
         }
       }
@@ -359,6 +431,13 @@ export default function InputClientPage() {
       {visualsAreShowing ? (
         <MotionVisuals canvas={canvas} key={String(visualsAreShowing)} />
       ) : null}
+
+      <TutorialOverlay
+        tutorial={tutorial}
+        orientationControl={orientationControl}
+        bpm={bpm}
+      />
+
       <div className="w-screen h-screen p-4 relative z-10">
         <div className="text-right">
           <button
@@ -435,17 +514,26 @@ export default function InputClientPage() {
                       };
                       setOrientationControl(newOrientation);
                       lastSentOrientationRef.current = newOrientation;
-                      const now = performance.now() + performance.timeOrigin;
-                      sendMessage({
-                        type: "MOTION_INPUT",
-                        roomName: getRoomName(),
-                        userId,
-                        frontToBack: newValue,
-                        around: orientationControl.around,
-                        actionTimestamp: now,
-                        lastBeatNumber: beatsCountRef.current,
-                        nextBeatTimestamp: nextBeatTimestampRef.current ?? now,
-                      });
+
+                      // Only send motion input if no tutorial is active OR this user is the active tutorial user
+                      const canSendMotionInput =
+                        !roomState.tutorial ||
+                        roomState.tutorial.currentUserId === userId;
+
+                      if (canSendMotionInput) {
+                        const now = performance.now() + performance.timeOrigin;
+                        sendMessage({
+                          type: "MOTION_INPUT",
+                          roomName: getRoomName(),
+                          userId,
+                          frontToBack: newValue,
+                          around: orientationControl.around,
+                          actionTimestamp: now,
+                          lastBeatNumber: beatsCountRef.current,
+                          nextBeatTimestamp:
+                            nextBeatTimestampRef.current ?? now,
+                        });
+                      }
                     }}
                     className="w-full h-2 bg-white/20 rounded-lg appearance-none cursor-pointer slider"
                   />
@@ -480,17 +568,26 @@ export default function InputClientPage() {
                       };
                       setOrientationControl(newOrientation);
                       lastSentOrientationRef.current = newOrientation;
-                      const now = performance.now() + performance.timeOrigin;
-                      sendMessage({
-                        type: "MOTION_INPUT",
-                        roomName: getRoomName(),
-                        userId,
-                        frontToBack: orientationControl.frontToBack,
-                        around: newValue,
-                        actionTimestamp: now,
-                        lastBeatNumber: beatsCountRef.current,
-                        nextBeatTimestamp: nextBeatTimestampRef.current ?? now,
-                      });
+
+                      // Only send motion input if no tutorial is active OR this user is the active tutorial user
+                      const canSendMotionInput =
+                        !roomState.tutorial ||
+                        roomState.tutorial.currentUserId === userId;
+
+                      if (canSendMotionInput) {
+                        const now = performance.now() + performance.timeOrigin;
+                        sendMessage({
+                          type: "MOTION_INPUT",
+                          roomName: getRoomName(),
+                          userId,
+                          frontToBack: orientationControl.frontToBack,
+                          around: newValue,
+                          actionTimestamp: now,
+                          lastBeatNumber: beatsCountRef.current,
+                          nextBeatTimestamp:
+                            nextBeatTimestampRef.current ?? now,
+                        });
+                      }
                     }}
                     className="w-full h-2 bg-white/20 rounded-lg appearance-none cursor-pointer slider"
                   />

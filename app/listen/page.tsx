@@ -114,20 +114,41 @@ export default function OutputClientPage() {
             }
 
             const { userId: inputUserId, frontToBack, around } = message;
-            const userIdsToChannelKeys = getUserIdsToChannelKeys(
-              roomState.inputClients
-            );
-            const channelKey = userIdsToChannelKeys.get(inputUserId)!;
-            inputToTone(channelKey, message, sendMessage);
 
-            // Update the specific input client's state
+            // Only process motion input if no tutorial is active OR input is from tutorial user
+            const canProcessMotionInput =
+              !roomState.tutorial ||
+              roomState.tutorial.currentUserId === inputUserId;
+
+            if (canProcessMotionInput) {
+              const userIdsToChannelKeys = getUserIdsToChannelKeys(
+                roomState.inputClients
+              );
+              const channelKey = userIdsToChannelKeys.get(inputUserId)!;
+              inputToTone(channelKey, message, sendMessage);
+            }
+
+            // Always update the input client state for UI purposes
             setInputClients((prev) => {
               const newMap = new Map(prev);
-              newMap.set(inputUserId, {
-                userId: inputUserId,
-                frontToBack,
-                around,
-              });
+
+              // If tutorial is active and this is not the tutorial user, set to neutral values
+              if (
+                roomState.tutorial &&
+                roomState.tutorial.currentUserId !== inputUserId
+              ) {
+                newMap.set(inputUserId, {
+                  userId: inputUserId,
+                  frontToBack: 0,
+                  around: 0,
+                });
+              } else {
+                newMap.set(inputUserId, {
+                  userId: inputUserId,
+                  frontToBack,
+                  around,
+                });
+              }
               return newMap;
             });
 
@@ -137,11 +158,56 @@ export default function OutputClientPage() {
             // placeholder
             break;
           }
+          case "TUTORIAL_START":
+          case "TUTORIAL_END":
+          case "TUTORIAL_PROGRESS": {
+            // Tutorial messages are handled via roomState updates
+            // Additional tutorial-specific handling can be added here
+            console.log("Tutorial message received:", message.type);
+            break;
+          }
         }
       },
       [roomState.inputClients, setBpm, processSyncReply, tone, inputToTone]
     ),
   });
+
+  // Reset channels for non-tutorial users when tutorial state changes
+  useEffect(() => {
+    if (roomState.tutorial && tone.controls) {
+      const userIdsToChannelKeys = getUserIdsToChannelKeys(
+        roomState.inputClients
+      );
+
+      roomState.inputClients.forEach((userId) => {
+        // If this is not the active tutorial user, reset their channel to neutral
+        if (userId !== roomState.tutorial!.currentUserId) {
+          const channelKey = userIdsToChannelKeys.get(userId);
+          if (channelKey) {
+            // Send neutral motion input to reset the channel
+            inputToTone(
+              channelKey,
+              {
+                type: "MOTION_INPUT",
+                userId,
+                frontToBack: 0,
+                around: 0,
+                actionTimestamp: performance.now() + performance.timeOrigin,
+                nextBeatTimestamp: performance.now() + performance.timeOrigin,
+              },
+              sendMessage
+            );
+          }
+        }
+      });
+    }
+  }, [
+    roomState.tutorial?.currentUserId,
+    roomState.inputClients,
+    tone.controls,
+    inputToTone,
+    sendMessage,
+  ]);
 
   useBeatsListener(
     beatsStartTimestamp,
@@ -270,6 +336,28 @@ export default function OutputClientPage() {
         <p>{roomState.inputClients.length} input clients connected</p>
         <p>{roomState.outputClients.length} output clients connected</p>
         <p>{roomState.subscriptionsCount} subscribers</p>
+
+        {/* Tutorial Status */}
+        {roomState.tutorial && (
+          <div className="bg-blue-900/30 border border-blue-400/30 rounded-lg p-3 my-4">
+            <h3 className="text-blue-300 font-semibold mb-2">
+              Tutorial Active
+            </h3>
+            <p className="text-blue-200">
+              User {roomState.tutorial.currentUserId} is in tutorial (step:{" "}
+              {roomState.tutorial.currentStep})
+            </p>
+            {roomState.tutorial.queue.length > 1 && (
+              <p className="text-blue-200 text-sm">
+                Queue: {roomState.tutorial.queue.slice(1).join(", ")}
+              </p>
+            )}
+            <p className="text-blue-300 text-sm mt-2">
+              Other participants' channels are muted during tutorial
+            </p>
+          </div>
+        )}
+
         {musicState && (
           <p>
             <span id="beat-display">{bpmDisplay} BPM ♬</span>
