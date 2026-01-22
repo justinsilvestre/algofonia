@@ -41,6 +41,23 @@ export type MessageToClient =
       beatNumber: number;
       beatTimestamp: number;
     }
+  | {
+      type: "TUTORIAL_START";
+      roomName: string;
+      userId: number;
+      step: TutorialStepName;
+    }
+  | {
+      type: "TUTORIAL_END";
+      roomName: string;
+      userId: number;
+    }
+  | {
+      type: "TUTORIAL_PROGRESS";
+      roomName: string;
+      userId: number;
+      step: TutorialStepName;
+    }
   | MotionInputMessageToClient;
 
 export type MotionInputMessageToClient = {
@@ -62,7 +79,28 @@ export type RoomState = {
     lastBeatNumber: number;
     nextBeatTimestamp: number;
   } | null;
+  tutorial: {
+    queue: number[];
+    currentUserId: number | null;
+    currentStep: TutorialStepName | null;
+  } | null;
 };
+
+export type TutorialStepName =
+  | "intro"
+  | "frontToBack-learn"
+  | "frontToBack-top"
+  | "frontToBack-bottom"
+  | "frontToBack-rhythm"
+  | "frontToBack-middle"
+  | "frontToBack-gradual"
+  | "around-learn"
+  | "around-vertical"
+  | "around-horizontal"
+  | "around-rhythm"
+  | "around-diagonal"
+  | "around-gradual"
+  | "complete";
 
 export type MessageToServer =
   | {
@@ -114,4 +152,20 @@ export type MessageToServer =
       roomName: string;
       beatNumber: number;
       beatTimestamp: number;
+    }
+  | {
+      type: "TUTORIAL_START";
+      roomName: string;
+      userId: number;
+    }
+  | {
+      type: "TUTORIAL_END";
+      roomName: string;
+      userId: number;
+    }
+  | {
+      type: "TUTORIAL_PROGRESS";
+      roomName: string;
+      userId: number;
+      step: TutorialStepName;
     };

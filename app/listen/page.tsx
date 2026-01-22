@@ -51,6 +51,7 @@ export default function OutputClientPage() {
     outputClients: [],
     subscriptionsCount: 0,
     beat: null,
+    tutorial: null,
   });
 
   const [beatsStartTimestamp, setBeatsStartTimestamp] = useState<number | null>(

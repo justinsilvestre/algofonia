@@ -1,7 +1,11 @@
 import { WebSocketServer, WebSocket } from "ws";
 import { createServer as createHttpsServer } from "https";
 import { createServer as createHttpServer } from "http";
-import { MessageToClient, MessageToServer } from "../WebsocketMessage";
+import {
+  MessageToClient,
+  MessageToServer,
+  TutorialStepName,
+} from "../WebsocketMessage";
 
 type ConnectionsState = {
   connectedClients: Set<WebSocket>;
@@ -18,6 +22,11 @@ type Room = {
     startTime: number;
     lastSyncedBeatNumber: number;
     lastSyncedBeatTimestamp: number;
+  } | null;
+  tutorial: {
+    queue: number[];
+    currentUserId: number | null;
+    currentStep: TutorialStepName | null;
   } | null;
 };
 
@@ -61,8 +70,51 @@ export async function startWebSocketServer(
         }
       });
       rooms.forEach((room, roomName) => {
+        // Get userId before removing from clients maps
+        const outputUserId = room.outputClients.get(socket);
+        const inputUserId = room.inputClients.get(socket);
+        const disconnectedUserId = outputUserId || inputUserId;
+
         room.outputClients.delete(socket);
         room.inputClients.delete(socket);
+
+        // Clean up tutorial state if disconnected user was in tutorial
+        if (disconnectedUserId && room.tutorial) {
+          // Remove from tutorial queue
+          room.tutorial.queue = room.tutorial.queue.filter(
+            (id) => id !== disconnectedUserId
+          );
+
+          // If current tutorial user disconnected, move to next or clear
+          if (room.tutorial.currentUserId === disconnectedUserId) {
+            if (room.tutorial.queue.length > 0) {
+              // Start tutorial for next user in queue
+              room.tutorial.currentUserId = room.tutorial.queue[0];
+              room.tutorial.currentStep = "intro";
+
+              // Notify about tutorial start for next user
+              broadcastToAllClientsInRoom(connectionsState, roomName, {
+                type: "TUTORIAL_START",
+                roomName,
+                userId: room.tutorial.currentUserId,
+                step: "intro",
+              });
+            } else {
+              // No more users in tutorial
+              room.tutorial.currentUserId = null;
+              room.tutorial.currentStep = null;
+              room.tutorial = null;
+
+              // Notify about tutorial end
+              broadcastToAllClientsInRoom(connectionsState, roomName, {
+                type: "TUTORIAL_END",
+                roomName,
+                userId: disconnectedUserId,
+              });
+            }
+          }
+        }
+
         const noClientsLeft =
           room.outputClients.size === 0 && room.inputClients.size === 0;
         if (noClientsLeft) {
@@ -83,6 +135,7 @@ export async function startWebSocketServer(
                     ...getBeatTimes(room.beat),
                   }
                 : null,
+              tutorial: room.tutorial,
             },
           });
       });
@@ -132,6 +185,7 @@ function handleMessage(
         inputClients: new Map<WebSocket, number>(),
         outputClients: new Map<WebSocket, number>(),
         subscriptionsCount: 0,
+        tutorial: null,
       };
       if (room && !room.beat && message.clientType === "output") {
         room.beat = {
@@ -168,6 +222,7 @@ function handleMessage(
                 ...getBeatTimes(room.beat),
               }
             : null,
+          tutorial: room.tutorial,
         },
       });
       return broadcastToAllClientsInRoom(connectionsState, message.roomName, {
@@ -184,6 +239,7 @@ function handleMessage(
                 ...getBeatTimes(room.beat),
               }
             : null,
+          tutorial: room.tutorial,
         },
       });
     }
@@ -297,6 +353,7 @@ function handleMessage(
         inputClients: new Map<WebSocket, number>(),
         outputClients: new Map<WebSocket, number>(),
         subscriptionsCount: 0,
+        tutorial: null,
       };
       connectionsState.rooms.set(message.roomName, room);
       const roomSubscribers =
@@ -319,6 +376,7 @@ function handleMessage(
                 ...getBeatTimes(room.beat),
               }
             : null,
+          tutorial: room?.tutorial || null,
         },
       });
       sendToClient(socket, {
@@ -343,6 +401,165 @@ function handleMessage(
           if (subscriber.readyState === WebSocket.OPEN) {
             sendToClient(subscriber, messageToSend);
           }
+        });
+      }
+      return;
+    }
+
+    case "TUTORIAL_START": {
+      const room = connectionsState.rooms.get(message.roomName);
+      if (!room) {
+        console.error(`Room ${message.roomName} not found for TUTORIAL_START`);
+        return;
+      }
+
+      // Initialize tutorial state if not exists
+      if (!room.tutorial) {
+        room.tutorial = {
+          queue: [],
+          currentUserId: null,
+          currentStep: null,
+        };
+      }
+
+      // Add user to tutorial queue if not already in queue
+      if (!room.tutorial.queue.includes(message.userId)) {
+        room.tutorial.queue.push(message.userId);
+      }
+
+      // Start tutorial for first user in queue
+      if (
+        room.tutorial.currentUserId === null &&
+        room.tutorial.queue.length > 0
+      ) {
+        room.tutorial.currentUserId = room.tutorial.queue[0];
+        room.tutorial.currentStep = "intro";
+      }
+
+      // Relay to all clients in room
+      broadcastToAllClientsInRoom(connectionsState, message.roomName, {
+        type: "TUTORIAL_START",
+        roomName: message.roomName,
+        userId: message.userId,
+        step: room.tutorial.currentStep || "intro",
+      });
+
+      // Update room state
+      broadcastToAllClientsInRoom(connectionsState, message.roomName, {
+        type: "ROOM_STATE_UPDATE",
+        roomName: message.roomName,
+        roomState: {
+          inputClients: Array.from(room.inputClients.values()),
+          outputClients: Array.from(room.outputClients.values()),
+          subscriptionsCount: room.subscriptionsCount,
+          beat: room.beat
+            ? {
+                bpm: room.beat.currentBpm,
+                startTimestamp: room.beat.startTime,
+                ...getBeatTimes(room.beat),
+              }
+            : null,
+          tutorial: room.tutorial,
+        },
+      });
+      return;
+    }
+
+    case "TUTORIAL_END": {
+      const room = connectionsState.rooms.get(message.roomName);
+      if (!room?.tutorial) {
+        console.error(
+          `Room ${message.roomName} tutorial state not found for TUTORIAL_END`
+        );
+        return;
+      }
+
+      // Remove user from tutorial queue
+      room.tutorial.queue = room.tutorial.queue.filter(
+        (id) => id !== message.userId
+      );
+
+      // If current user is ending tutorial, move to next or clear
+      if (room.tutorial.currentUserId === message.userId) {
+        if (room.tutorial.queue.length > 0) {
+          // Start tutorial for next user in queue
+          room.tutorial.currentUserId = room.tutorial.queue[0];
+          room.tutorial.currentStep = "intro";
+        } else {
+          // No more users in tutorial
+          room.tutorial.currentUserId = null;
+          room.tutorial.currentStep = null;
+          // Clear tutorial state if queue is empty
+          room.tutorial = null;
+        }
+      }
+
+      // Relay to all clients in room
+      broadcastToAllClientsInRoom(connectionsState, message.roomName, {
+        type: "TUTORIAL_END",
+        roomName: message.roomName,
+        userId: message.userId,
+      });
+
+      // Update room state
+      broadcastToAllClientsInRoom(connectionsState, message.roomName, {
+        type: "ROOM_STATE_UPDATE",
+        roomName: message.roomName,
+        roomState: {
+          inputClients: Array.from(room.inputClients.values()),
+          outputClients: Array.from(room.outputClients.values()),
+          subscriptionsCount: room.subscriptionsCount,
+          beat: room.beat
+            ? {
+                bpm: room.beat.currentBpm,
+                startTimestamp: room.beat.startTime,
+                ...getBeatTimes(room.beat),
+              }
+            : null,
+          tutorial: room.tutorial,
+        },
+      });
+      return;
+    }
+
+    case "TUTORIAL_PROGRESS": {
+      const room = connectionsState.rooms.get(message.roomName);
+      if (!room?.tutorial) {
+        console.error(
+          `Room ${message.roomName} tutorial state not found for TUTORIAL_PROGRESS`
+        );
+        return;
+      }
+
+      // Only update step if this is the current tutorial user
+      if (room.tutorial.currentUserId === message.userId) {
+        room.tutorial.currentStep = message.step;
+
+        // Relay to all clients in room
+        broadcastToAllClientsInRoom(connectionsState, message.roomName, {
+          type: "TUTORIAL_PROGRESS",
+          roomName: message.roomName,
+          userId: message.userId,
+          step: message.step,
+        });
+
+        // Update room state
+        broadcastToAllClientsInRoom(connectionsState, message.roomName, {
+          type: "ROOM_STATE_UPDATE",
+          roomName: message.roomName,
+          roomState: {
+            inputClients: Array.from(room.inputClients.values()),
+            outputClients: Array.from(room.outputClients.values()),
+            subscriptionsCount: room.subscriptionsCount,
+            beat: room.beat
+              ? {
+                  bpm: room.beat.currentBpm,
+                  startTimestamp: room.beat.startTime,
+                  ...getBeatTimes(room.beat),
+                }
+              : null,
+            tutorial: room.tutorial,
+          },
         });
       }
       return;
