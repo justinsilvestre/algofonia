@@ -2,22 +2,27 @@ import { createChannel } from "../tone";
 
 export const master = createChannel({
   key: "Master",
-  initialize: () => {
-    return {};
+  initialize: (tone) => {
+    return {
+      bpm: tone.getBpm(),
+    };
   },
   teardown: () => {},
-  onLoop: (tone, channelState, time) => {},
-  respond: (tone, channelState, { frontToBack }) => {
-    const bpm = tone.getBpm();
+  respond: (tone, { getState, setState }, { frontToBack }) => {
+    const channelState = getState();
     // min bpm of 60, max of 180
     const newBpm = Math.round(60 + (frontToBack / 100) * 120);
-    if (Math.abs(newBpm - bpm) > 15) {
-      tone.setBpm(newBpm);
-      console.log("Setting new BPM to", newBpm);
-    }
+    // if (Math.abs(newBpm - bpm) > 15) {
+    if (newBpm === channelState.bpm) return;
+    tone.setBpm(newBpm);
+    console.log("Setting new BPM to", newBpm);
+    setState({
+      ...channelState,
+      bpm: newBpm,
+    });
+    // }
   },
-  renderMonitorDisplay: (channelState, tone, { frontToBack, around }) => {
-    const bpm = tone.getBpm();
+  renderMonitorDisplay: ({ bpm }) => {
     return (
       <div className="flex-1 text-xs bg-gray-950 rounded-lg p-3 shadow-sm border border-gray-600">
         <div className="flex flex-col items-start">

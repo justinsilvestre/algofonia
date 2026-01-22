@@ -1,4 +1,3 @@
-import * as Tone from "tone";
 import { createChannel } from "../tone";
 
 import { GranularCloud } from "../synth/granularCloud";
@@ -16,17 +15,12 @@ export const granularCloud = createChannel({
     cloud.setDensity(0.1);
     cloud.setDarkness(0.2);
 
-    const isPlaying = false;
+    cloud.start();
 
-    return { cloud, isPlaying };
+    return { cloud };
   },
-  teardown: () => {}, // placeholder
-  onLoop: ({ transport, key, mode }, channelState, time) => {
-    if (channelState.isPlaying) return;
-
-    channelState.cloud.start().then(() => {
-      channelState.isPlaying = true;
-    });
+  teardown: ({ cloud }) => {
+    cloud.dispose();
   },
   respond: (tone, channelState, input) => {
     // Handle motion input for granular cloud

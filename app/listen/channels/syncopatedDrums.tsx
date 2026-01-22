@@ -1,89 +1,143 @@
 import * as Tone from "tone";
 import { createChannel } from "../tone";
 
+type DrumEvent = "XX" | null | DrumEvent[];
+type ClapPatternName = keyof typeof clapPatterns;
+type TomPatternName = keyof typeof tomPatterns;
+
+const clapPatterns = {
+  SILENT: [],
+  SINGLE: [
+    [null, null, null, "XX"],
+    [null, null, "XX", null],
+    [null, null, null, "XX"],
+    [null, null, "XX", null],
+  ],
+  DOUBLE: [
+    [null, "XX", null, "XX"],
+    ["XX", null, "XX", null],
+    ["XX", null, null, "XX"],
+    [null, "XX", null, "XX"],
+  ],
+} as const satisfies Record<string, DrumEvent[]>;
+
+const tomPatterns = {
+  SILENT: [],
+  SINGLE: [
+    [null, "XX", null, null],
+    [null, null, "XX", null],
+    [null, null, null, "XX"],
+    [null, null, "XX", null],
+  ],
+  DOUBLE: [
+    [null, "XX", null, "XX"],
+    ["XX", null, "XX", null],
+    [null, "XX", null, "XX"],
+    ["XX", null, "XX", null],
+  ],
+} as const satisfies Record<string, DrumEvent[]>;
+
+function getPart(
+  pattern: DrumEvent[],
+  synth: { hit: (time: Tone.Unit.Time) => void }
+) {
+  if (!pattern.length) return null;
+
+  const part = new Tone.Sequence<DrumEvent>(
+    (time) => synth.hit(time),
+    pattern,
+    "4n"
+  );
+
+  return part;
+}
+
 export const syncopatedDrums = createChannel({
   key: "Syncopated drums",
-  initialize: () => {
-    const clapSynth1 = getClapSynth();
-    const clapSynth2 = getClapSynth();
+  initialize: ({ currentMeasureStartTime }) => {
+    const clapSynth = getClapSynth();
     const lowTomSynth = getLowTomSynth();
-    const lowTomSynth2 = getLowTomSynth();
 
-    clapSynth1.disable();
-    clapSynth2.disable();
-    lowTomSynth.disable();
-    lowTomSynth2.disable();
+    const startClapPattern = "SILENT" as ClapPatternName;
+    const startTomPattern = "SILENT" as TomPatternName;
+
+    const clapPart = getPart(clapPatterns[startClapPattern], clapSynth);
+    const tomPart = getPart(tomPatterns[startTomPattern], lowTomSynth);
+    clapPart?.start(currentMeasureStartTime);
+    tomPart?.start(currentMeasureStartTime);
 
     return {
-      clapSynth1,
-      clapSynth2,
+      clapSynth,
       lowTomSynth,
-      lowTomSynth2,
-      clapPattern: "SILENT" as "SILENT" | "SINGLE" | "DOUBLE",
-      tomPattern: "SILENT" as "SILENT" | "SINGLE" | "DOUBLE",
+      clapPattern: startClapPattern,
+      tomPattern: startTomPattern,
+
+      clapPart,
+      tomPart,
     };
   },
-  teardown: ({ clapSynth1, clapSynth2, lowTomSynth, lowTomSynth2 }) => {
-    clapSynth1.dispose();
-    clapSynth2.dispose();
+  teardown: ({ clapSynth, lowTomSynth, clapPart, tomPart }) => {
+    clapSynth.dispose();
     lowTomSynth.dispose();
-    lowTomSynth2.dispose();
+    clapPart?.dispose();
+    tomPart?.dispose();
   },
-  onLoop: (tone, channelState, time) => {
-    const { clapSynth1, clapSynth2, lowTomSynth, lowTomSynth2 } = channelState;
+  respond: (
+    { currentMeasureStartTime },
+    { getState, setState },
+    { frontToBack, around }
+  ) => {
+    const {
+      clapPart,
+      tomPart,
+      clapPattern,
+      tomPattern,
+      clapSynth,
+      lowTomSynth,
+    } = getState();
 
-    // clapSynth1.hit("+0:0:2");
+    let newClapPattern: "SILENT" | "SINGLE" | "DOUBLE";
+    let newTomPattern: "SILENT" | "SINGLE" | "DOUBLE";
 
-    clapSynth2.hit("+0:1");
-    clapSynth1.hit("+0:1:2");
-
-    // clapSynth1.hit("+0:2:2");
-
-    clapSynth2.hit("+0:3");
-    clapSynth1.hit("+0:3:2");
-
-    // low tom on 12th and 15th 16th notes
-    lowTomSynth.hit("F3", "F2", "+0:2:3");
-    lowTomSynth.hit("F3", "F2", "+0:3:4");
-
-    lowTomSynth2.hit("F3", "F2", "+0:1:3");
-    lowTomSynth2.hit("F3", "F2", "+0:2:4");
-  },
-  respond: (tone, channelState, input) => {
-    if (input.frontToBack < 33) {
-      channelState.clapPattern = "SILENT";
-      channelState.clapSynth1.disable();
-      channelState.clapSynth2.disable();
-    } else if (input.frontToBack < 66) {
-      channelState.clapPattern = "SINGLE";
-      channelState.clapSynth1.enable();
-      channelState.clapSynth2.disable();
+    if (frontToBack < 33) {
+      newClapPattern = "SILENT";
+    } else if (frontToBack < 66) {
+      newClapPattern = "SINGLE";
     } else {
-      channelState.clapPattern = "DOUBLE";
-      channelState.clapSynth1.enable();
-      channelState.clapSynth2.enable();
+      newClapPattern = "DOUBLE";
     }
 
-    // // Link lowTomSynth volume to around input (0-100)
-    // // -20dB to +3dB range
-    // const lowTomVolume = -20 + (input.around / 100) * 23;
-    // channelState.lowTomSynth.setVolume(lowTomVolume);
-
-    if (input.around < 33) {
-      channelState.tomPattern = "SILENT";
-      channelState.lowTomSynth.disable();
-      channelState.lowTomSynth2.disable();
-    } else if (input.around < 66) {
-      channelState.tomPattern = "SINGLE";
-      channelState.lowTomSynth2.enable();
-      channelState.lowTomSynth.disable();
+    if (around < 33) {
+      newTomPattern = "SILENT";
+    } else if (around < 66) {
+      newTomPattern = "SINGLE";
     } else {
-      channelState.tomPattern = "DOUBLE";
-      channelState.lowTomSynth.enable();
-      channelState.lowTomSynth2.enable();
+      newTomPattern = "DOUBLE";
+    }
+
+    if (newClapPattern !== clapPattern) {
+      clapPart?.dispose();
+      const newClapPart = getPart(clapPatterns[newClapPattern], clapSynth);
+      newClapPart?.start(currentMeasureStartTime);
+      setState((state) => ({
+        ...state,
+        clapPattern: newClapPattern,
+        clapPart: newClapPart,
+      }));
+    }
+
+    if (newTomPattern !== tomPattern) {
+      tomPart?.dispose();
+      const newTomPart = getPart(tomPatterns[newTomPattern], lowTomSynth);
+      newTomPart?.start(currentMeasureStartTime);
+      setState((state) => ({
+        ...state,
+        tomPattern: newTomPattern,
+        tomPart: newTomPart,
+      }));
     }
   },
-  renderMonitorDisplay: (channelState, tone, { frontToBack, around }) => {
+  renderMonitorDisplay: (channelState) => {
     return (
       <div className="text-xs bg-gray-950 rounded-lg p-3 shadow-sm border border-gray-600 flex-1">
         <div className="flex flex-col gap-2">
@@ -142,7 +196,7 @@ function getClapSynth() {
       burstSynth.dispose();
       tailSynth.dispose();
     },
-    hit: (time: Tone.Unit.Time = Tone.now()) => {
+    hit: (time: Tone.Unit.Time) => {
       // rapid burst cluster (the “hands”)
       const timeSeconds = Tone.Time(time).toSeconds();
       burstSynth.triggerAttackRelease("64n", timeSeconds);
@@ -151,14 +205,6 @@ function getClapSynth() {
 
       // diffuse noise tail
       tailSynth.triggerAttackRelease("8n", timeSeconds + 0.03);
-    },
-    disable: () => {
-      burstSynth.volume.value = -100;
-      tailSynth.volume.value = -100;
-    },
-    enable: () => {
-      burstSynth.volume.value = volume;
-      tailSynth.volume.value = volume;
     },
   };
 }
@@ -217,12 +263,10 @@ function getLowTomSynth() {
       filter.dispose();
       distortion.dispose();
     },
-    hit: (
-      highTone: Tone.Unit.Frequency,
-      lowTone: Tone.Unit.Frequency,
-      time: Tone.Unit.Time = Tone.now()
-    ) => {
+    hit: (time: Tone.Unit.Time = Tone.now()) => {
       const timeSeconds = Tone.Time(time).toSeconds();
+      const highTone = "F3"; // Fundamental tom pitch
+      const lowTone = "F2"; // Sub an octave lower
 
       // Trigger both synths at tom-appropriate pitch
       fundamentalSynth.triggerAttack(highTone, time); // Higher fundamental for tom
@@ -246,14 +290,6 @@ function getLowTomSynth() {
     setVolume: (volume: number) => {
       fundamentalSynth.volume.value = volume;
       subSynth.volume.value = volume - 6; // Keep sub quieter
-    },
-    disable: () => {
-      fundamentalSynth.volume.value = -100;
-      subSynth.volume.value = -100;
-    },
-    enable: () => {
-      fundamentalSynth.volume.value = baseVolume;
-      subSynth.volume.value = baseVolume - 6; // Keep sub quieter
     },
   };
 }

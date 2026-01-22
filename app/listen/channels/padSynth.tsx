@@ -1,39 +1,75 @@
 import * as Tone from "tone";
-import { createChannel } from "../tone";
+import { createChannel, ToneControls } from "../tone";
 import { Scale } from "tonal";
+
+const octave = 3;
+
+function getLoop(tone: ToneControls, padSynth: ReturnType<typeof getPadSynth>) {
+  const { currentMeasureStartTime, key, mode } = tone;
+  const scale = `${key}${octave} ${mode}`;
+  const scaleNotes = Scale.get(scale).notes;
+  const chordNotes = [scaleNotes[0], scaleNotes[3], scaleNotes[5]];
+  const loop = new Tone.Loop((time) => {
+    padSynth.fmSynth.releaseAll(time);
+    padSynth.fmSynth.triggerAttack(chordNotes, time);
+  }, "1m");
+  loop.start(currentMeasureStartTime);
+  return { loop, chordNotes };
+}
 
 export const padSynth = createChannel({
   key: "Pad Synth",
-  initialize: () => {
-    return { padSynth: getPadSynth(), octave: 3 };
+  initialize: (tone) => {
+    const padSynth = getPadSynth();
+    const loop = getLoop(tone, padSynth);
+
+    return {
+      padSynth,
+      loop,
+    };
   },
-  teardown: (channelState) => {
-    channelState.padSynth.dispose();
+  teardown: ({ padSynth, loop }) => {
+    padSynth.dispose();
+    loop.loop.dispose();
   },
-  onLoop: (tone, channelState, time) => {
-    console.log("Pad Synth loop at time", time);
-    const {
-      padSynth: { fmSynth },
-    } = channelState;
-    const { key, mode } = tone;
-    const scale = `${key}${channelState.octave} ${mode}`;
-    const scaleNotes = Scale.get(scale).notes;
-    const notes = [scaleNotes[0], scaleNotes[3], scaleNotes[5]];
-    fmSynth.releaseAll(time);
-    fmSynth.triggerAttack(notes, time);
-  },
-  respond: (tone, channelState, { frontToBack, around }) => {
+  respond: (tone, { getState, setState }, { frontToBack, around }) => {
+    const { padSynth } = getState();
+
+    // Control effects based on inputs
     // 10 to 30
     const modulationIndex = 10 + (frontToBack / 100) * 20;
     // 1.5 to 2.5
     const harmonicity = 1.5 + (around / 100) * 1.0;
 
-    channelState.padSynth.fmSynth.set({
+    padSynth.fmSynth.set({
       modulationIndex,
       harmonicity,
     });
+
+    // Update chord notes based on current key/mode
+    const { key, mode } = tone;
+    const scale = `${key}${octave} ${mode}`;
+    const scaleNotes = Scale.get(scale).notes;
+    const newChordNotes = [scaleNotes[0], scaleNotes[3], scaleNotes[5]];
+
+    const currentState = getState();
+    const notesChanged =
+      JSON.stringify(newChordNotes) !==
+      JSON.stringify(currentState.loop.chordNotes);
+
+    if (notesChanged) {
+      // Restart loop with new notes
+      currentState.loop.loop.dispose();
+
+      const newLoop = getLoop(tone, padSynth);
+
+      setState((state) => ({
+        ...state,
+        loop: newLoop,
+      }));
+    }
   },
-  renderMonitorDisplay: (channelState, tone, { frontToBack, around }) => {
+  renderMonitorDisplay: (channelState) => {
     const modulationIndex = channelState.padSynth.fmSynth.get().modulationIndex;
     const harmonicity = channelState.padSynth.fmSynth.get().harmonicity;
 

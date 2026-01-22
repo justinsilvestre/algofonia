@@ -1,102 +1,148 @@
 import * as Tone from "tone";
 import { createChannel } from "../tone";
 
-// pattern chosen via `frontToBack` input:
-// level 1 - no hi hat
-// level 2 - open hi hat on every off-beat
-// level 3 - add open hi hat on on-beats
-// level 4 - constant open hi hat, trap-like
+type HiHatEvent = {
+  time: Tone.Unit.Time;
+  hihatType: "O" | "C";
+};
 
-// pattern chosen via `around` input:
-// level 1 - silent
-// level 2 - add closed hi hat around the open hi hats
+type PatternName = keyof typeof patterns;
+const patterns = {
+  SILENT: [],
+  "OFF-BEATS": pattern(
+    ["0:0:2", "O"],
+    ["0:1:2", "O"],
+    ["0:2:2", "O"],
+    ["0:3:2", "O"]
+  ),
+  FILLED: pattern(
+    // Open hi-hats on off-beats
+    // Closed hi-hats on other 16th notes
+    ["0:0:1", "C"],
+    ["0:0:2", "O"],
+    ["0:0:3", "C"],
+    ["0:1:1", "C"],
+    ["0:1:2", "O"],
+    ["0:1:3", "C"],
+    ["0:2:1", "C"],
+    ["0:2:2", "O"],
+    ["0:2:3", "C"],
+    ["0:3:1", "C"],
+    ["0:3:2", "O"],
+    ["0:3:3", "C"]
+  ),
+  CONSTANT: pattern(
+    // Open hi-hats on off-beats
+    // Closed hi-hats on all other 16th notes
+    ["0:0:0", "C"],
+    ["0:0:1", "C"],
+    ["0:0:2", "O"],
+    ["0:0:3", "C"],
+    ["0:1:0", "C"],
+    ["0:1:1", "C"],
+    ["0:1:2", "O"],
+    ["0:1:3", "C"],
+    ["0:2:0", "C"],
+    ["0:2:1", "C"],
+    ["0:2:2", "O"],
+    ["0:2:3", "C"],
+    ["0:3:0", "C"],
+    ["0:3:1", "C"],
+    ["0:3:2", "O"],
+    ["0:3:3", "C"]
+  ),
+} as const satisfies Record<string, HiHatEvent[]>;
+
+function getPartForPattern(
+  patternName: PatternName,
+  hiHat: ReturnType<typeof getHiHatSynth>,
+  closedHiHat: ReturnType<typeof getClosedHiHatSynth>
+) {
+  const pattern = patterns[patternName];
+  if (!pattern.length) return null;
+
+  const part = new Tone.Part<HiHatEvent>((time, event) => {
+    if (event.hihatType === "O") {
+      hiHat.hit(time);
+    } else if (event.hihatType === "C") {
+      closedHiHat.hit(time);
+    }
+  }, pattern);
+  part.loop = true;
+  part.loopEnd = "1m";
+
+  return part;
+}
 
 export const hiHat = createChannel({
   key: "Hi hat",
-  initialize: (tone) => {
-    const state = {
-      hiHat: getHiHatSynth(),
-      closedHiHat: getClosedHiHatSynth(),
-      closedHiHat2: getClosedHiHatSynth(),
-      pattern: "SILENT" as "SILENT" | "OFF-BEATS" | "FILLED" | "CONSTANT",
-      openHiHatVolume: -15,
+  initialize: ({ currentMeasureStartTime }) => {
+    const hiHat = getHiHatSynth();
+    const closedHiHat = getClosedHiHatSynth();
+
+    const startPattern = "SILENT" as PatternName;
+    const part = getPartForPattern(startPattern, hiHat, closedHiHat);
+    part?.start(currentMeasureStartTime);
+
+    return {
+      hiHat,
+      closedHiHat,
+      part,
+      pattern: startPattern,
+      openHiHatVolume: hiHat.synth.volume.value,
+      openHiHateReverb: hiHat.reverb.wet.value,
     };
-    state.hiHat.disable();
-    state.closedHiHat.disable();
-    state.closedHiHat2.disable();
-
-    return state;
   },
-  teardown: (channelState) => {
-    channelState.hiHat.synth.dispose();
-    channelState.hiHat.reverb.dispose();
-    channelState.hiHat.panner.dispose();
-    channelState.closedHiHat.synth.dispose();
-    channelState.closedHiHat2.synth.dispose();
+  teardown: ({ hiHat, closedHiHat, part }) => {
+    hiHat.synth.dispose();
+    hiHat.reverb.dispose();
+    closedHiHat.synth.dispose();
+    part?.dispose();
   },
-  onLoop: (tone, channelState, time) => {
-    const { hiHat, closedHiHat, closedHiHat2 } = channelState;
+  respond: (
+    { currentMeasureStartTime },
+    { getState, setState },
+    { frontToBack, around }
+  ) => {
+    const { part, pattern, hiHat, closedHiHat } = getState();
 
-    closedHiHat.hit("+0:0:1");
-    hiHat.hit("+0:0:2");
-    closedHiHat.hit("+0:0:3");
-
-    closedHiHat.hit("+0:1:1");
-    hiHat.hit("+0:1:2");
-    closedHiHat.hit("+0:1:3");
-
-    closedHiHat.hit("+0:2:1");
-    hiHat.hit("+0:2:2");
-    closedHiHat.hit("+0:2:3");
-
-    closedHiHat.hit("+0:3:1");
-    hiHat.hit("+0:3:2");
-    closedHiHat.hit("+0:3:3");
-
-    // on all 16th notes not already hit,
-    // add closedHiHat2 for "CONSTANT" pattern
-    closedHiHat2.hit("+0:0:0");
-    closedHiHat2.hit("+0:1:0");
-    closedHiHat2.hit("+0:2:0");
-    closedHiHat2.hit("+0:3:0");
-  },
-  respond: (tone, channelState, { frontToBack, around }) => {
-    // Adjust open hi-hat reverb and panning based on around input (0-100)
-    // Higher around = more reverb + panning movement
+    // Adjust open hi-hat reverb based on around input (0-100)
+    // Higher around = more reverb movement
     const effectAmount = around / 100; // Convert to 0-1
-    channelState.hiHat.setEffects(effectAmount);
+    hiHat.setEffects(effectAmount);
     // also increase volume when more reverb for balance
     const volumeAdjustment = (around / 100) * 15; // 0 to +15 dB
 
+    const updatePart = (newPattern: PatternName) => {
+      if (newPattern === pattern) return;
+
+      if (part) part.dispose();
+
+      // adjust volume
+      hiHat.synth.volume.value = -15 + volumeAdjustment;
+
+      const newPart = getPartForPattern(newPattern, hiHat, closedHiHat);
+      setState((state) => ({
+        ...state,
+        openHiHatVolume: hiHat.synth.volume.value,
+        openHiHateReverb: hiHat.reverb.wet.value,
+        pattern: newPattern,
+        part: newPart,
+      }));
+      newPart?.start(currentMeasureStartTime);
+    };
+
     if (frontToBack < 25) {
-      channelState.pattern = "SILENT";
-      channelState.hiHat.disable();
-      channelState.closedHiHat.disable();
-      channelState.closedHiHat2.disable();
+      updatePart("SILENT");
     } else if (frontToBack < 50) {
-      channelState.pattern = "OFF-BEATS";
-      channelState.hiHat.enable();
-      channelState.hiHat.synth.volume.value += volumeAdjustment;
-      channelState.openHiHatVolume = channelState.hiHat.synth.volume.value;
-      channelState.closedHiHat.disable();
-      channelState.closedHiHat2.disable();
+      updatePart("OFF-BEATS");
     } else if (frontToBack < 93) {
-      channelState.pattern = "FILLED";
-      channelState.hiHat.enable();
-      channelState.hiHat.synth.volume.value += volumeAdjustment;
-      channelState.openHiHatVolume = channelState.hiHat.synth.volume.value;
-      channelState.closedHiHat.enable();
-      channelState.closedHiHat2.disable();
+      updatePart("FILLED");
     } else {
-      channelState.pattern = "CONSTANT";
-      channelState.hiHat.enable();
-      channelState.hiHat.synth.volume.value += volumeAdjustment;
-      channelState.openHiHatVolume = channelState.hiHat.synth.volume.value;
-      channelState.closedHiHat.enable();
-      channelState.closedHiHat2.enable();
+      updatePart("CONSTANT");
     }
   },
-  renderMonitorDisplay: (channelState, tone, { frontToBack, around }) => {
+  renderMonitorDisplay: (channelState) => {
     const pattern = channelState.pattern;
     const openHiHatReverb =
       channelState.hiHat?.reverb?.wet?.value?.toFixed(2) ?? "-";
@@ -147,32 +193,20 @@ function getHiHatSynth() {
     decay: 2.0,
     wet: 0, // Start with no reverb
   });
-  const panner = new Tone.Panner(0); // Start centered
 
-  // Chain: synth -> filter -> reverb -> panner -> destination
-  synth.chain(filter, reverb, panner, Tone.getDestination());
+  // Chain: synth -> filter -> reverb -> ~~panner~~ -> destination
+  synth.chain(filter, reverb, Tone.getDestination());
   synth.volume.value = volume;
 
   return {
     synth,
     reverb,
-    panner,
     hit: (time: Tone.Unit.Time) => {
       synth.triggerAttackRelease("8n", time);
     },
     setEffects: (amount: number) => {
       // Control reverb wet amount
       reverb.wet.value = amount * 0.6; // 0 to 0.6 wet amount
-
-      // Control panning: -1 (left) to +1 (right) based on around value
-      const panPosition = (amount - 0.5) * 2; // Convert 0-1 to -1 to +1
-      panner.pan.value = panPosition;
-    },
-    disable: () => {
-      synth.volume.value = -100;
-    },
-    enable: () => {
-      synth.volume.value = volume;
     },
   };
 }
@@ -196,11 +230,12 @@ function getClosedHiHatSynth() {
     hit: (time: Tone.Unit.Time) => {
       synth.triggerAttackRelease("8n", time);
     },
-    disable: () => {
-      synth.volume.value = -100;
-    },
-    enable: () => {
-      synth.volume.value = volume;
-    },
   };
+}
+
+function pattern(...events: [time: Tone.Unit.Time, hihatType: "O" | "C"][]) {
+  return events.map(([time, hihatType]) => ({
+    time,
+    hihatType,
+  }));
 }

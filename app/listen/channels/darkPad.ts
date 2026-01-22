@@ -1,36 +1,72 @@
 import * as Tone from "tone";
-import { createChannel } from "../tone";
-import { Chord, Scale, Key } from "tonal";
+import { createChannel, ToneControls } from "../tone";
+import { Scale } from "tonal";
 
 import { DarkAmbientPad } from "../synth/darkPad";
+
+const octave = 3;
+
+function getLoop(tone: ToneControls, pad: DarkAmbientPad) {
+  const { currentMeasureStartTime, key, mode } = tone;
+  const scale = `${key}${octave} ${mode}`;
+  const notes = Scale.get(scale).notes;
+  const chordNotes = [notes[0], notes[3], notes[5]];
+  const loop = new Tone.Loop((time) => {
+    pad.playChordEternal(chordNotes, time);
+  }, "1m");
+  loop.start(currentMeasureStartTime);
+  return { loop, chordNotes };
+}
 
 export const darkPad = createChannel({
   key: "Dark Ambient Pad",
 
-  initialize: () => {
+  initialize: (tone) => {
     const pad = new DarkAmbientPad();
     pad.start();
 
-    const octave = 3;
-    const isPlaying = false;
+    const loop = getLoop(tone, pad);
 
-    return { pad, octave, isPlaying };
+    return {
+      pad,
+      loop,
+    };
   },
-  teardown: () => {}, // placeholder
-  onLoop: ({ transport, key, mode }, channelState, time) => {
-    if (channelState.isPlaying) return;
-
-    const scale = `${key}${channelState.octave} ${mode}`;
-    const notes = Scale.get(scale).notes;
-
-    channelState.pad.playChordEternal([notes[0], notes[3], notes[5]], time);
-    channelState.isPlaying = true;
+  teardown: ({ loop, pad }) => {
+    pad.dispose();
+    loop.loop.dispose();
   },
-  respond: (tone, channelState, { frontToBack, around }) => {
+  respond: (tone, { getState, setState }, { frontToBack, around }) => {
+    const { pad } = getState();
+
+    // Control effects based on inputs
     const bitcrush = frontToBack / 100;
     const rate = (around / 100) * 6 + 6;
 
-    channelState.pad.setBitCrush(bitcrush);
-    channelState.pad.setBreathingRate(`${rate}hz`);
+    pad.setBitCrush(bitcrush);
+    pad.setBreathingRate(`${rate}hz`);
+
+    // Update chord notes based on current key/mode
+    const { key, mode } = tone;
+    const scale = `${key}${octave} ${mode}`;
+    const notes = Scale.get(scale).notes;
+    const newChordNotes = [notes[0], notes[3], notes[5]];
+
+    const currentState = getState();
+    const notesChanged =
+      JSON.stringify(newChordNotes) !==
+      JSON.stringify(currentState.loop.chordNotes);
+
+    if (notesChanged) {
+      // Restart loop with new notes
+      currentState.loop.loop.dispose();
+
+      const newLoop = getLoop(tone, pad);
+
+      setState((state) => ({
+        ...state,
+        loop: newLoop,
+      }));
+    }
   },
 });

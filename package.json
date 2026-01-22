@@ -24,7 +24,6 @@
   "dependencies": {
     "cloudflared": "^0.7.1",
     "concurrently": "^9.2.1",
-    "immer": "^11.1.3",
     "mkcert": "^3.2.0",
     "motion-sensors-polyfill": "^0.3.7",
     "next": "16.0.1",
@@ -32,7 +31,7 @@
     "react-dom": "19.2.0",
     "react-screen-wake-lock": "^3.1.1",
     "tonal": "^6.4.2",
-    "tone": "^15.1.22",
+    "tone": "^15.3.12",
     "tsx": "^4.20.6",
     "vitest": "^4.0.8",
     "ws": "^8.18.3"

@@ -1,147 +1,87 @@
 import * as Tone from "tone";
 import { createChannel } from "../tone";
-import { channel } from "diagnostics_channel";
 
-// frontToBack moves between:
-// level 1: silence
-// level 2: two-step kick pattern
-// level 3: add snare on 2 and 4
-// level 4: four-on-the-floor kick pattern with snare on 2 and 4
+type DrumEvent = "K" | "S" | "KS" | null | DrumEvent[];
+type PatternName = keyof typeof patterns;
+
+const patterns = {
+  SILENT: [],
+  TWO_STEP_KICK: ["K", null, [null, "K"], null],
+  TWO_STEP_KICK_AND_SNARE: ["K", "S", [null, "K"], "S"],
+  FOUR_ON_FLOOR: ["K", "KS", "K", "KS"],
+  ADDED_SYNCOPATION: [["K", null, null, "K"], "KS", ["K", "K"], "KS"],
+} as const satisfies Record<string, DrumEvent[]>;
 
 export const drums = createChannel({
   key: "Drums",
-  initialize: () => {
-    const startKick = get909KickSynth();
-    const fourOnFloorKick = get909KickSynth();
-    const twoStepOffbeatKick = get909KickSynth();
-    const syncopatedKick = get909KickSynth();
+  initialize: ({ currentMeasureStartTime }) => {
+    const kick = get909KickSynth();
     const snare = getSnareSynth();
 
-    startKick.disable();
-    fourOnFloorKick.disable();
-    twoStepOffbeatKick.disable();
-    syncopatedKick.disable();
-    snare.disable();
+    const startPattern = "SILENT" as PatternName;
+    const sequence = getSequenceForPattern(startPattern, kick, snare);
+
+    if (sequence) sequence.start(currentMeasureStartTime);
 
     return {
-      pattern: "SILENT" as
-        | "SILENT"
-        | "TWO_STEP_KICK"
-        | "TWO_STEP_KICK_AND_SNARE"
-        | "FOUR_ON_FLOOR"
-        | "ADDED_SYNCOPATION",
-      startKick,
-      fourOnFloorKick,
-      twoStepOffbeatKick,
-      syncopatedKick,
+      pattern: startPattern,
+      sequence,
+      distortionAmount: 0,
+      kickDuration: 0.35,
+      kick,
       snare,
     };
   },
-  teardown: ({
-    startKick,
-    fourOnFloorKick,
-    twoStepOffbeatKick,
-    syncopatedKick,
-    snare,
-  }) => {
-    startKick.dispose();
-    fourOnFloorKick.dispose();
-    twoStepOffbeatKick.dispose();
-    syncopatedKick.dispose();
+  teardown: ({ snare, sequence }) => {
     snare.dispose();
+    sequence?.dispose();
   },
-  onLoop: (tone, channelState, time) => {
-    console.log("Drums onLoop at time", time);
-    const {
-      startKick,
-      fourOnFloorKick,
-      twoStepOffbeatKick,
-      syncopatedKick,
-      snare,
-    } = channelState;
+  respond: (
+    { currentMeasureStartTime },
+    { getState, setState },
+    { frontToBack, around }
+  ) => {
+    const { sequence, pattern, kick, snare } = getState();
 
-    startKick.hit(time);
-    startKick.triggerRelease(time);
-    syncopatedKick.hit("+0:0:4");
-
-    fourOnFloorKick.hit("+0:1");
-    fourOnFloorKick.triggerRelease("+0:1");
-    snare.hit("+0:1");
-
-    fourOnFloorKick.hit("+0:2");
-    fourOnFloorKick.triggerRelease("+0:2");
-    twoStepOffbeatKick.hit("+0:2:2");
-    twoStepOffbeatKick.triggerRelease("+0:2:2");
-
-    fourOnFloorKick.hit("+0:3");
-    fourOnFloorKick.triggerRelease("+0:3");
-    snare.hit("+0:3");
-  },
-  respond: (tone, channelState, { frontToBack, around }) => {
-    const {
-      startKick,
-      fourOnFloorKick,
-      twoStepOffbeatKick,
-      syncopatedKick,
-      snare,
-    } = channelState;
     // Control kick distortion based on around input (0-100)
     const distortionAmount = 1 - around / 100; // Convert to 0-1
-    // const distortionAmount = 0;
-    startKick.setDistortion(distortionAmount);
-    fourOnFloorKick.setDistortion(distortionAmount);
-    twoStepOffbeatKick.setDistortion(distortionAmount);
 
+    kick.setDistortion(distortionAmount);
     // Control kick duration based on around - lower values = longer duration
     const durationMultiplier = 1 + (around / 100) * 1; // 1x to 2x duration
     const baseDuration = 0.35;
     const newDuration = baseDuration * durationMultiplier;
-    startKick.setDuration(newDuration);
-    fourOnFloorKick.setDuration(newDuration);
-    twoStepOffbeatKick.setDuration(newDuration);
+    kick.setDuration(newDuration);
 
-    if (frontToBack < 25) {
-      channelState.pattern = "SILENT";
-      startKick.disable();
-      fourOnFloorKick.disable();
-      twoStepOffbeatKick.disable();
-      syncopatedKick.disable();
-      snare.disable();
-    } else if (frontToBack < 30) {
-      channelState.pattern = "TWO_STEP_KICK";
-      startKick.enable();
-      fourOnFloorKick.disable();
-      twoStepOffbeatKick.enable();
-      syncopatedKick.disable();
-      snare.disable();
-    } else if (frontToBack < 60) {
-      channelState.pattern = "TWO_STEP_KICK_AND_SNARE";
-      startKick.enable();
-      fourOnFloorKick.disable();
-      twoStepOffbeatKick.enable();
-      syncopatedKick.disable();
-      snare.enable();
-    } else if (frontToBack < 90) {
-      channelState.pattern = "FOUR_ON_FLOOR";
-      startKick.enable();
-      fourOnFloorKick.enable();
-      twoStepOffbeatKick.disable();
-      syncopatedKick.disable();
-      snare.enable();
-    } else {
-      channelState.pattern = "ADDED_SYNCOPATION";
-      startKick.enable();
-      fourOnFloorKick.enable();
-      twoStepOffbeatKick.enable();
-      syncopatedKick.enable();
-      snare.enable();
-    }
+    setState((state) => ({
+      ...state,
+      distortionAmount,
+      kickDuration: newDuration,
+    }));
 
-    console.log("Responded!", channelState.pattern, { frontToBack, around });
+    const updateSequence = (newPattern: PatternName) => {
+      if (newPattern === pattern) return;
 
-    return { ...channelState };
+      if (sequence) sequence.dispose();
+
+      const newSequence = getSequenceForPattern(newPattern, kick, snare);
+      setState((state) => ({
+        ...state,
+        pattern: newPattern,
+        sequence: newSequence,
+      }));
+      newSequence?.start(currentMeasureStartTime);
+    };
+
+    if (frontToBack < 25) updateSequence("SILENT");
+    else if (frontToBack < 50) updateSequence("TWO_STEP_KICK");
+    else if (frontToBack < 75) updateSequence("TWO_STEP_KICK_AND_SNARE");
+    else if (frontToBack < 90) updateSequence("FOUR_ON_FLOOR");
+    else updateSequence("ADDED_SYNCOPATION");
+
+    return;
   },
-  renderMonitorDisplay: (channelState, tone, { frontToBack, around }) => {
+  renderMonitorDisplay: (channelState, tone, { around }) => {
     // Calculate the same values as in respond function
     const distortionAmount = (1 - around / 100).toFixed(2);
     const durationMultiplier = 1 + (around / 100) * 1;
@@ -208,6 +148,8 @@ function get909KickSynth() {
   clickSynth.chain(drive, crusher, freqShifter, filter, Tone.getDestination());
   bodySynth.chain(drive, crusher, freqShifter, filter, Tone.getDestination());
 
+  bodySynth.volume.value = -6;
+
   return {
     clickSynth,
     bodySynth,
@@ -243,8 +185,8 @@ function get909KickSynth() {
         envelope: {
           attack: 0.001,
           decay: 0.35,
-          sustain: Math.max(0.1, sustainLevel),
-          release: Math.max(0.05, releaseTime),
+          // sustain: Math.max(0.1, sustainLevel),
+          // release: Math.max(0.05, releaseTime),
         },
       });
     },
@@ -252,16 +194,7 @@ function get909KickSynth() {
       const seconds = Tone.Time(time).toSeconds();
       bodySynth.triggerRelease(seconds + this.kickDuration);
     },
-    disable: () => {
-      clickSynth.volume.value = -100;
-      bodySynth.volume.value = -100;
 
-      bodySynth.triggerRelease();
-    },
-    enable: () => {
-      clickSynth.volume.value = 0;
-      bodySynth.volume.value = 0;
-    },
     dispose: () => {
       clickSynth.dispose();
       bodySynth.dispose();
@@ -290,16 +223,33 @@ function getSnareSynth() {
     hit: (time: Tone.Unit.Time) => {
       synth.triggerAttackRelease("8n", time);
     },
-    disable: () => {
-      synth.triggerRelease();
-
-      synth.volume.value = -100;
-    },
-    enable: () => {
-      synth.volume.value = 0;
-    },
     dispose: () => {
       synth.dispose();
     },
   };
+}
+
+function getSequenceForPattern(
+  patternName: PatternName,
+  kick: ReturnType<typeof get909KickSynth>,
+  snare: ReturnType<typeof getSnareSynth>
+) {
+  const pattern = patterns[patternName];
+  if (!pattern.length) return null;
+  return new Tone.Sequence<DrumEvent>(
+    (time, event) => {
+      if (event === "K") {
+        kick.hit(time);
+        kick.triggerRelease(time);
+      } else if (event === "S") {
+        snare.hit(time);
+      } else if (event === "KS") {
+        kick.hit(time);
+        kick.triggerRelease(time);
+        snare.hit(time);
+      }
+    },
+    pattern,
+    "4n"
+  );
 }

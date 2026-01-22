@@ -8,10 +8,11 @@ import {
 import { useWebsocket } from "../useWebsocket";
 import { useServerTimeSync } from "./useServerTimeSync";
 import { useBeatsListener } from "./useBeatsListener";
-import { useTone } from "./useTone";
+import { ActiveChannel, useTone } from "./useTone";
 import { getRoomName } from "../getRoomName";
 import { channels } from "./channels";
 import { useDidChange } from "./useDidChange";
+import { Channel, ToneControls } from "./tone";
 
 type InputClientState = {
   userId: number;
@@ -307,7 +308,8 @@ export default function OutputClientPage() {
                   frontToBack: 0,
                   around: 0,
                 };
-                const channelState = musicState.channels[channelKey];
+                const activeChannel =
+                  musicState.activeChannels[channelKey] || null;
 
                 return (
                   <div
@@ -325,20 +327,11 @@ export default function OutputClientPage() {
                       )}
                     </div>
                     <div className="flex-1 flex flex-col  content-start">
-                      {channel.renderMonitorDisplay &&
-                        Boolean(channelState) && (
-                          <>
-                            {channel.renderMonitorDisplay(
-                              // @ts-expect-error -- maybe needs some more parameterization love
-                              channelState.state,
-                              tone.controls,
-                              {
-                                frontToBack: channelState.input.frontToBack,
-                                around: channelState.input.around,
-                              }
-                            )}
-                          </>
-                        )}
+                      <ChannelMonitorDisplay
+                        channelDef={channel as Channel<unknown>}
+                        activeChannel={activeChannel}
+                        toneControls={tone.controls}
+                      />
 
                       <div className="rounded-lg bg-black/30 p-2 flex-0">
                         <label className="block text-xs mb-1">
@@ -458,4 +451,23 @@ function getUserIdsToChannelKeys(inputClients: number[]) {
     userIdsToChannelKeys.set(userId, channelKey);
   }
   return userIdsToChannelKeys;
+}
+
+function ChannelMonitorDisplay<T>({
+  channelDef,
+  activeChannel,
+  toneControls,
+}: {
+  channelDef: Channel<T>;
+  activeChannel: ActiveChannel<T> | null;
+  toneControls: ToneControls;
+}) {
+  if (!channelDef.renderMonitorDisplay || !activeChannel?.state)
+    return (
+      <div className="flex-1 rounded-lg p-3 shadow-sm border border-gray-800"></div>
+    );
+  return channelDef.renderMonitorDisplay(activeChannel.state, toneControls, {
+    frontToBack: activeChannel.input?.frontToBack ?? 0,
+    around: activeChannel.input?.around ?? 0,
+  });
 }

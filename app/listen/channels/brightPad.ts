@@ -1,13 +1,27 @@
 import * as Tone from "tone";
-import { createChannel } from "../tone";
-import { Chord, Scale, Key } from "tonal";
+import { createChannel, ToneControls } from "../tone";
+import { Scale } from "tonal";
 
 import { BrightAmbientPad } from "../synth/brightPad";
+
+const octave = 4;
+
+function getLoop(tone: ToneControls, pad: BrightAmbientPad) {
+  const { currentMeasureStartTime, key, mode } = tone;
+  const scale = `${key}${octave} ${mode}`;
+  const notes = Scale.get(scale).notes;
+  const chordNotes = [notes[0], notes[3], notes[5]];
+  const loop = new Tone.Loop((time) => {
+    pad.playChordEternal(chordNotes, time);
+  }, "1m");
+  loop.start(currentMeasureStartTime);
+  return { loop, chordNotes };
+}
 
 export const brightPad = createChannel({
   key: "Bright Ambient Pad",
 
-  initialize: () => {
+  initialize: (tone) => {
     const pad = new BrightAmbientPad();
 
     pad.setDelayAmount(0.0);
@@ -15,30 +29,51 @@ export const brightPad = createChannel({
     pad.setSparkleDepth(0.1, 0.5);
     pad.start();
 
-    const octave = 4;
-    const isPlaying = false;
+    const loop = getLoop(tone, pad);
 
-    return { pad, octave, isPlaying };
+    return {
+      pad,
+      loop,
+    };
   },
-  teardown: () => {}, // placeholder
-  onLoop: ({ transport, key, mode }, channelState, time) => {
-    if (channelState.isPlaying) return;
-
-    const scale = `${key}${channelState.octave} ${mode}`;
-    const notes = Scale.get(scale).notes;
-
-    channelState.pad.playChordEternal([notes[0], notes[3], notes[5]], time);
-    channelState.isPlaying = true;
+  teardown: ({ loop, pad }) => {
+    pad.dispose();
+    loop.loop.dispose();
   },
-  respond: (tone, channelState, { frontToBack, around }) => {
+  respond: (tone, { getState, setState }, { frontToBack, around }) => {
+    const { pad } = getState();
+
+    // Control effects based on inputs
     const delay = frontToBack / 100;
-
     const depthMin = around / 200 + 0.1;
     const depthMax = depthMin + 0.4;
     const rate = depthMin * 6;
 
-    channelState.pad.setDelayAmount(delay);
-    channelState.pad.setSparkleRate(rate);
-    channelState.pad.setSparkleDepth(depthMin, depthMax);
+    pad.setDelayAmount(delay);
+    pad.setSparkleRate(rate);
+    pad.setSparkleDepth(depthMin, depthMax);
+
+    // Update chord notes based on current key/mode
+    const { key, mode } = tone;
+    const scale = `${key}${octave} ${mode}`;
+    const notes = Scale.get(scale).notes;
+    const newChordNotes = [notes[0], notes[3], notes[5]];
+
+    const currentState = getState();
+    const notesChanged =
+      JSON.stringify(newChordNotes) !==
+      JSON.stringify(currentState.loop.chordNotes);
+
+    if (notesChanged) {
+      // Restart sequence with new notes
+      currentState.loop.loop.dispose();
+
+      const newLoop = getLoop(tone, pad);
+
+      setState((state) => ({
+        ...state,
+        loop: newLoop,
+      }));
+    }
   },
 });

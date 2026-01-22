@@ -1,52 +1,75 @@
 import * as Tone from "tone";
 import { createChannel } from "../tone";
 
+function getSequenceForPattern(synth: Tone.MembraneSynth, notes: string[]) {
+  return new Tone.Sequence(
+    (time, note) => {
+      synth.triggerAttackRelease(note, "8n", time);
+    },
+    notes,
+    "4n"
+  );
+}
+
 export const bassDrum = createChannel({
   key: "bass drum",
-  initialize: () => {
+  initialize: ({ currentMeasureStartTime }) => {
     const gain = new Tone.Gain(1).toDestination();
     const synth = new Tone.MembraneSynth({
       pitchDecay: 0.05,
-      octaves: 10,
       oscillator: { type: "sine" },
       envelope: { attack: 0.001, decay: 0.4, sustain: 0.01, release: 1.4 },
     }).connect(gain);
 
+    const note = "C1";
+    const sequence = getSequenceForPattern(synth, [note, note, note, note]);
+    sequence.start(currentMeasureStartTime);
+
     return {
       synth,
       gain,
-      note: "C1",
+      note,
+
+      sequence,
     };
   },
-  teardown: ({ synth, gain }) => {
+  teardown: ({ synth, gain, sequence }) => {
     synth.dispose();
     gain.dispose();
+    sequence?.dispose();
   },
-  onLoop: (tone, { synth, note }, time) => {
-    console.log("Looping bass drum at time:", time);
-    synth.triggerAttackRelease(note, "8n", time);
-    synth.triggerAttackRelease(note, "8n", time + Tone.Time("4n").toSeconds());
-    synth.triggerAttackRelease(
-      note,
-      "8n",
-      time + Tone.Time("4n").toSeconds() * 2
-    );
-    synth.triggerAttackRelease(
-      note,
-      "8n",
-      time + Tone.Time("4n").toSeconds() * 3
-    );
-  },
-  respond: (tone, channelState, { frontToBack, around }) => {
-    const { gain } = channelState;
+  respond: (
+    { currentMeasureStartTime },
+    { getState, setState },
+    { frontToBack, around }
+  ) => {
+    const { gain, synth, sequence } = getState();
+
+    // Control gain based on frontToBack
     const gainValue = frontToBack / 30;
     gain.gain.rampTo(gainValue);
-    console.log("Bass drum frontToBack:", frontToBack);
 
-    if (around < 50) {
-      channelState.note = "C1";
-    } else {
-      channelState.note = "C2";
+    // Control note based on around
+    const newNote = around < 50 ? "C1" : "C2";
+    const currentState = getState();
+
+    if (newNote !== currentState.note) {
+      // Update sequence with new note
+      if (sequence) sequence.dispose();
+
+      const newSequence = getSequenceForPattern(synth, [
+        newNote,
+        newNote,
+        newNote,
+        newNote,
+      ]);
+      newSequence.start(currentMeasureStartTime);
+
+      setState((state) => ({
+        ...state,
+        note: newNote,
+        sequence: newSequence,
+      }));
     }
   },
 });
