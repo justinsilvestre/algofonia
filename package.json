@@ -9,6 +9,7 @@
     "dev": "tsx server.ts",
     "dev:tunnel": "concurrently \"npm run tunnel\" \"TUNNEL=1 npm run dev\"",
     "build": "next build",
+    "devv": "next dev",
     "start": "NODE_ENV=production tsx server.ts",
     "export": "next build",
     "test": "vitest",
