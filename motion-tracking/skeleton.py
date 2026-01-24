@@ -5,11 +5,13 @@
 # DONE: Requires: floor_homography.npy
 # DONE: Maps ankle pixel coords -> room floor coords (meters)
 
+
 import argparse
 import cv2
 import numpy as np
 from ultralytics import YOLO
 from typing import Optional, Tuple
+from pythonosc.udp_client import SimpleUDPClient
 
 # COCO keypoint names for YOLOv8 pose (17 keypoints)
 KEYPOINT_NAMES = [
@@ -66,7 +68,13 @@ def main():
     ap.add_argument("--flip", action="store_true", help="Mirror view")
     ap.add_argument("--kpt_conf", type=float, default=0.5, help="Keypoint confidence threshold")
     ap.add_argument("--homography", default="motion-tracking/floor_homography.npy", help="Pixel→floor homography")
+
+    ap.add_argument("--osc_host", type=str, default="127.0.0.1", help="OSC server host (Next.js)")
+    ap.add_argument("--osc_port", type=int, default=9000, help="OSC server port (Next.js)")
     args = ap.parse_args()
+
+    # Set up OSC client
+    osc_client = SimpleUDPClient(args.osc_host, args.osc_port)
 
     model = YOLO(args.model)
 
@@ -134,6 +142,10 @@ def main():
                 if u is not None:
                     X, Y = pixel_to_floor(u, v, H_floor)
                     print(f"  FLOOR (m): X={X:.2f}, Y={Y:.2f}")
+
+                    # Send OSC message to Next.js server
+                    # Example address: /people/position, args: person_idx, X, Y
+                    osc_client.send_message("/people/position", [person_idx, X, Y])
 
                     cv2.circle(vis, (int(u), int(v)), 8, (0, 0, 255), -1)
                     cv2.putText(

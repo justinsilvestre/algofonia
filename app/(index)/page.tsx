@@ -7,8 +7,11 @@ import { useTone } from "./SoundPlayer";
 import { ToneControls } from "./tone";
 import { useP5, VisualsCanvas } from "./VisualsCanvas";
 import p5 from "p5";
-import { RefObject, useCallback, useState } from "react";
-import { draw, setup } from "./sketch";
+import { RefObject, useCallback, useRef, useState } from "react";
+import { draw, setup } from "./sketch/sketch";
+import * as Tone from "tone";
+import { useWebsocket } from "../useWebsocket";
+import { Visitor } from "./sketch/Visitor";
 
 export default function PlayPage() {
   const P5Class = useP5();
@@ -19,18 +22,55 @@ export default function PlayPage() {
   const [visualsStarted, setVisualsStarted] = useState(false);
   const startVisuals = () => {
     if (!started) {
-      start().then(() => setVisualsStarted(true));
+      Tone.start().then(() => setVisualsStarted(true));
     } else {
       setVisualsStarted(true);
     }
   };
 
+  const visitors = useRef<Visitor[]>([]);
+
+  const p5InstanceRef = useRef<p5 | null>(null);
+  const followMouse = useRef(true);
+
+  useWebsocket({
+    handleMessage(message) {
+      if (message.type === "PERSON_POSITION") {
+        followMouse.current = false;
+        if (!p5InstanceRef.current) return;
+
+        const coordinates = toCanvasCoordinates(
+          p5InstanceRef.current,
+          message.x,
+          message.y
+        );
+        if (visitors.current[message.personIdx]) {
+          visitors.current[message.personIdx].position.set(
+            coordinates.x,
+            coordinates.y
+          );
+        } else {
+          const newVisitor = new Visitor(
+            p5InstanceRef.current,
+            coordinates.x,
+            coordinates.y
+          );
+          visitors.current[message.personIdx] = newVisitor;
+        }
+      }
+    },
+  });
+
   const loadSketch = useCallback(
     (p5Instance: p5, parent: RefObject<string | object | p5.Element>) => {
+      p5InstanceRef.current = p5Instance;
       console.log("Loading sketch into parent:", parent.current);
 
-      p5Instance.draw = () => draw(p5Instance, controls);
-      p5Instance.setup = () => setup(p5Instance, parent.current);
+      p5Instance.draw = () =>
+        draw(p5Instance, controls, visitors.current, followMouse.current);
+      p5Instance.setup = () => {
+        setup(p5Instance, parent.current, visitors.current);
+      };
     },
     [controls]
   );
@@ -90,4 +130,23 @@ function DisplayChannel<Key extends ChannelKey>({
   const state = channel.state;
 
   return <div>{definition.renderMonitorDisplay?.(state, setState, tone)}</div>;
+}
+
+/** not final! */
+function toCanvasCoordinates(
+  p5Instance: p5,
+  gridX: number,
+  gridY: number
+): { x: number; y: number } {
+  // Grid extents in meters
+  const MIN_X = 0.37918;
+  const MAX_X = 3.77447;
+  const MIN_Y = -0.32095;
+  const MAX_Y = 2.91386;
+
+  // Map grid coordinates to canvas coordinates
+  const x = p5Instance.map(gridX, MIN_X, MAX_X, 0, p5Instance.width);
+  const y = p5Instance.map(gridY, MIN_Y, MAX_Y, 0, p5Instance.height);
+
+  return { x, y };
 }

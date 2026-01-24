@@ -45,7 +45,7 @@ To run the server that serves the page with the audio + visuals:
    ```bash
    npm run dev
    ```
-2. Navigate to the app. By default the location will be [http://localhost:3000/](http://localhost:3000/)
+2. Navigate to the app. By default the location will be [https://localhost:3000/](https://localhost:3000/)
 
 ## Running motion capture
 
