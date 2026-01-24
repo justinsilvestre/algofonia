@@ -1,0 +1,4 @@
+[tools]
+nodejs = "24.11.0"
+poetry = { version="2.3", pyproject="{{ config_root }}/pyproject.toml" }
+python = "3.10" # must be after poetry so the poetry bin is first in PATH
