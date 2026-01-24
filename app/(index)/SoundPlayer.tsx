@@ -9,6 +9,7 @@ import type {
   ChannelOf,
   ChannelKey,
   ChannelsDefinitions,
+  ChannelStateOf,
 } from "./channels/definitions";
 
 export function useTone(
@@ -45,25 +46,25 @@ export function useTone(
   );
 
   const getSetState = useCallback(
-    <Key extends ChannelKey, State = ChannelOf<Key>["state"]>(
-      channel: ChannelOf<Key>
-    ) => {
+    <Key extends ChannelKey>(channel: ChannelOf<Key>) => {
       const index = activeChannels.findIndex((c) => c.key === channel.key);
-      const setState: SetState<State> = (updater) => {
+      const setState: SetState<ChannelStateOf<Key>> = (updater) => {
         const newChannels = [...activeChannels];
         const oldChannel = newChannels[index];
         const oldState = oldChannel.state;
         const newState =
           typeof updater === "function"
-            ? (updater as (prevState: typeof oldState) => typeof oldState)(
-                oldState
-              )
+            ? (
+                updater as (
+                  prevState: ChannelStateOf<Key>
+                ) => ChannelStateOf<Key>
+              )(oldState)
             : updater;
         newChannels[index] = {
           ...oldChannel,
           state: newState,
         };
-        // Call onStateChange if defined
+
         const definition = oldChannel.definition;
         if (definition.onStateChange) {
           definition.onStateChange(
@@ -126,7 +127,6 @@ export function useTone(
             newChannelInitialState.definition.onStateChange?.(
               controls,
               newChannelInitialState.controls,
-              // @ts-expect-error -- expecting objects, trying to keep typings simple
               { ...newChannelInitialState.state, ...oldActiveChannel.state },
               newChannelInitialState.state
             ) || newChannelInitialState;
