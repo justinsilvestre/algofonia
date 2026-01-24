@@ -5,7 +5,7 @@ export const synth = defineChannel({
   initialize: (tone: ToneControls) => {
     // Placeholder for synth channel initialization
     return {
-      nodes: {},
+      controls: {},
       state: { boop: "scoop" },
     };
   },
