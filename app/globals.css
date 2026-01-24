@@ -1,5 +1,26 @@
 @import "tailwindcss";
 
+@theme {
+  --slider-track-color: #374151;
+  --slider-thumb-color: #06b6d4;
+  --tick-color: white;
+  --steps-count: 1;
+}
+
+@utility slider-* {
+  --slider-thumb-color: --value(--color-*);
+  --slider-track-color: color-mix(
+    in srgb,
+    --value(--color-*) 20%,
+    var(--color-gray-900)
+  );
+  --tick-color: color-mix(
+    in srgb,
+    --value(--color-*) 50%,
+    var(--color-gray-900)
+  );
+}
+
 :root {
   --background: #ffffff;
   --foreground: #171717;
@@ -26,35 +47,40 @@ body {
   cursor: pointer;
 }
 
-.slider::-webkit-slider-track {
-  background: #374151;
-  height: 8px;
-  border-radius: 4px;
-}
-
-.slider::-webkit-slider-thumb {
-  -webkit-appearance: none;
-  appearance: none;
-  background: #06b6d4;
-  height: 20px;
-  width: 20px;
-  border-radius: 50%;
-  cursor: pointer;
-}
-
+.slider::-webkit-slider-track,
+.slider::-webkit-slider-runnable-track,
 .slider::-moz-range-track {
-  background: #374151;
+  background: var(--slider-track-color);
   height: 8px;
   border-radius: 4px;
+
+  background:
+    repeating-linear-gradient(
+      90deg,
+      var(--tick-color) 0,
+      var(--tick-color) 2px,
+      transparent 2px,
+      transparent calc((100% / (var(--steps-count) - 1)))
+    ),
+    var(--slider-track-color);
+}
+.slider::-moz-range-track {
   border: none;
 }
 
+.slider::-webkit-slider-thumb,
 .slider::-moz-range-thumb {
-  background: #06b6d4;
+  background: var(--slider-thumb-color);
   height: 20px;
   width: 20px;
   border-radius: 50%;
   cursor: pointer;
+}
+.slider::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  appearance: none;
+}
+.slider::-moz-range-thumb {
   border: none;
 }
 
