@@ -17,30 +17,10 @@
  * - Space key: reset particles
  */
 
-import type P5 from "p5";
-
-interface IParticle {
-  position: P5.Vector;
-  col: P5.Color;
-  velocity: P5.Vector;
-  dt: number;
-  v: number;
-  t: number;
-  w: number;
-  distToTarget: number;
-  isAlive: boolean;
-  collisionCooldown: number;
-}
-
-interface IVisitor {
-  position: P5.Vector;
-  col: P5.Color;
-  particles: Particle[];
-  targetVisitor: Visitor | null;
-}
+import P5 from "p5";
+import { ToneControls } from "./tone";
 
 const visitors: Visitor[] = [];
-let noteIndex: number = 0;
 
 // ---- AUDIO (p5.sound) ----
 // let osc: P5.Oscillator;
@@ -52,12 +32,7 @@ const bConst: number = 1.3;
 const cConst: number = -0.1;
 const dConst: number = -1.2;
 
-// Simple scale (Hz), same as your original
-const scaleHz: number[] = [
-  261.63, 293.66, 329.63, 392.0, 440.0, 523.25, 587.33, 659.25,
-];
-
-class Particle implements IParticle {
+class Particle {
   p5: P5;
   position: P5.Vector;
   col: P5.Color;
@@ -132,7 +107,7 @@ class Particle implements IParticle {
   }
 }
 
-class Visitor implements IVisitor {
+class Visitor {
   p5: P5;
   position: P5.Vector;
   col: P5.Color;
@@ -198,9 +173,9 @@ class Visitor implements IVisitor {
   }
 }
 
-export function setup(p5: P5, parentId: string): void {
+export function setup(p5: P5, parent: string | object | P5.Element): void {
   const canvas = p5.createCanvas(p5.windowWidth, p5.windowHeight);
-  canvas.parent(parentId);
+  canvas.parent(parent);
 
   p5.background(0);
 
@@ -228,7 +203,7 @@ export function setup(p5: P5, parentId: string): void {
   // setupOSC();
 }
 
-export function draw(p5: P5): void {
+export function draw(p5: P5, tone: ToneControls): void {
   p5.noStroke();
   p5.fill(0, 30);
   p5.rect(0, 0, p5.width, p5.height);
@@ -253,7 +228,7 @@ export function draw(p5: P5): void {
     }
   }
 
-  checkCrossings(p5);
+  checkCrossings(p5, tone);
 
   // glow connections between particles across all visitors
   p5.blendMode(p5.ADD);
@@ -289,9 +264,10 @@ function updateVisitorTargets() {
   }
 }
 
-function checkCrossings(p5: P5) {
+function checkCrossings(p5: P5, tone: ToneControls) {
   const collisionThreshold = 15.0;
 
+  const collisionsThisFrame = new Set<P5.Vector>();
   for (let i = 0; i < visitors.length; i++) {
     for (let j = i + 1; j < visitors.length; j++) {
       const vi = visitors[i];
@@ -302,7 +278,7 @@ function checkCrossings(p5: P5) {
           if (p1.collisionCooldown === 0 && p2.collisionCooldown === 0) {
             const d = p1.position.dist(p2.position);
             if (d < collisionThreshold) {
-              triggerEvent(p5, p1.position);
+              collisionsThisFrame.add(p1.position);
               p1.collisionCooldown = 30;
               p2.collisionCooldown = 30;
             }
@@ -311,9 +287,16 @@ function checkCrossings(p5: P5) {
       }
     }
   }
+
+  // only trigger one event per frame
+  // because currently, only one synth is being used
+  // and triggering it twice in one frame causes an error.
+  if (collisionsThisFrame.size > 0) {
+    triggerEvent(p5, collisionsThisFrame.values().next().value!, tone);
+  }
 }
 
-function triggerEvent(p5: P5, loc: P5.Vector) {
+function triggerEvent(p5: P5, loc: P5.Vector, tone: ToneControls) {
   // visual flash
   p5.noStroke();
   p5.fill(255, 255);
@@ -322,8 +305,5 @@ function triggerEvent(p5: P5, loc: P5.Vector) {
   p5.noFill();
   p5.circle(loc.x, loc.y, 30);
 
-  // audio trigger
-  noteIndex = (noteIndex + 1) % scaleHz.length;
-  // osc.freq(scaleHz[noteIndex]);
-  // env.play(osc);
+  tone.blip();
 }

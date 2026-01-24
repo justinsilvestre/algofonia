@@ -23,7 +23,7 @@ export function useTone(
   );
   const start = useCallback(
     (startTime?: Tone.Unit.Time | undefined) => {
-      Tone.start().then(() => {
+      return Tone.start().then(() => {
         const { transport } = controls;
 
         const newChannels = channelsOrder.map((key) =>

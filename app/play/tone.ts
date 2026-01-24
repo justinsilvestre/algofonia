@@ -7,6 +7,17 @@ export type ToneControls = ReturnType<typeof getToneControls>;
 
 export function getToneControls(startBpm: number = START_BPM) {
   let targetBpm = startBpm;
+  let blipSynth: Tone.MembraneSynth;
+
+  Tone.loaded().then(() => {
+    blipSynth = getBlipSynth();
+    blipSynth.toDestination();
+  });
+
+  let key = "C";
+  let mode = "minor";
+  let chordRootScaleDegree = 1;
+
   return {
     get currentMeasureStartTime() {
       const position = Tone.getTransport().position as string;
@@ -38,11 +49,48 @@ export function getToneControls(startBpm: number = START_BPM) {
 
       return transport?.bpm?.value ?? startBpm;
     },
-    key: "C",
-    mode: "minor",
-    chordRootScaleDegree: 1,
+    get key() {
+      return key;
+    },
+    set key(newKey: string) {
+      key = newKey;
+    },
+    get mode() {
+      return mode;
+    },
+    set mode(newMode: string) {
+      mode = newMode;
+    },
+    get chordRootScaleDegree() {
+      return chordRootScaleDegree;
+    },
+    set chordRootScaleDegree(degree: number) {
+      chordRootScaleDegree = degree;
+    },
     getChord: (key: string, chordRootScaleDegree: number) => {
       return Key.majorKey(key).chords[chordRootScaleDegree - 1];
     },
+    blip() {
+      blipSynth.triggerAttackRelease("C6", "8n");
+    },
   };
+}
+
+function getBlipSynth() {
+  const synth = new Tone.MembraneSynth({
+    pitchDecay: 0.05,
+    octaves: 4,
+    oscillator: {
+      type: "sine",
+    },
+    envelope: {
+      attack: 0.001,
+      decay: 0.2,
+      sustain: 0.01,
+      release: 1.4,
+      attackCurve: "exponential",
+    },
+  });
+
+  return synth;
 }

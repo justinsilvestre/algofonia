@@ -1,6 +1,5 @@
 "use client";
-import { useEffect, useRef, useState } from "react";
-import { draw, setup } from "./sketch";
+import { RefObject, useEffect, useRef, useState } from "react";
 import type p5 from "p5";
 
 type P5Class = typeof p5;
@@ -21,9 +20,11 @@ export function useP5() {
 
 export function VisualsCanvas({
   P5Class,
+  loadSketch,
   className = "",
 }: {
   P5Class: P5Class;
+  loadSketch: (p: p5, parent: RefObject<string | object | p5.Element>) => void;
   className?: string;
 }) {
   const containerRef = useRef<HTMLDivElement>(null);
@@ -58,10 +59,11 @@ export function VisualsCanvas({
 
   useEffect(() => {
     if (!containerRef.current) return;
+    if (p5InstanceRef.current) return;
 
     p5InstanceRef.current = new P5Class((p) => {
-      p.setup = () => setup(p, "canvasContainer");
-      p.draw = () => draw(p);
+      if (!containerRef.current) throw new Error("Container ref is null");
+      loadSketch(p, containerRef as RefObject<string | object | p5.Element>);
     });
 
     return () => {
@@ -69,20 +71,7 @@ export function VisualsCanvas({
         p5InstanceRef.current.remove();
       }
     };
-  }, [P5Class, isFullscreen]);
-
-  useEffect(() => {
-    if (p5InstanceRef.current) {
-      if (isFullscreen) {
-        p5InstanceRef.current.resizeCanvas(
-          p5InstanceRef.current.windowWidth,
-          p5InstanceRef.current.windowHeight
-        );
-      } else {
-        p5InstanceRef.current.resizeCanvas(400, 300);
-      }
-    }
-  }, [isFullscreen]);
+  }, [P5Class, isFullscreen, loadSketch]);
 
   useEffect(() => {
     const handleResize = () => {
