@@ -20,7 +20,7 @@ You may also use something like `pip` to install the dependencies manually. They
 
 ### Using mise to install NPM and Poetry
 
-The version manager mise will manage the installation of both NPM, Python, and Poetry automatically for you, ensuring you have the correct version of each. Learn how to install it here: https://mise.jdx.dev/getting-started.html
+The version manager mise will manage the installation of NPM, Python, and Poetry automatically for you, ensuring you have the correct version of each. Learn how to install it here: https://mise.jdx.dev/getting-started.html
 
 Once mise is installed, you can run this command:
 
@@ -43,9 +43,10 @@ To run the server that serves the page with the audio + visuals:
 
 1. Run the app via:
    ```bash
+   # in the repository root:
    npm run dev
    ```
-2. Navigate to the app. By default the location will be [https://localhost:3000/](https://localhost:3000/)
+2. Navigate to the app in your browser. By default the location will be [https://localhost:3000/](https://localhost:3000/)
 
 ## Running motion capture
 
