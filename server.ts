@@ -2,6 +2,7 @@ import * as http from "http";
 import * as https from "https";
 import { parse } from "url";
 import next from "next";
+import { Server as OSCServer } from "node-osc";
 import { startWebSocketServer } from "./app/server/websocketServer.js";
 import { getCert } from "./app/server/getCert.js";
 import { getLocalIp } from "./app/server/getLocalIp.js";
@@ -34,6 +35,14 @@ async function startServer() {
     await app.prepare();
     console.log("✅ Next.js app prepared");
 
+    // Start OSC listener (for motion-tracking skeleton.py)
+    const oscPort = 9000;
+    const oscServer = new OSCServer(oscPort, "0.0.0.0");
+
+    console.log(
+      `✅ OSC server listening on udp://0.0.0.0:${oscPort} (e.g. /people/position)`
+    );
+
     let server: http.Server | https.Server;
     if (useHttps) {
       const { cert } = await getCert("https");
@@ -64,10 +73,21 @@ async function startServer() {
     console.log("✅ Server created");
 
     // Start WebSocket server
-    const wsServer = await startWebSocketServer({
-      httpServer: server,
-    });
+    const { websocketServer: wsServer, broadcastPersonPosition } =
+      await startWebSocketServer({
+        httpServer: server,
+      });
     console.log("✅ WebSocket server started");
+
+    // Connect OSC to WebSocket broadcasting
+    oscServer.on("message", (msg: unknown) => {
+      if ((msg as [string, number, number, number])[0] === "/people/position") {
+        const [_, personIdx, x, y] = msg as [string, number, number, number];
+        console.log(`osc: /person/position ${[personIdx, x, y].join(", ")}`);
+        // Forward to all connected WebSocket clients
+        broadcastPersonPosition(personIdx, x, y);
+      }
+    });
 
     // Start Next.js server
     server.listen(port, () => {
@@ -98,13 +118,13 @@ async function startServer() {
           "TUNNELING ENABLED - to access the dev site from anywhere, use the provided tunnel URL.",
           "",
           `LISTEN TO MUSIC at:`,
-          `   🔊 http${useHttps ? "s" : ""}://<your-tunnel-url>/listen`,
+          `   🔊 http${useHttps ? "s" : ""}://<your-tunnel-url>/`,
           `   Or, on this machine, at http${
             useHttps ? "s" : ""
-          }://localhost:${port}/listen`,
+          }://localhost:${port}/`,
           "",
-          `MAKE MUSIC on local network at:`,
-          `   🎶 http${useHttps ? "s" : ""}://${localIp}:${port}`,
+          // `MAKE MUSIC on local network at:`,
+          // `   🎶 http${useHttps ? "s" : ""}://${localIp}:${port}`,
         ]);
       } else {
         logInBox([
@@ -113,10 +133,10 @@ async function startServer() {
           `   🔊 http${useHttps ? "s" : ""}://${localIp}:${port}/listen`,
           `   Or, on this machine, at http${
             useHttps ? "s" : ""
-          }://localhost:${port}/listen`,
+          }://localhost:${port}/`,
           "",
-          `MAKE MUSIC on local network at:`,
-          `   🎶 http${useHttps ? "s" : ""}://${localIp}:${port}`,
+          // `MAKE MUSIC on local network at:`,
+          // `   🎶 http${useHttps ? "s" : ""}://${localIp}:${port}`,
         ]);
       }
     });

@@ -41,6 +41,12 @@ export type MessageToClient =
       beatNumber: number;
       beatTimestamp: number;
     }
+  | {
+      type: "PERSON_POSITION";
+      personIdx: number;
+      x: number;
+      y: number;
+    }
   | MotionInputMessageToClient;
 
 export type MotionInputMessageToClient = {

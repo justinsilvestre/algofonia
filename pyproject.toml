@@ -1,0 +1,13 @@
+[tool.poetry]
+name = "algofonia"
+version = "0.0.0"
+
+
+[tool.poetry.dependencies]
+python = "^3.10"
+ultralytics = "*"
+opencv-python = "*"
+numpy = "<2"
+python-osc = "*"
+torch = "2.2.2"
+torchvision = "0.17.2"

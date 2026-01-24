@@ -1,14 +1,14 @@
 "use client";
 import { useCallback, useEffect, useRef, useState } from "react";
-import { useWebsocket } from "./useWebsocket";
-import { MessageToClient, RoomState } from "./WebsocketMessage";
-import { useBeatsListener } from "./listen/useBeatsListener";
-import { useServerTimeSync } from "./listen/useServerTimeSync";
-import { getOrientationControlFromEvent } from "./movement-test/getOrientationControlFromEvent";
-import { getRoomName } from "./getRoomName";
-import { useCanvas, MotionVisuals } from "./MotionVisuals";
+import { useWebsocket } from "@/app/useWebsocket";
+import { MessageToClient, RoomState } from "@/app/WebsocketMessage";
+import { useBeatsListener } from "@/app/listen/useBeatsListener";
+import { useServerTimeSync } from "@/app/listen/useServerTimeSync";
+import { getOrientationControlFromEvent } from "@/app/movement-test/getOrientationControlFromEvent";
+import { getRoomName } from "@/app/getRoomName";
+import { useCanvas, MotionVisuals } from "@/app/MotionVisuals";
 import { useWakeLock } from "react-screen-wake-lock";
-import { useMovement } from "./useMovement";
+import { useMovement } from "@/app/useMovement";
 
 const SHOW_DEBUG_TEXT = true;
 
@@ -86,7 +86,6 @@ export default function InputClientPage() {
     outputClients: [],
     subscriptionsCount: 0,
     beat: null,
-    tutorial: null,
   });
 
   const movement = useMovement();

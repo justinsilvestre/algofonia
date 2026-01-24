@@ -4,7 +4,7 @@ import { createServer as createHttpServer } from "http";
 import { MessageToClient, MessageToServer } from "../WebsocketMessage";
 
 type ConnectionsState = {
-  connectedClients: Set<WebSocket>;
+  clientsInRooms: Set<WebSocket>;
   nextUserId: number;
   rooms: Map<string, Room>;
   subscribers: Map<string, Set<WebSocket>>;
@@ -25,19 +25,18 @@ type WebSocketServerOptions = {
   httpServer: ReturnType<typeof createHttpsServer | typeof createHttpServer>;
 };
 
-export async function startWebSocketServer(
-  options: WebSocketServerOptions
-): Promise<WebSocketServer> {
+export async function startWebSocketServer(options: WebSocketServerOptions) {
   const websocketServer = new WebSocketServer({
     noServer: true,
     path: "/ws",
   });
 
   const connectedClients = new Set<WebSocket>();
+  const clientsInRooms = new Set<WebSocket>();
   const rooms = new Map<string, Room>();
   const subscribers = new Map<string, Set<WebSocket>>();
   const connectionsState: ConnectionsState = {
-    connectedClients,
+    clientsInRooms: clientsInRooms,
     rooms,
     nextUserId: 1,
     subscribers,
@@ -45,6 +44,7 @@ export async function startWebSocketServer(
 
   websocketServer.on("connection", (socket: WebSocket) => {
     console.log("New WebSocket connection");
+    connectedClients.add(socket);
 
     socket.on("message", (data) => {
       console.log("Received WebSocket message:", data.toString());
@@ -54,6 +54,7 @@ export async function startWebSocketServer(
     socket.on("close", () => {
       console.log("WebSocket connection closed");
       connectedClients.delete(socket);
+      clientsInRooms.delete(socket);
       subscribers.forEach((roomSubscribers, roomName) => {
         roomSubscribers.delete(socket);
         if (roomSubscribers.size === 0) {
@@ -106,7 +107,22 @@ export async function startWebSocketServer(
   process.on("SIGTERM", shutdown);
   process.on("SIGINT", shutdown);
 
-  return websocketServer;
+  return {
+    websocketServer,
+    broadcastPersonPosition: (personIdx: number, x: number, y: number) => {
+      const message: MessageToClient = {
+        type: "PERSON_POSITION",
+        personIdx,
+        x,
+        y,
+      };
+      connectedClients.forEach((client) => {
+        if (client.readyState === WebSocket.OPEN) {
+          client.send(JSON.stringify(message));
+        }
+      });
+    },
+  };
 }
 
 function handleMessage(
@@ -146,7 +162,7 @@ function handleMessage(
 
       const userId = connectionsState.nextUserId++;
       connectionsState.rooms.set(message.roomName, room);
-      connectionsState.connectedClients.add(socket);
+      connectionsState.clientsInRooms.add(socket);
       room[
         message.clientType === "input" ? "inputClients" : "outputClients"
       ].set(socket, userId);
