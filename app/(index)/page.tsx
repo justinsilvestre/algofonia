@@ -77,7 +77,7 @@ export default function PlayPage() {
 
   return (
     <div id="container" className="w-screen h-screen text-white bg-black p-4">
-      <div className="flex flex-row flex-wrap gap-6 mt-4">
+      <div className="flex flex-row flex-wrap justify-center items-center gap-6">
         <div className="shrink-0">
           {P5Class && visualsStarted && (
             <VisualsCanvas P5Class={P5Class} loadSketch={loadSketch} />
@@ -100,18 +100,17 @@ export default function PlayPage() {
             Start Audio
           </button>
         )}
-        <div className="flex-1 space-y-4 text-white flex flex-row flex-wrap gap-4">
-          {activeChannels.map((channel) => {
-            return (
-              <DisplayChannel
-                key={channel.key}
-                channel={channel}
-                tone={controls}
-                setState={getSetState(channel)}
-              />
-            );
-          })}
-        </div>
+
+        {activeChannels.map((channel) => {
+          return (
+            <DisplayChannel
+              key={channel.key}
+              channel={channel}
+              tone={controls}
+              setState={getSetState(channel)}
+            />
+          );
+        })}
       </div>
     </div>
   );
@@ -129,7 +128,7 @@ function DisplayChannel<Key extends ChannelKey>({
   const { definition } = channel;
   const state = channel.state;
 
-  return <div>{definition.renderMonitorDisplay?.(state, setState, tone)}</div>;
+  return <>{definition.renderMonitorDisplay?.(state, setState, tone)}</>;
 }
 
 /** not final! */

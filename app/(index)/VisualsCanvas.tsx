@@ -95,7 +95,7 @@ export function VisualsCanvas({
         overflow-hidden ${className} ${
           isFullscreen
             ? "fixed inset-0 z-50 bg-black w-screen h-screen cursor-none"
-            : " bg-gray-900 cursor-pointer w-[600px] h-[450px] border border-white/40 rounded-lg shadow-lg"
+            : " bg-gray-900 cursor-pointer w-[600px] h-70 border border-white/40 rounded-lg shadow-lg"
         }
       `}
       onClick={isFullscreen ? undefined : toggleFullscreen}

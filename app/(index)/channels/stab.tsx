@@ -2,6 +2,7 @@ import * as Tone from "tone";
 import { defineChannel } from "../Channel";
 import { getStabSynth } from "../synth/getStabSynth";
 import { ChannelDisplay, ChannelDisplayItem } from "../ChannelDisplay";
+import { Slider } from "../ChannelDisplaySlider";
 
 const ebChord: Tone.Unit.Note[] = ["Eb3", "Gb3", "Bb3"];
 const abChord: Tone.Unit.Note[] = ["Ab3", "C4", "Eb4"];
@@ -107,7 +108,7 @@ export const stab = defineChannel({
           <div className="flex flex-row flex-wrap justify-between">
             <ChannelDisplayItem
               className="flex-1 basis-full [&>.value]:text-blue-600"
-              label="Echo Wet"
+              label="Pattern"
               value={state.pattern}
             />
 
@@ -183,39 +184,4 @@ function pattern(
     chordType,
     duration,
   }));
-}
-
-function Slider({
-  className,
-  min,
-  max,
-  step,
-  notchesCount = 1,
-  value,
-  onChange,
-}: {
-  className?: string;
-  min: number;
-  max: number;
-  step: number;
-  notchesCount?: number;
-  value: number;
-  onChange: (value: number) => void;
-}) {
-  return (
-    <input
-      className={`${className} appearance-none slider`}
-      type="range"
-      min={min}
-      max={max}
-      step={step}
-      value={value}
-      onChange={(e) => onChange(parseFloat(e.target.value))}
-      style={
-        {
-          "--steps-count": notchesCount,
-        } as React.CSSProperties
-      }
-    />
-  );
 }

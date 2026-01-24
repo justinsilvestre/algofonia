@@ -1,5 +1,5 @@
 import * as Tone from "tone";
-import { Key } from "tonal";
+import { Key, Scale } from "tonal";
 
 const START_BPM = 100;
 
@@ -14,9 +14,12 @@ export function getToneControls(startBpm: number = START_BPM) {
     blipSynth.toDestination();
   });
 
-  let key = "C";
-  let mode = "minor";
+  let tonic = "D#";
+  let scale = "minor";
   let chordRootScaleDegree = 1;
+
+  let lastBlipScaleDegree = 1;
+  let lastBlipOctave = 3;
 
   return {
     get currentMeasureStartTime() {
@@ -49,17 +52,17 @@ export function getToneControls(startBpm: number = START_BPM) {
 
       return transport?.bpm?.value ?? startBpm;
     },
-    get key() {
-      return key;
+    get tonic() {
+      return tonic;
     },
-    set key(newKey: string) {
-      key = newKey;
+    set tonic(newKey: string) {
+      tonic = newKey;
     },
-    get mode() {
-      return mode;
+    get scale() {
+      return scale;
     },
-    set mode(newMode: string) {
-      mode = newMode;
+    set scale(newScale: string) {
+      scale = newScale;
     },
     get chordRootScaleDegree() {
       return chordRootScaleDegree;
@@ -67,11 +70,19 @@ export function getToneControls(startBpm: number = START_BPM) {
     set chordRootScaleDegree(degree: number) {
       chordRootScaleDegree = degree;
     },
-    getChord: (key: string, chordRootScaleDegree: number) => {
-      return Key.majorKey(key).chords[chordRootScaleDegree - 1];
-    },
     blip() {
-      blipSynth.triggerAttackRelease("C6", "8n");
+      const octaveDelta = getLowerDelta();
+      const octave = clamp(lastBlipOctave + octaveDelta, 3, 7);
+      lastBlipOctave = octave;
+      const scaleNotes = Scale.get(`${tonic}${octave} ${scale}`).notes;
+      const noteDelta = getLowDelta();
+      const blipScaleDegree =
+        Math.random() < 0.25
+          ? 1
+          : clamp(lastBlipScaleDegree + noteDelta, 1, scaleNotes.length);
+      lastBlipScaleDegree = blipScaleDegree;
+      const note = scaleNotes[blipScaleDegree - 1] || scaleNotes[0];
+      blipSynth.triggerAttackRelease(note, Math.random());
     },
   };
 }
@@ -84,7 +95,7 @@ function getBlipSynth() {
       type: "sine",
     },
     envelope: {
-      attack: 0.001,
+      attack: 0.01,
       decay: 0.2,
       sustain: 0.01,
       release: 1.4,
@@ -93,4 +104,26 @@ function getBlipSynth() {
   });
 
   return synth;
+}
+
+function clamp(value: number, min: number, max: number) {
+  return Math.min(Math.max(value, min), max);
+}
+
+/** Return -2 to 2, with a bias towards smaller intervals */
+function getLowDelta() {
+  const rand = Math.random();
+  if (rand < 0.4) return 0;
+  if (rand < 0.65) return Math.random() < 0.5 ? -1 : 1;
+  if (rand < 0.8) return Math.random() < 0.5 ? -2 : 2;
+  return Math.random() < 0.5 ? -3 : 3;
+}
+
+/** Return -2 to 2, with a greater bias towards smaller intervals */
+function getLowerDelta() {
+  const rand = Math.random();
+  if (rand < 0.6) return 0;
+  if (rand < 0.85) return Math.random() < 0.5 ? -1 : 1;
+  if (rand < 0.95) return Math.random() < 0.5 ? -2 : 2;
+  return Math.random() < 0.5 ? -3 : 3;
 }

@@ -1,6 +1,7 @@
 import * as Tone from "tone";
 import { defineChannel } from "../Channel";
 import { ChannelDisplay, ChannelDisplayItem } from "../ChannelDisplay";
+import { Slider } from "../ChannelDisplaySlider";
 
 type DrumEvent = "K" | "S" | "KS" | null | DrumEvent[];
 type PatternName = keyof typeof patterns;
@@ -190,40 +191,5 @@ function getSequenceForPattern(
     },
     pattern,
     "4n"
-  );
-}
-
-function Slider({
-  className,
-  min,
-  max,
-  step,
-  notchesCount = 1,
-  value,
-  onChange,
-}: {
-  className?: string;
-  min: number;
-  max: number;
-  step: number;
-  notchesCount?: number;
-  value: number;
-  onChange: (value: number) => void;
-}) {
-  return (
-    <input
-      className={`${className} appearance-none slider`}
-      type="range"
-      min={min}
-      max={max}
-      step={step}
-      value={value}
-      onChange={(e) => onChange(parseFloat(e.target.value))}
-      style={
-        {
-          "--steps-count": notchesCount,
-        } as React.CSSProperties
-      }
-    />
   );
 }

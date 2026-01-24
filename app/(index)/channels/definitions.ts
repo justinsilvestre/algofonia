@@ -4,6 +4,9 @@ import { synth } from "./synth";
 import { master } from "./master";
 import { Channel } from "../Channel";
 
+export type ChannelsDefinitions = typeof channelsDefinitions;
+export type ChannelKey = keyof ChannelsDefinitions;
+
 export const channelsDefinitions = {
   synth,
   drums,
@@ -11,10 +14,7 @@ export const channelsDefinitions = {
   master,
 } as const;
 
-export const channelsOrder: ChannelKey[] = ["stab", "master", "drums"];
-
-export type ChannelsDefinitions = typeof channelsDefinitions;
-export type ChannelKey = keyof ChannelsDefinitions;
+export const channelsOrder: ChannelKey[] = ["master", "drums", "stab"];
 
 export type ChannelOf<Key extends ChannelKey = ChannelKey> = Channel<
   Key,
