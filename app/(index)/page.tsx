@@ -3,7 +3,7 @@ import { channelsDefinitions, channelsOrder } from "./channels/definitions";
 import { SetState } from "./Channel";
 import { ChannelOf } from "./channels/definitions";
 import { ChannelKey } from "./channels/definitions";
-import { useTone } from "./SoundPlayer";
+import { useTone } from "./useTone";
 import { ToneControls } from "./tone";
 import { useP5, VisualsCanvas } from "./VisualsCanvas";
 import p5 from "p5";

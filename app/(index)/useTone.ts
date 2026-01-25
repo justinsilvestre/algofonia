@@ -18,7 +18,9 @@ export function useTone(
 ) {
   const [controls] = useState<ToneControls>(() => getToneControls());
 
-  const [startedOnce, setStartedOnce] = useState(false);
+  const [startedOnce, setStartedOnce] = useState(() => {
+    return controls.transport.state === "started";
+  });
   const [activeChannels, setActiveChannels] = useState<ChannelOf<ChannelKey>[]>(
     []
   );
@@ -87,25 +89,24 @@ export function useTone(
   useDidChange(channelsDef, (current, previous) => {
     console.log("Updating channels due to definition or order change");
     const newActiveChannels: ChannelOf<ChannelKey>[] = [];
-    for (const newActiveChannelsKey of current.channelsOrder) {
+    for (const newActiveChannelKey of current.channelsOrder) {
       const oldActiveChannel = activeChannels.find(
-        (c) => c.key === newActiveChannelsKey
+        (c) => c.key === newActiveChannelKey
       );
       const newChannelHasBeenAdded = !oldActiveChannel;
       if (newChannelHasBeenAdded) {
         const newActiveChannel = createChannel(
-          newActiveChannelsKey,
+          newActiveChannelKey,
           // @ts-expect-error -- parameter type inference issue
-          current.channelsDefinitions[newActiveChannelsKey],
+          current.channelsDefinitions[newActiveChannelKey],
           controls
         );
         newActiveChannels.push(newActiveChannel);
       } else {
         // an active channel with this key has existed since before the change,
         // meaning that we need to check if its definition has changed
-        const oldDefinition =
-          previous.channelsDefinitions[oldActiveChannel.key];
-        const newDefinition = current.channelsDefinitions[oldActiveChannel.key];
+        const oldDefinition = previous.channelsDefinitions[newActiveChannelKey];
+        const newDefinition = current.channelsDefinitions[newActiveChannelKey];
         const channelUnchanged = oldDefinition === newDefinition;
         if (channelUnchanged) {
           // keep old channel as is
@@ -117,20 +118,30 @@ export function useTone(
             oldActiveChannel.controls,
             oldActiveChannel.state
           );
-          const newChannelInitialState = createChannel(
-            oldActiveChannel.key,
+          const newActiveChannelBase = createChannel(
+            newActiveChannelKey,
             // @ts-expect-error -- parameter type inference issue
             newDefinition,
             controls
           );
-          const newActiveChannel =
-            newChannelInitialState.definition.onStateChange?.(
-              controls,
-              newChannelInitialState.controls,
-              { ...newChannelInitialState.state, ...oldActiveChannel.state },
-              newChannelInitialState.state
-            ) || newChannelInitialState;
-          newActiveChannels.push(newActiveChannel);
+          const newActiveChannelState = {
+            ...newActiveChannelBase.state,
+            ...oldActiveChannel.state,
+          };
+          newActiveChannelBase.definition.onStateChange?.(
+            controls,
+            newActiveChannelBase.controls,
+            oldActiveChannel.state,
+            newActiveChannelBase.state
+          );
+          console.log(
+            "New active channel state for " + newActiveChannelKey,
+            newActiveChannelState
+          );
+          newActiveChannels.push({
+            ...newActiveChannelBase,
+            state: newActiveChannelState,
+          });
         }
       }
     }
