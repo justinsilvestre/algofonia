@@ -1,11 +1,14 @@
 import * as Tone from "tone";
-import { Key, Scale } from "tonal";
+import { Scale } from "tonal";
 
 const START_BPM = 100;
 
 export type ToneControls = ReturnType<typeof getToneControls>;
 
-export function getToneControls(startBpm: number = START_BPM) {
+export function getToneControls(
+  startBpm: number = START_BPM,
+  onToneStateChange?: () => void
+) {
   let targetBpm = startBpm;
   let blipSynth: Tone.MembraneSynth;
 
@@ -55,20 +58,29 @@ export function getToneControls(startBpm: number = START_BPM) {
     get tonic() {
       return tonic;
     },
-    set tonic(newKey: string) {
-      tonic = newKey;
+    set tonic(newTonic: string) {
+      if (tonic !== newTonic) {
+        tonic = newTonic;
+        onToneStateChange?.();
+      }
     },
     get scale() {
       return scale;
     },
     set scale(newScale: string) {
-      scale = newScale;
+      if (scale !== newScale) {
+        scale = newScale;
+        onToneStateChange?.();
+      }
     },
     get chordRootScaleDegree() {
       return chordRootScaleDegree;
     },
     set chordRootScaleDegree(degree: number) {
-      chordRootScaleDegree = degree;
+      if (chordRootScaleDegree !== degree) {
+        chordRootScaleDegree = degree;
+        onToneStateChange?.();
+      }
     },
     blip() {
       const octaveDelta = getLowerDelta();

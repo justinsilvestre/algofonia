@@ -2,6 +2,8 @@ import * as Tone from "tone";
 import { defineChannel } from "../Channel";
 import { ChannelDisplay, ChannelDisplayItem } from "../ChannelDisplay";
 import { Slider } from "../ChannelDisplaySlider";
+import { get909KickSynth } from "../instruments/get909KickSynth";
+import { getSnareSynth } from "../instruments/getSnareSynth";
 
 type DrumEvent = "K" | "S" | "KS" | null | DrumEvent[];
 type PatternName = keyof typeof patterns;
@@ -88,89 +90,7 @@ export const drums = defineChannel({
       />
     );
   },
-}); /**
- * Creates a TR-909 inspired Kick Drum using Tone.js
- */
-
-function get909KickSynth() {
-  // 1. The Body: MembraneSynth handles the pitch envelope (the "oomph")
-  const oscillator = new Tone.MembraneSynth({
-    pitchDecay: 0.05,
-    // octaves: 10,
-    oscillator: { type: "sine" },
-    envelope: {
-      attack: 0.001,
-      decay: 0.4,
-      sustain: 0.01,
-      release: 1.4,
-    },
-  });
-
-  // 2. The Attack: NoiseSynth provides the initial "click"
-  const click = new Tone.NoiseSynth({
-    noise: { type: "white" },
-    envelope: {
-      attack: 0.001,
-      decay: 0.005,
-      sustain: 0,
-    },
-  });
-
-  // 3. Shaping: A low-pass filter to glue them together and remove harsh noise
-  const filter = new Tone.Filter({
-    type: "lowpass",
-    frequency: 800,
-    rolloff: -12,
-  });
-
-  const output = new Tone.Gain(1).toDestination();
-
-  // Signal Chain: [Osc/Click] -> [Filter] -> [Output]
-  oscillator.connect(filter);
-  click.connect(filter);
-  filter.connect(output);
-
-  return {
-    dispose: () => {
-      oscillator.dispose();
-      click.dispose();
-      filter.dispose();
-      output.dispose();
-    },
-    /**
-     * Triggers the hit at a specific transport time
-     */
-    hit: (time: Tone.Unit.Time = Tone.now()) => {
-      // 909 kicks usually sit around G1 (approx 49Hz)
-      oscillator.triggerAttackRelease("G1", "8n", time);
-      click.triggerAttackRelease(time);
-    },
-  };
-}
-
-function getSnareSynth() {
-  const synth = new Tone.NoiseSynth({
-    noise: { type: "pink" },
-    envelope: {
-      attack: 0.001,
-      decay: 0.18,
-      sustain: 0.05,
-    },
-  })
-    .connect(new Tone.Filter(2200, "highpass"))
-    .toDestination();
-
-  return {
-    synth,
-    hit: (time: Tone.Unit.Time) => {
-      synth.triggerAttackRelease("8n", time);
-    },
-    dispose: () => {
-      synth.dispose();
-    },
-  };
-}
-
+});
 function getSequenceForPattern(
   patternName: PatternName,
   kick: ReturnType<typeof get909KickSynth>,

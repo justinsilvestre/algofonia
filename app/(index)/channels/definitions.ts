@@ -1,6 +1,6 @@
 import { drums } from "./drums";
+import { drumMachine } from "./drumMachine";
 import { stab } from "./stab";
-import { synth } from "./synth";
 import { master } from "./master";
 import { Channel } from "../Channel";
 
@@ -8,13 +8,13 @@ export type ChannelsDefinitions = typeof channelsDefinitions;
 export type ChannelKey = keyof ChannelsDefinitions;
 
 export const channelsDefinitions = {
-  synth,
   drums,
+  drumMachine,
   stab,
   master,
 } as const;
 
-export const channelsOrder: ChannelKey[] = ["master", "drums", "stab"];
+export const channelsOrder: ChannelKey[] = ["master", "drumMachine", "stab"];
 
 export type ChannelOf<Key extends ChannelKey = ChannelKey> = Channel<
   Key,

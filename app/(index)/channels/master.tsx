@@ -66,7 +66,7 @@ export const master = defineChannel({
           <>
             <Slider
               min={60}
-              max={180}
+              max={250}
               step={1}
               value={state.bpm}
               onChange={(value) =>
