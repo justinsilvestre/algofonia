@@ -47,8 +47,7 @@ export type ChannelDefinition<
   renderMonitorDisplay?: (
     state: ChannelState,
     setState: SetState<ChannelState>,
-    toneControls: ToneControls,
-    controls: ChannelControls
+    toneControls: ToneControls
   ) => ReactNode;
 };
 

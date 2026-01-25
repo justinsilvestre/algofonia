@@ -8,7 +8,7 @@ import { getSnareSynth } from "../instruments/getSnareSynth";
 import { getLowTomSynth } from "@/app/(index)/instruments/getLowTomSynth";
 
 type InstrumentType = "kick" | "hat" | "tom" | "snare";
-type StepPattern = Record<InstrumentType, boolean[]>;
+type StepPattern = Record<InstrumentType, boolean[]>; // Always 16 steps
 
 const instruments: InstrumentType[] = ["kick", "hat", "tom", "snare"];
 
@@ -20,7 +20,7 @@ export const drumMachine = defineChannel({
     const snare = getSnareSynth();
 
     const initialPatternLength = 16;
-    const initialPattern = getEmptyPattern(initialPatternLength);
+    const initialPattern = getEmptyPattern(); // Always 16 steps
 
     const sequence = createSequence(
       initialPattern,
@@ -32,7 +32,7 @@ export const drumMachine = defineChannel({
 
     return {
       state: {
-        pattern: initialPattern,
+        pattern: initialPattern, // Always 16 steps
         patternLength: initialPatternLength,
         isPlaying: true,
         density: 0.3,
@@ -100,27 +100,29 @@ export const drumMachine = defineChannel({
               }}
             >
               {instruments.map((instrument, instrumentIndex) =>
-                state.pattern[instrument].map((isActive, stepIndex) => (
-                  <button
-                    key={`${instrument}-${stepIndex}`}
-                    data-step={stepIndex}
-                    data-instrument={instrument}
-                    title={
-                      instrument.charAt(0).toUpperCase() + instrument.slice(1)
-                    }
-                    onClick={() =>
-                      setState({
-                        ...state,
-                        pattern: {
-                          ...state.pattern,
-                          [instrument]: state.pattern[instrument].map(
-                            (step, index) =>
-                              index === stepIndex ? !step : step
-                          ),
-                        },
-                      })
-                    }
-                    className={`
+                state.pattern[instrument]
+                  .slice(0, state.patternLength)
+                  .map((isActive, stepIndex) => (
+                    <button
+                      key={`${instrument}-${stepIndex}`}
+                      data-step={stepIndex}
+                      data-instrument={instrument}
+                      title={
+                        instrument.charAt(0).toUpperCase() + instrument.slice(1)
+                      }
+                      onClick={() =>
+                        setState({
+                          ...state,
+                          pattern: {
+                            ...state.pattern,
+                            [instrument]: state.pattern[instrument].map(
+                              (step, index) =>
+                                index === stepIndex ? !step : step
+                            ),
+                          },
+                        })
+                      }
+                      className={`
                       w-8 h-8 rounded transition-all duration-150  data-deviated:bg-gray-400
                       ${
                         isActive
@@ -128,8 +130,8 @@ export const drumMachine = defineChannel({
                           : "bg-gray-300 hover:bg-gray-400"
                       }
                     `}
-                  />
-                ))
+                    />
+                  ))
               )}
             </div>
           </div>
@@ -159,10 +161,7 @@ export const drumMachine = defineChannel({
                   onClick={() =>
                     setState({
                       ...state,
-                      pattern: getRandomPattern(
-                        state.patternLength,
-                        state.density
-                      ),
+                      pattern: getRandomPattern(state.density),
                     })
                   }
                   className="px-3 py-1 text-xs bg-purple-500 text-white rounded hover:bg-purple-600 transition-colors"
@@ -173,7 +172,7 @@ export const drumMachine = defineChannel({
                   onClick={() =>
                     setState({
                       ...state,
-                      pattern: getEmptyPattern(state.patternLength),
+                      pattern: getEmptyPattern(),
                     })
                   }
                   className="px-3 py-1 text-xs bg-gray-500 text-white rounded hover:bg-gray-600 transition-colors"
@@ -191,7 +190,7 @@ export const drumMachine = defineChannel({
                 setState({
                   ...state,
                   patternLength: value,
-                  pattern: getPatternWithLength(state.pattern, value),
+                  // pattern stays the same - no truncation
                 })
               }
               className="w-full slider-blue-600"
@@ -206,7 +205,7 @@ export const drumMachine = defineChannel({
                 setState({
                   ...state,
                   density: value,
-                  pattern: getRandomPattern(state.patternLength, value),
+                  pattern: getRandomPattern(value),
                 })
               }
               className="w-full slider-green-600"
@@ -341,30 +340,19 @@ function updateHighlighting(
   }, time);
 }
 
-function getRandomPattern(length: number, density: number): StepPattern {
+function getRandomPattern(density: number): StepPattern {
   return {
-    kick: Array.from({ length }, () => Math.random() < density),
-    hat: Array.from({ length }, () => Math.random() < density),
-    tom: Array.from({ length }, () => Math.random() < density),
-    snare: Array.from({ length }, () => Math.random() < density),
+    kick: Array.from({ length: 16 }, () => Math.random() < density),
+    hat: Array.from({ length: 16 }, () => Math.random() < density),
+    tom: Array.from({ length: 16 }, () => Math.random() < density),
+    snare: Array.from({ length: 16 }, () => Math.random() < density),
   };
 }
-function getEmptyPattern(length: number): StepPattern {
+function getEmptyPattern(): StepPattern {
   return {
-    kick: Array(length).fill(false),
-    hat: Array(length).fill(false),
-    tom: Array(length).fill(false),
-    snare: Array(length).fill(false),
-  };
-}
-function getPatternWithLength(
-  pattern: StepPattern,
-  length: number
-): StepPattern {
-  return {
-    kick: Array.from({ length }, (_, i) => pattern.kick[i] || false),
-    hat: Array.from({ length }, (_, i) => pattern.hat[i] || false),
-    tom: Array.from({ length }, (_, i) => pattern.tom[i] || false),
-    snare: Array.from({ length }, (_, i) => pattern.snare[i] || false),
+    kick: Array(16).fill(false),
+    hat: Array(16).fill(false),
+    tom: Array(16).fill(false),
+    snare: Array(16).fill(false),
   };
 }
