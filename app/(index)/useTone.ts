@@ -1,7 +1,12 @@
 "use client";
 import { useCallback, useMemo, useState } from "react";
 import * as Tone from "tone";
-import { getToneControls, ToneControls } from "./tone";
+import {
+  getToneControls,
+  ToneControls,
+  ToneEventListenerArg,
+  ToneEventType,
+} from "./tone";
 import { createChannel } from "./createChannel";
 import { useDidChange } from "../listen/useDidChange";
 import type { SetState } from "./Channel";
@@ -34,6 +39,30 @@ export function useTone(
           createChannel(key, channelsDefinitions[key], controls)
         );
         setActiveChannels(newChannels);
+
+        for (const channel of newChannels) {
+          if (channel.definition.onToneEvent) {
+            for (const eventName in channel.definition.onToneEvent) {
+              const listener = (arg: ToneEventListenerArg<ToneEventType>) => {
+                const handler =
+                  channel.definition.onToneEvent?.[eventName as ToneEventType];
+                if (handler) {
+                  handler(
+                    channel.controls,
+                    channel.state,
+                    controls,
+                    arg as never
+                  );
+                }
+              };
+              controls.addEventListener(eventName as ToneEventType, listener);
+              channel.eventListeners[eventName as ToneEventType] = listener as (
+                ...args: unknown[]
+              ) => unknown[];
+            }
+          }
+        }
+
         console.log("Starting Tone.js Transport with channels:", newChannels);
 
         const startBpm = controls.getBpm();
@@ -77,6 +106,38 @@ export function useTone(
           );
         }
         setActiveChannels(newChannels);
+        for (const channel of newChannels) {
+          for (const eventName in channel.eventListeners) {
+            // de-register old listeners to avoid duplicates
+            const listener = channel.eventListeners[eventName as ToneEventType];
+            if (listener) {
+              controls.removeEventListener(
+                eventName as ToneEventType,
+                listener
+              );
+            }
+          }
+          if (channel.definition.onToneEvent) {
+            for (const eventName in channel.definition.onToneEvent) {
+              const listener = (arg: ToneEventListenerArg<ToneEventType>) => {
+                const handler =
+                  channel.definition.onToneEvent?.[eventName as ToneEventType];
+                if (handler) {
+                  handler(
+                    channel.controls,
+                    channel.state,
+                    controls,
+                    arg as never
+                  );
+                }
+              };
+              controls.addEventListener(eventName as ToneEventType, listener);
+              channel.eventListeners[eventName as ToneEventType] = listener as (
+                ...args: unknown[]
+              ) => unknown[];
+            }
+          }
+        }
       };
       return setState;
     },
@@ -116,7 +177,8 @@ export function useTone(
           oldDefinition.teardown(
             // @ts-expect-error -- suppressing potential runtime errors when structure changes
             oldActiveChannel.controls,
-            oldActiveChannel.state
+            oldActiveChannel.state,
+            controls
           );
           const newActiveChannelBase = createChannel(
             newActiveChannelKey,
@@ -154,11 +216,43 @@ export function useTone(
       definition.teardown(
         // @ts-expect-error -- suppressing potential runtime errors when structure changes
         channel.controls,
-        channel.state
+        channel.state,
+        controls
       );
+      for (const eventName in channel.eventListeners) {
+        const listener = channel.eventListeners[eventName as ToneEventType];
+        if (listener) {
+          controls.removeEventListener(eventName as ToneEventType, listener);
+        }
+      }
     });
 
     setActiveChannels(newActiveChannels);
+    for (const channel of newActiveChannels) {
+      // currently re-adding ALL event listeners, even for unchanged channels.
+      for (const eventName in channel.eventListeners) {
+        // de-register old listeners to avoid duplicates
+        const listener = channel.eventListeners[eventName as ToneEventType];
+        if (listener) {
+          controls.removeEventListener(eventName as ToneEventType, listener);
+        }
+      }
+      if (channel.definition.onToneEvent) {
+        for (const eventName in channel.definition.onToneEvent) {
+          const listener = (arg: ToneEventListenerArg<ToneEventType>) => {
+            const handler =
+              channel.definition.onToneEvent?.[eventName as ToneEventType];
+            if (handler) {
+              handler(channel.controls, channel.state, controls, arg as never);
+            }
+          };
+          controls.addEventListener(eventName as ToneEventType, listener);
+          channel.eventListeners[eventName as ToneEventType] = listener as (
+            ...args: unknown[]
+          ) => unknown[];
+        }
+      }
+    }
   });
 
   return useMemo(

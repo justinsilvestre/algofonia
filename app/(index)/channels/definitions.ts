@@ -3,6 +3,7 @@ import { drumMachine } from "./drumMachine";
 import { stab } from "./stab";
 import { master } from "./master";
 import { Channel } from "../Channel";
+import { ToneEventMap } from "../tone";
 
 export type ChannelsDefinitions = typeof channelsDefinitions;
 export type ChannelKey = keyof ChannelsDefinitions;
@@ -19,7 +20,8 @@ export const channelsOrder: ChannelKey[] = ["master", "drumMachine", "stab"];
 export type ChannelOf<Key extends ChannelKey = ChannelKey> = Channel<
   Key,
   ChannelControlsOf<Key>,
-  ChannelStateOf<Key>
+  ChannelStateOf<Key>,
+  ToneEventMap
 >;
 export type ChannelDefinitionOf<Key extends ChannelKey> =
   ChannelsDefinitions[Key];

@@ -3,14 +3,56 @@ import { Scale } from "tonal";
 
 const START_BPM = 100;
 
+export type ToneEventMap = {
+  tonicChange: string;
+  scaleChange: string;
+  chordRootScaleDegreeChange: number;
+};
+
+export type ToneEventType = keyof ToneEventMap;
+export type ToneEventListenerArg<T extends ToneEventType> = ToneEventMap[T];
+type ToneEventListener<T extends ToneEventType> = (
+  value: ToneEventMap[T]
+) => void;
+
 export type ToneControls = ReturnType<typeof getToneControls>;
 
-export function getToneControls(
-  startBpm: number = START_BPM,
-  onToneStateChange?: () => void
-) {
+export function getToneControls(startBpm: number = START_BPM) {
   let targetBpm = startBpm;
   let blipSynth: Tone.MembraneSynth;
+
+  const eventListeners = new Map<
+    ToneEventType,
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    Set<ToneEventListener<any>>
+  >();
+
+  const addEventListener = <T extends ToneEventType>(
+    event: T,
+    listener: ToneEventListener<T>
+  ) => {
+    if (!eventListeners.has(event)) {
+      eventListeners.set(event, new Set());
+    }
+    eventListeners.get(event)!.add(listener as ToneEventListener<T>);
+  };
+
+  const removeEventListener = <T extends ToneEventType>(
+    event: T,
+    listener: ToneEventListener<T>
+  ) => {
+    const listeners = eventListeners.get(event);
+    if (listeners) {
+      listeners.delete(listener as ToneEventListener<T>);
+    }
+  };
+
+  const emit = <T extends ToneEventType>(event: T, value: ToneEventMap[T]) => {
+    const listeners = eventListeners.get(event);
+    if (listeners) {
+      listeners.forEach((listener) => listener(value));
+    }
+  };
 
   Tone.loaded().then(() => {
     blipSynth = getBlipSynth();
@@ -25,6 +67,9 @@ export function getToneControls(
   let lastBlipOctave = 3;
 
   return {
+    eventListeners,
+    addEventListener,
+    removeEventListener,
     get currentMeasureStartTime() {
       const position = Tone.getTransport().position as string;
 
@@ -61,7 +106,7 @@ export function getToneControls(
     set tonic(newTonic: string) {
       if (tonic !== newTonic) {
         tonic = newTonic;
-        onToneStateChange?.();
+        emit("tonicChange", newTonic);
       }
     },
     get scale() {
@@ -70,7 +115,7 @@ export function getToneControls(
     set scale(newScale: string) {
       if (scale !== newScale) {
         scale = newScale;
-        onToneStateChange?.();
+        emit("scaleChange", newScale);
       }
     },
     get chordRootScaleDegree() {
@@ -79,7 +124,7 @@ export function getToneControls(
     set chordRootScaleDegree(degree: number) {
       if (chordRootScaleDegree !== degree) {
         chordRootScaleDegree = degree;
-        onToneStateChange?.();
+        emit("chordRootScaleDegreeChange", degree);
       }
     },
     blip() {

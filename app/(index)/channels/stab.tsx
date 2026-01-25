@@ -102,6 +102,34 @@ export const stab = defineChannel({
     synth.dispose();
     sequence?.dispose();
   },
+  onToneEvent: {
+    tonicChange: (controls, state, tone, newTonic) => {
+      controls.sequence?.dispose();
+
+      const newSequence = getSequenceForPattern(
+        state.pattern,
+        controls.synth,
+        newTonic,
+        tone.scale
+      );
+      newSequence?.start(tone.currentMeasureStartTime);
+
+      controls.sequence = newSequence;
+    },
+    scaleChange: (controls, state, tone, newScale) => {
+      controls.sequence?.dispose();
+
+      const newSequence = getSequenceForPattern(
+        state.pattern,
+        controls.synth,
+        tone.tonic,
+        newScale
+      );
+      newSequence?.start(tone.currentMeasureStartTime);
+
+      controls.sequence = newSequence;
+    },
+  },
   onStateChange: (
     { currentMeasureStartTime, tonic, scale },
     controls,
