@@ -18,7 +18,7 @@
  */
 
 import P5 from "p5";
-import { ToneControls } from "../tone";
+import type { ToneControls } from "../tone";
 import { Visitor } from "./Visitor";
 
 export function setup(

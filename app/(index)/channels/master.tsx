@@ -3,6 +3,10 @@ import { defineChannel } from "../Channel";
 import { ChannelDisplay, ChannelDisplayItem } from "../ChannelDisplay";
 import { Slider } from "../ChannelDisplaySlider";
 
+// prettier-ignore
+const pitches = ["C", "C#", "D", "D#", "E", "F", "F#", "G", "G#", "A", "A#", "B"];
+const scaleNames = Scale.names();
+
 export const master = defineChannel({
   initialize: ({ getBpm, tonic, chordRootScaleDegree }) => {
     return {
@@ -27,22 +31,7 @@ export const master = defineChannel({
     tone.chordRootScaleDegree = state.chordRootScaleDegree;
   },
   renderMonitorDisplay: (state, setState) => {
-    const tonics = [
-      "C",
-      "C#",
-      "D",
-      "D#",
-      "E",
-      "F",
-      "F#",
-      "G",
-      "G#",
-      "A",
-      "A#",
-      "B",
-    ];
-    const tonicIndex = tonics.indexOf(state.tonic);
-    const scaleNames = Scale.names();
+    const tonicIndex = pitches.indexOf(state.tonic);
 
     return (
       <ChannelDisplay
@@ -90,17 +79,17 @@ export const master = defineChannel({
             />
             <Slider
               min={0}
-              max={tonics.length - 1}
+              max={pitches.length - 1}
               step={1}
               value={tonicIndex}
               onChange={(value) =>
                 setState({
                   ...state,
-                  tonic: tonics[value],
+                  tonic: pitches[value],
                 })
               }
               className="w-full slider-green-600"
-              notchesCount={tonics.length}
+              notchesCount={pitches.length}
             />
 
             <Slider
