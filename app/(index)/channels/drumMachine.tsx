@@ -213,7 +213,7 @@ export const drumMachine = defineChannel({
             />
             <Slider
               min={0.0}
-              max={0.5}
+              max={0.2}
               step={0.01}
               value={state.deviation}
               onChange={(value) =>
