@@ -29,6 +29,12 @@ Once mise is installed, you can run this command:
 mise install
 ```
 
+If you get an error message about Python and symlinks, you can try this command so mise will try to build a compatible version of Python for you. It will take a couple minutes, but you will only have to run it once (assuming this is the actual issue).
+
+```
+mise settings set python_compile 1
+```
+
 Follow any prompts to install any missing plugins. Usually, the command to add a plugin look something like this:
 
 ```
