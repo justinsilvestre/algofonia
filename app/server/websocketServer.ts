@@ -109,12 +109,12 @@ export async function startWebSocketServer(options: WebSocketServerOptions) {
 
   return {
     websocketServer,
-    broadcastPersonPosition: (personIdx: number, x: number, y: number) => {
+    broadcastPeoplePositions: (
+      positions: Array<{ personId: number; x: number; y: number }>
+    ) => {
       const message: MessageToClient = {
-        type: "PERSON_POSITION",
-        personIdx,
-        x,
-        y,
+        type: "PEOPLE_POSITIONS",
+        positions,
       };
       connectedClients.forEach((client) => {
         if (client.readyState === WebSocket.OPEN) {

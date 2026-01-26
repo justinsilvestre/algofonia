@@ -9,160 +9,9 @@ import { Slider } from "../SoundModuleDisplaySlider";
 import { getSampleInstrument } from "../instruments/getSampleInstrument";
 
 type InstrumentType = "kick" | "hat" | "tom" | "snare";
-type StepPattern = Record<InstrumentType, boolean[]>; // Always 16 steps
+type StepPattern = Record<InstrumentType, boolean[]>;
 
 const instruments: InstrumentType[] = ["kick", "hat", "tom", "snare"];
-
-// Sample paths for drum sounds
-const BASE_PATH = "/samples/deep_house_drum_samples/Deep House Drum Samples";
-
-const SAMPLE_FILES = {
-  kick: [
-    "bd_909dwsd.wav",
-    "bd_chicago.wav",
-    "bd_dandans.wav",
-    "bd_deephouser.wav",
-    "bd_diesel.wav",
-    "bd_dropped.wav",
-    "bd_flir.wav",
-    "bd_gas.wav",
-    "bd_ghost.wav",
-    "bd_hybrid.wav",
-    "bd_isampleoldskool.wav",
-    "bd_liked.wav",
-    "bd_mainroom.wav",
-    "bd_mirror.wav",
-    "bd_nash.wav",
-    "bd_newyear.wav",
-    "bd_organicisin.wav",
-    "bd_outdoor.wav",
-    "bd_shoein.wav",
-    "bd_sodeep.wav",
-    "bd_sonikboom.wav",
-    "bd_streek.wav",
-    "bd_stripped.wav",
-    "bd_sub808.wav",
-    "bd_tech.wav",
-    "bd_tripper.wav",
-    "bd_uma.wav",
-    "bd_untitled.wav",
-    "bd_vintager.wav",
-    "bd_vinylinstereo.wav",
-  ],
-  hat: [
-    "hat_626.wav",
-    "hat_ace.wav",
-    "hat_addverb.wav",
-    "hat_analog.wav",
-    "hat_bebias.wav",
-    "hat_bestfriend.wav",
-    "hat_bigdeal.wav",
-    "hat_blackmamba.wav",
-    "hat_chart.wav",
-    "hat_charter.wav",
-    "hat_chipitaka.wav",
-    "hat_classical.wav",
-    "hat_classichousehat.wav",
-    "hat_closer.wav",
-    "hat_collective.wav",
-    "hat_crackers.wav",
-    "hat_critters.wav",
-    "hat_cuppa.wav",
-    "hat_darkstar.wav",
-    "hat_deephouseopen.wav",
-    "hat_drawn.wav",
-    "hat_freekn.wav",
-    "hat_gater.wav",
-    "hat_glitchbitch.wav",
-    "hat_hatgasm.wav",
-    "hat_hattool.wav",
-    "hat_jelly.wav",
-    "hat_kate.wav",
-    "hat_lights.wav",
-    "hat_lilcloser.wav",
-    "hat_mydustyhouse.wav",
-    "hat_myfavouriteopen.wav",
-    "hat_negative6.wav",
-    "hat_nice909open.wav",
-    "hat_niner0niner.wav",
-    "hat_omgopen.wav",
-    "hat_openiner.wav",
-    "hat_original.wav",
-    "hat_quentin.wav",
-    "hat_rawsample.wav",
-    "hat_retired.wav",
-    "hat_sampleking.wav",
-    "hat_samplekingdom.wav",
-    "hat_sharp.wav",
-    "hat_soff.wav",
-    "hat_spreadertrick.wav",
-    "hat_stereosonic.wav",
-    "hat_tameit.wav",
-    "hat_vintagespread.wav",
-    "hat_void.wav",
-  ],
-  tom: [
-    "tom_909fatty.wav",
-    "tom_909onvinyl.wav",
-    "tom_cleansweep.wav",
-    "tom_dept.wav",
-    "tom_discodisco.wav",
-    "tom_eclipse.wav",
-    "tom_enriched.wav",
-    "tom_enrico.wav",
-    "tom_greatwhite.wav",
-    "tom_iloveroland.wav",
-    "tom_madisonave.wav",
-    "tom_ofalltoms.wav",
-    "tom_summerdayze.wav",
-    "tom_taste.wav",
-    "tom_vsneve.wav",
-  ],
-  snare: [
-    "snr_analogging.wav",
-    "snr_answer8bit.wav",
-    "snr_bland.wav",
-    "snr_drm909kit.wav",
-    "snr_dwreal.wav",
-    "snr_housey.wav",
-    "snr_mpc.wav",
-    "snr_myclassicsnare.wav",
-    "snr_owned.wav",
-    "snr_royalty.wav",
-    "snr_rusnarious.wav",
-    "snr_truevintage.wav",
-  ],
-};
-
-function getRandomSampleFile(instrumentType: InstrumentType): string {
-  const files = SAMPLE_FILES[instrumentType];
-  const randomIndex = Math.floor(Math.random() * files.length);
-  return files[randomIndex];
-}
-
-function getSamplePath(
-  instrumentType: InstrumentType,
-  filename: string
-): string {
-  const folderName =
-    instrumentType === "kick"
-      ? "bd_kick"
-      : instrumentType === "hat"
-        ? "hats"
-        : instrumentType === "tom"
-          ? "toms"
-          : "snare";
-  return `${BASE_PATH}/${folderName}/${filename}`;
-}
-
-function getRandomSampleFiles() {
-  return {
-    kick: getRandomSampleFile("kick"),
-    hat: getRandomSampleFile("hat"),
-    tom: getRandomSampleFile("tom"),
-    snare: getRandomSampleFile("snare"),
-  };
-}
 
 export const drumMachine = defineSoundModule({
   initialize: ({ currentMeasureStartTime }) => {
@@ -271,6 +120,9 @@ export const drumMachine = defineSoundModule({
   },
 
   renderMonitorDisplay: (state, setState) => {
+    const patternIsEmpty = instruments.every((instrument) =>
+      state.pattern[instrument].every((step) => !step)
+    );
     return (
       <SoundModuleDisplay
         title="Drum Machine"
@@ -352,13 +204,14 @@ export const drumMachine = defineSoundModule({
                   Rhythm
                 </button>
                 <button
+                  disabled={patternIsEmpty}
                   onClick={() =>
                     setState({
                       ...state,
                       sampleFiles: getRandomSampleFiles(),
                     })
                   }
-                  className="px-3 py-1 text-xs bg-orange-500 text-white rounded hover:bg-orange-600 transition-colors"
+                  className="px-3 py-1 text-xs bg-orange-500 text-white rounded hover:bg-orange-600 transition-colors disabled:opacity-50"
                 >
                   Samples
                 </button>
@@ -375,6 +228,7 @@ export const drumMachine = defineSoundModule({
                   Both
                 </button>
                 <button
+                  disabled={patternIsEmpty}
                   onClick={() =>
                     setState({
                       ...state,
@@ -532,5 +386,156 @@ function getEmptyPattern(): StepPattern {
     hat: Array(16).fill(false),
     tom: Array(16).fill(false),
     snare: Array(16).fill(false),
+  };
+}
+
+// Sample paths for drum sounds
+const BASE_PATH = "/samples/deep_house_drum_samples/Deep House Drum Samples";
+
+const SAMPLE_FILES = {
+  kick: [
+    "bd_909dwsd.wav",
+    "bd_chicago.wav",
+    "bd_dandans.wav",
+    "bd_deephouser.wav",
+    "bd_diesel.wav",
+    "bd_dropped.wav",
+    "bd_flir.wav",
+    "bd_gas.wav",
+    "bd_ghost.wav",
+    "bd_hybrid.wav",
+    "bd_isampleoldskool.wav",
+    "bd_liked.wav",
+    "bd_mainroom.wav",
+    "bd_mirror.wav",
+    "bd_nash.wav",
+    "bd_newyear.wav",
+    "bd_organicisin.wav",
+    "bd_outdoor.wav",
+    "bd_shoein.wav",
+    "bd_sodeep.wav",
+    "bd_sonikboom.wav",
+    "bd_streek.wav",
+    "bd_stripped.wav",
+    "bd_sub808.wav",
+    "bd_tech.wav",
+    "bd_tripper.wav",
+    "bd_uma.wav",
+    "bd_untitled.wav",
+    "bd_vintager.wav",
+    "bd_vinylinstereo.wav",
+  ],
+  hat: [
+    "hat_626.wav",
+    "hat_ace.wav",
+    "hat_addverb.wav",
+    "hat_analog.wav",
+    "hat_bebias.wav",
+    "hat_bestfriend.wav",
+    "hat_bigdeal.wav",
+    "hat_blackmamba.wav",
+    "hat_chart.wav",
+    "hat_charter.wav",
+    "hat_chipitaka.wav",
+    "hat_classical.wav",
+    "hat_classichousehat.wav",
+    "hat_closer.wav",
+    "hat_collective.wav",
+    "hat_crackers.wav",
+    "hat_critters.wav",
+    "hat_cuppa.wav",
+    "hat_darkstar.wav",
+    "hat_deephouseopen.wav",
+    "hat_drawn.wav",
+    "hat_freekn.wav",
+    "hat_gater.wav",
+    "hat_glitchbitch.wav",
+    "hat_hatgasm.wav",
+    "hat_hattool.wav",
+    "hat_jelly.wav",
+    "hat_kate.wav",
+    "hat_lights.wav",
+    "hat_lilcloser.wav",
+    "hat_mydustyhouse.wav",
+    "hat_myfavouriteopen.wav",
+    "hat_negative6.wav",
+    "hat_nice909open.wav",
+    "hat_niner0niner.wav",
+    "hat_omgopen.wav",
+    "hat_openiner.wav",
+    "hat_original.wav",
+    "hat_quentin.wav",
+    "hat_rawsample.wav",
+    "hat_retired.wav",
+    "hat_sampleking.wav",
+    "hat_samplekingdom.wav",
+    "hat_sharp.wav",
+    "hat_soff.wav",
+    "hat_spreadertrick.wav",
+    "hat_stereosonic.wav",
+    "hat_tameit.wav",
+    "hat_vintagespread.wav",
+    "hat_void.wav",
+  ],
+  tom: [
+    "tom_909fatty.wav",
+    "tom_909onvinyl.wav",
+    "tom_cleansweep.wav",
+    "tom_dept.wav",
+    "tom_discodisco.wav",
+    "tom_eclipse.wav",
+    "tom_enriched.wav",
+    "tom_enrico.wav",
+    "tom_greatwhite.wav",
+    "tom_iloveroland.wav",
+    "tom_madisonave.wav",
+    "tom_ofalltoms.wav",
+    "tom_summerdayze.wav",
+    "tom_taste.wav",
+    "tom_vsneve.wav",
+  ],
+  snare: [
+    "snr_analogging.wav",
+    "snr_answer8bit.wav",
+    "snr_bland.wav",
+    "snr_drm909kit.wav",
+    "snr_dwreal.wav",
+    "snr_housey.wav",
+    "snr_mpc.wav",
+    "snr_myclassicsnare.wav",
+    "snr_owned.wav",
+    "snr_royalty.wav",
+    "snr_rusnarious.wav",
+    "snr_truevintage.wav",
+  ],
+};
+
+function getRandomSampleFile(instrumentType: InstrumentType): string {
+  const files = SAMPLE_FILES[instrumentType];
+  const randomIndex = Math.floor(Math.random() * files.length);
+  return files[randomIndex];
+}
+
+function getSamplePath(
+  instrumentType: InstrumentType,
+  filename: string
+): string {
+  const folderName =
+    instrumentType === "kick"
+      ? "bd_kick"
+      : instrumentType === "hat"
+        ? "hats"
+        : instrumentType === "tom"
+          ? "toms"
+          : "snare";
+  return `${BASE_PATH}/${folderName}/${filename}`;
+}
+
+function getRandomSampleFiles() {
+  return {
+    kick: getRandomSampleFile("kick"),
+    hat: getRandomSampleFile("hat"),
+    tom: getRandomSampleFile("tom"),
+    snare: getRandomSampleFile("snare"),
   };
 }

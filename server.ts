@@ -73,7 +73,7 @@ async function startServer() {
     console.log("✅ Server created");
 
     // Start WebSocket server
-    const { websocketServer: wsServer, broadcastPersonPosition } =
+    const { websocketServer: wsServer, broadcastPeoplePositions } =
       await startWebSocketServer({
         httpServer: server,
       });
@@ -81,11 +81,24 @@ async function startServer() {
 
     // Connect OSC to WebSocket broadcasting
     oscServer.on("message", (msg: unknown) => {
-      if ((msg as [string, number, number, number])[0] === "/people/position") {
-        const [_, personIdx, x, y] = msg as [string, number, number, number];
-        console.log(`osc: /person/position ${[personIdx, x, y].join(", ")}`);
-        // Forward to all connected WebSocket clients
-        broadcastPersonPosition(personIdx, x, y);
+      const [address, ...args] = msg as [string, ...number[]];
+
+      if (address === "/people/positions") {
+        // Parse positions: [personId1, x1, y1, personId2, x2, y2, ...]
+        const positions = [];
+        for (let i = 0; i < args.length; i += 3) {
+          if (i + 2 < args.length) {
+            positions.push({
+              personId: args[i],
+              x: args[i + 1],
+              y: args[i + 2],
+            });
+          }
+        }
+        console.log(
+          `osc: /people/positions ${positions.map((p) => `[${p.personId}:${p.x.toFixed(2)},${p.y.toFixed(2)}]`).join(" ")}`
+        );
+        broadcastPeoplePositions(positions);
       }
     });
 

@@ -31,34 +31,70 @@ export default function PlayPage() {
     }
   };
 
-  const visitors = useRef<Visitor[]>([]);
+  const visitors = useRef<Map<number, Visitor>>(new Map());
 
   const p5InstanceRef = useRef<p5 | null>(null);
   const followMouse = useRef(true);
 
   useWebsocket({
     handleMessage(message) {
-      if (message.type === "PERSON_POSITION") {
-        followMouse.current = false;
+      console.log("Received message:", message);
+      if (message.type === "PEOPLE_POSITIONS") {
         if (!p5InstanceRef.current) return;
 
-        const coordinates = toCanvasCoordinates(
-          p5InstanceRef.current,
-          message.x,
-          message.y
-        );
-        if (visitors.current[message.personIdx]) {
-          visitors.current[message.personIdx].position.set(
-            coordinates.x,
-            coordinates.y
+        // Clear default visitors when motion tracking starts
+        if (visitors.current.has(-1) || visitors.current.has(-2)) {
+          visitors.current.delete(-1);
+          visitors.current.delete(-2);
+          console.log("Cleared default visitors, motion tracking active");
+        }
+
+        // Get current visitor IDs
+        const currentVisitorIds = new Set(visitors.current.keys());
+        const newVisitorIds = new Set(message.positions.map((p) => p.personId));
+
+        // Remove visitors that are no longer present
+        for (const visitorId of currentVisitorIds) {
+          if (visitorId >= 0 && !newVisitorIds.has(visitorId)) {
+            visitors.current.delete(visitorId);
+            console.log(`Person ${visitorId} left the frame`);
+          }
+        }
+
+        // Update or create visitors for current positions
+        for (const position of message.positions) {
+          const coordinates = toCanvasCoordinates(
+            p5InstanceRef.current,
+            position.x,
+            position.y
+          );
+
+          const existingVisitor = visitors.current.get(position.personId);
+          if (existingVisitor) {
+            existingVisitor.position.set(coordinates.x, coordinates.y);
+          } else {
+            const newVisitor = new Visitor(
+              p5InstanceRef.current,
+              coordinates.x,
+              coordinates.y
+            );
+            visitors.current.set(position.personId, newVisitor);
+            console.log(`Person ${position.personId} entered the frame`);
+          }
+        }
+
+        // Update follow mouse state
+        const hasMotionTrackedVisitors = Array.from(
+          visitors.current.keys()
+        ).some((id) => id >= 0);
+        followMouse.current = !hasMotionTrackedVisitors;
+
+        if (!hasMotionTrackedVisitors) {
+          console.log(
+            "No motion-tracked visitors remaining, switching to mouse follow mode"
           );
         } else {
-          const newVisitor = new Visitor(
-            p5InstanceRef.current,
-            coordinates.x,
-            coordinates.y
-          );
-          visitors.current[message.personIdx] = newVisitor;
+          followMouse.current = false;
         }
       }
     },
@@ -69,10 +105,22 @@ export default function PlayPage() {
       p5InstanceRef.current = p5Instance;
       console.log("Loading sketch into parent:", parent.current);
 
-      p5Instance.draw = () =>
-        draw(p5Instance, controls, visitors.current, followMouse.current);
+      p5Instance.draw = () => {
+        // Convert Map to array for sketch
+        const visitorsArray = Array.from(visitors.current.values());
+        draw(p5Instance, controls, visitorsArray, followMouse.current);
+      };
       p5Instance.setup = () => {
-        setup(p5Instance, parent.current, visitors.current);
+        // Convert Map to array for sketch setup
+        const visitorsArray = Array.from(visitors.current.values());
+        setup(p5Instance, parent.current, visitorsArray);
+
+        // Initialize with default visitors if none exist (after p5 setup is complete)
+        if (visitors.current.size === 0) {
+          // Use negative IDs for default visitors to avoid conflicts with motion tracking
+          visitors.current.set(-1, new Visitor(p5Instance, 100, 100));
+          visitors.current.set(-2, new Visitor(p5Instance, 200, 100));
+        }
       };
     },
     [controls]

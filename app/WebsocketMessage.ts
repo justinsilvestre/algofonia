@@ -42,10 +42,12 @@ export type MessageToClient =
       beatTimestamp: number;
     }
   | {
-      type: "PERSON_POSITION";
-      personIdx: number;
-      x: number;
-      y: number;
+      type: "PEOPLE_POSITIONS";
+      positions: Array<{
+        personId: number;
+        x: number;
+        y: number;
+      }>;
     }
   | MotionInputMessageToClient;
 

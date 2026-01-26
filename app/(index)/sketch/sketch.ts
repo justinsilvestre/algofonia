@@ -30,8 +30,6 @@ export function setup(
   canvas.parent(parent);
 
   p5.background(0);
-
-  visitors.push(new Visitor(p5, 100, 100), new Visitor(p5, 200, 100));
 }
 
 export function draw(
