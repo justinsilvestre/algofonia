@@ -1,8 +1,11 @@
 import * as Tone from "tone";
 import * as React from "react";
-import { defineChannel } from "../Channel";
-import { ChannelDisplay, ChannelDisplayItem } from "../ChannelDisplay";
-import { Slider } from "../ChannelDisplaySlider";
+import { defineSoundModule } from "../tone";
+import {
+  SoundModuleDisplay,
+  SoundModuleDisplayItem,
+} from "../SoundModuleDisplay";
+import { Slider } from "../SoundModuleDisplaySlider";
 import { get909KickSynth } from "../instruments/get909KickSynth";
 import { getSnareSynth } from "../instruments/getSnareSynth";
 import { getLowTomSynth } from "@/app/(index)/instruments/getLowTomSynth";
@@ -12,7 +15,7 @@ type StepPattern = Record<InstrumentType, boolean[]>; // Always 16 steps
 
 const instruments: InstrumentType[] = ["kick", "hat", "tom", "snare"];
 
-export const drumMachine = defineChannel({
+export const drumMachine = defineSoundModule({
   initialize: ({ currentMeasureStartTime }) => {
     const kick = get909KickSynth();
     const hat = getHatSynth();
@@ -87,7 +90,7 @@ export const drumMachine = defineChannel({
 
   renderMonitorDisplay: (state, setState) => {
     return (
-      <ChannelDisplay
+      <SoundModuleDisplay
         title="Drum Machine"
         className="w-150"
         boxContents={
@@ -140,17 +143,17 @@ export const drumMachine = defineChannel({
           <div className="flex flex-col gap-2">
             <div className="flex justify-between items-center">
               <div className="flex gap-4">
-                <ChannelDisplayItem
+                <SoundModuleDisplayItem
                   label="Length"
                   value={`${state.patternLength} steps`}
                   className="[&>.value]:text-blue-600"
                 />
-                <ChannelDisplayItem
+                <SoundModuleDisplayItem
                   label="Density"
                   value={`${Math.round(state.density * 100)}%`}
                   className="[&>.value]:text-green-600"
                 />
-                <ChannelDisplayItem
+                <SoundModuleDisplayItem
                   label="Deviation"
                   value={`${Math.round(state.deviation * 100)}%`}
                   className="[&>.value]:text-purple-600"

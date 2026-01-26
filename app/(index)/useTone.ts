@@ -5,65 +5,74 @@ import {
   getToneControls,
   ToneControls,
   ToneEventListenerArg,
+  ToneEventMap,
   ToneEventType,
 } from "./tone";
-import { createChannel } from "./createChannel";
 import { useDidChange } from "../listen/useDidChange";
-import type { SetState } from "./Channel";
 import type {
-  ChannelOf,
-  ChannelKey,
-  ChannelsDefinitions,
-  ChannelStateOf,
-} from "./channels/definitions";
+  SetState,
+  SoundModule,
+  SoundModuleDefinition,
+} from "./SoundModule";
+import type {
+  SoundModuleOf,
+  SoundModuleKey,
+  SoundModulesDefinitions,
+  SoundModuleStateOf,
+  SoundModuleControlsOf,
+} from "./soundModules/definitions";
 
 export function useTone(
-  channelsDefinitions: ChannelsDefinitions,
-  channelsOrder: ChannelKey[]
+  soundModulesDefinitions: SoundModulesDefinitions,
+  soundModulesOrder: SoundModuleKey[]
 ) {
   const [controls] = useState<ToneControls>(() => getToneControls());
 
   const [startedOnce, setStartedOnce] = useState(() => {
     return controls.transport.state === "started";
   });
-  const [activeChannels, setActiveChannels] = useState<ChannelOf<ChannelKey>[]>(
-    []
-  );
+  const [activeSoundModules, setActiveSoundModules] = useState<
+    SoundModuleOf<SoundModuleKey>[]
+  >([]);
   const start = useCallback(
     (startTime?: Tone.Unit.Time | undefined) => {
       return Tone.start().then(() => {
         const { transport } = controls;
 
-        const newChannels = channelsOrder.map((key) =>
+        const newSoundModules = soundModulesOrder.map((key) =>
           // @ts-expect-error -- parameter type inference issue
-          createChannel(key, channelsDefinitions[key], controls)
+          createSoundModule(key, soundModulesDefinitions[key], controls)
         );
-        setActiveChannels(newChannels);
+        setActiveSoundModules(newSoundModules);
 
-        for (const channel of newChannels) {
-          if (channel.definition.onToneEvent) {
-            for (const eventName in channel.definition.onToneEvent) {
+        for (const soundModule of newSoundModules) {
+          if (soundModule.definition.onToneEvent) {
+            for (const eventName in soundModule.definition.onToneEvent) {
               const listener = (arg: ToneEventListenerArg<ToneEventType>) => {
                 const handler =
-                  channel.definition.onToneEvent?.[eventName as ToneEventType];
+                  soundModule.definition.onToneEvent?.[
+                    eventName as ToneEventType
+                  ];
                 if (handler) {
                   handler(
-                    channel.controls,
-                    channel.state,
+                    soundModule.controls,
+                    soundModule.state,
                     controls,
                     arg as never
                   );
                 }
               };
               controls.addEventListener(eventName as ToneEventType, listener);
-              channel.eventListeners[eventName as ToneEventType] = listener as (
-                ...args: unknown[]
-              ) => unknown[];
+              soundModule.eventListeners[eventName as ToneEventType] =
+                listener as (...args: unknown[]) => unknown[];
             }
           }
         }
 
-        console.log("Starting Tone.js Transport with channels:", newChannels);
+        console.log(
+          "Starting Tone.js Transport with soundModules:",
+          newSoundModules
+        );
 
         const startBpm = controls.getBpm();
 
@@ -73,43 +82,46 @@ export function useTone(
         setStartedOnce(true);
       });
     },
-    [channelsDefinitions, channelsOrder, controls]
+    [soundModulesDefinitions, soundModulesOrder, controls]
   );
 
   const getSetState = useCallback(
-    <Key extends ChannelKey>(channel: ChannelOf<Key>) => {
-      const index = activeChannels.findIndex((c) => c.key === channel.key);
-      const setState: SetState<ChannelStateOf<Key>> = (updater) => {
-        const newChannels = [...activeChannels];
-        const oldChannel = newChannels[index];
-        const oldState = oldChannel.state;
+    <Key extends SoundModuleKey>(soundModule: SoundModuleOf<Key>) => {
+      const index = activeSoundModules.findIndex(
+        (c) => c.key === soundModule.key
+      );
+      const setState: SetState<SoundModuleStateOf<Key>> = (updater) => {
+        const newSoundModules = [...activeSoundModules];
+        const oldSoundModule = newSoundModules[index];
+        const oldState = oldSoundModule.state;
         const newState =
           typeof updater === "function"
             ? (
                 updater as (
-                  prevState: ChannelStateOf<Key>
-                ) => ChannelStateOf<Key>
+                  prevState: SoundModuleStateOf<Key>
+                ) => SoundModuleStateOf<Key>
               )(oldState)
             : updater;
-        newChannels[index] = {
-          ...oldChannel,
+        newSoundModules[index] = {
+          ...oldSoundModule,
           state: newState,
         };
 
-        const definition = oldChannel.definition;
+        const definition = oldSoundModule.definition;
         if (definition.onStateChange) {
           definition.onStateChange(
             controls,
-            oldChannel.controls,
+            oldSoundModule.controls,
             newState,
             oldState
           );
         }
-        setActiveChannels(newChannels);
-        for (const channel of newChannels) {
-          for (const eventName in channel.eventListeners) {
+        setActiveSoundModules(newSoundModules);
+        for (const soundModule of newSoundModules) {
+          for (const eventName in soundModule.eventListeners) {
             // de-register old listeners to avoid duplicates
-            const listener = channel.eventListeners[eventName as ToneEventType];
+            const listener =
+              soundModule.eventListeners[eventName as ToneEventType];
             if (listener) {
               controls.removeEventListener(
                 eventName as ToneEventType,
@@ -117,137 +129,145 @@ export function useTone(
               );
             }
           }
-          if (channel.definition.onToneEvent) {
-            for (const eventName in channel.definition.onToneEvent) {
+          if (soundModule.definition.onToneEvent) {
+            for (const eventName in soundModule.definition.onToneEvent) {
               const listener = (arg: ToneEventListenerArg<ToneEventType>) => {
                 const handler =
-                  channel.definition.onToneEvent?.[eventName as ToneEventType];
+                  soundModule.definition.onToneEvent?.[
+                    eventName as ToneEventType
+                  ];
                 if (handler) {
                   handler(
-                    channel.controls,
-                    channel.state,
+                    soundModule.controls,
+                    soundModule.state,
                     controls,
                     arg as never
                   );
                 }
               };
               controls.addEventListener(eventName as ToneEventType, listener);
-              channel.eventListeners[eventName as ToneEventType] = listener as (
-                ...args: unknown[]
-              ) => unknown[];
+              soundModule.eventListeners[eventName as ToneEventType] =
+                listener as (...args: unknown[]) => unknown[];
             }
           }
         }
       };
       return setState;
     },
-    [activeChannels, controls]
+    [activeSoundModules, controls]
   );
 
-  const channelsDef = useMemo(() => {
-    return { channelsDefinitions, channelsOrder };
-  }, [channelsDefinitions, channelsOrder]);
-  useDidChange(channelsDef, (current, previous) => {
-    console.log("Updating channels due to definition or order change");
-    const newActiveChannels: ChannelOf<ChannelKey>[] = [];
-    for (const newActiveChannelKey of current.channelsOrder) {
-      const oldActiveChannel = activeChannels.find(
-        (c) => c.key === newActiveChannelKey
+  const soundModulesDef = useMemo(() => {
+    return { soundModulesDefinitions, soundModulesOrder };
+  }, [soundModulesDefinitions, soundModulesOrder]);
+  useDidChange(soundModulesDef, (current, previous) => {
+    console.log("Updating soundModules due to definition or order change");
+    const newActiveSoundModules: SoundModuleOf<SoundModuleKey>[] = [];
+    for (const newActiveSoundModuleKey of current.soundModulesOrder) {
+      const oldActiveSoundModule = activeSoundModules.find(
+        (c) => c.key === newActiveSoundModuleKey
       );
-      const newChannelHasBeenAdded = !oldActiveChannel;
-      if (newChannelHasBeenAdded) {
-        const newActiveChannel = createChannel(
-          newActiveChannelKey,
+      const newSoundModuleHasBeenAdded = !oldActiveSoundModule;
+      if (newSoundModuleHasBeenAdded) {
+        const newActiveSoundModule = createSoundModule(
+          newActiveSoundModuleKey,
           // @ts-expect-error -- parameter type inference issue
-          current.channelsDefinitions[newActiveChannelKey],
+          current.soundModulesDefinitions[newActiveSoundModuleKey],
           controls
         );
-        newActiveChannels.push(newActiveChannel);
+        newActiveSoundModules.push(newActiveSoundModule);
       } else {
-        // an active channel with this key has existed since before the change,
+        // an active soundModule with this key has existed since before the change,
         // meaning that we need to check if its definition has changed
-        const oldDefinition = previous.channelsDefinitions[newActiveChannelKey];
-        const newDefinition = current.channelsDefinitions[newActiveChannelKey];
-        const channelUnchanged = oldDefinition === newDefinition;
-        if (channelUnchanged) {
-          // keep old channel as is
-          newActiveChannels.push(oldActiveChannel);
+        const oldDefinition =
+          previous.soundModulesDefinitions[newActiveSoundModuleKey];
+        const newDefinition =
+          current.soundModulesDefinitions[newActiveSoundModuleKey];
+        const soundModuleUnchanged = oldDefinition === newDefinition;
+        if (soundModuleUnchanged) {
+          // keep old soundModule as is
+          newActiveSoundModules.push(oldActiveSoundModule);
         } else {
-          // Teardown old channel
+          // Teardown old soundModule
           oldDefinition.teardown(
             // @ts-expect-error -- suppressing potential runtime errors when structure changes
-            oldActiveChannel.controls,
-            oldActiveChannel.state,
+            oldActiveSoundModule.controls,
+            oldActiveSoundModule.state,
             controls
           );
-          const newActiveChannelBase = createChannel(
-            newActiveChannelKey,
+          const newActiveSoundModuleBase = createSoundModule(
+            newActiveSoundModuleKey,
             // @ts-expect-error -- parameter type inference issue
             newDefinition,
             controls
           );
-          const newActiveChannelState = {
-            ...newActiveChannelBase.state,
-            ...oldActiveChannel.state,
+          const newActiveSoundModuleState = {
+            ...newActiveSoundModuleBase.state,
+            ...oldActiveSoundModule.state,
           };
-          newActiveChannelBase.definition.onStateChange?.(
+          newActiveSoundModuleBase.definition.onStateChange?.(
             controls,
-            newActiveChannelBase.controls,
-            oldActiveChannel.state,
-            newActiveChannelBase.state
+            newActiveSoundModuleBase.controls,
+            oldActiveSoundModule.state,
+            newActiveSoundModuleBase.state
           );
           console.log(
-            "New active channel state for " + newActiveChannelKey,
-            newActiveChannelState
+            "New active soundModule state for " + newActiveSoundModuleKey,
+            newActiveSoundModuleState
           );
-          newActiveChannels.push({
-            ...newActiveChannelBase,
-            state: newActiveChannelState,
+          newActiveSoundModules.push({
+            ...newActiveSoundModuleBase,
+            state: newActiveSoundModuleState,
           });
         }
       }
     }
 
-    const deletedChannels = activeChannels.filter(
-      (c) => !current.channelsOrder.includes(c.key)
+    const deletedSoundModules = activeSoundModules.filter(
+      (c) => !current.soundModulesOrder.includes(c.key)
     );
-    deletedChannels.forEach((channel) => {
-      const definition = previous.channelsDefinitions[channel.key];
+    deletedSoundModules.forEach((soundModule) => {
+      const definition = previous.soundModulesDefinitions[soundModule.key];
       definition.teardown(
         // @ts-expect-error -- suppressing potential runtime errors when structure changes
-        channel.controls,
-        channel.state,
+        soundModule.controls,
+        soundModule.state,
         controls
       );
-      for (const eventName in channel.eventListeners) {
-        const listener = channel.eventListeners[eventName as ToneEventType];
+      for (const eventName in soundModule.eventListeners) {
+        const listener = soundModule.eventListeners[eventName as ToneEventType];
         if (listener) {
           controls.removeEventListener(eventName as ToneEventType, listener);
         }
       }
     });
 
-    setActiveChannels(newActiveChannels);
-    for (const channel of newActiveChannels) {
-      // currently re-adding ALL event listeners, even for unchanged channels.
-      for (const eventName in channel.eventListeners) {
+    setActiveSoundModules(newActiveSoundModules);
+    for (const soundModule of newActiveSoundModules) {
+      // currently re-adding ALL event listeners, even for unchanged soundModules.
+      for (const eventName in soundModule.eventListeners) {
         // de-register old listeners to avoid duplicates
-        const listener = channel.eventListeners[eventName as ToneEventType];
+        const listener = soundModule.eventListeners[eventName as ToneEventType];
         if (listener) {
           controls.removeEventListener(eventName as ToneEventType, listener);
         }
       }
-      if (channel.definition.onToneEvent) {
-        for (const eventName in channel.definition.onToneEvent) {
+      if (soundModule.definition.onToneEvent) {
+        for (const eventName in soundModule.definition.onToneEvent) {
           const listener = (arg: ToneEventListenerArg<ToneEventType>) => {
             const handler =
-              channel.definition.onToneEvent?.[eventName as ToneEventType];
+              soundModule.definition.onToneEvent?.[eventName as ToneEventType];
             if (handler) {
-              handler(channel.controls, channel.state, controls, arg as never);
+              handler(
+                soundModule.controls,
+                soundModule.state,
+                controls,
+                arg as never
+              );
             }
           };
           controls.addEventListener(eventName as ToneEventType, listener);
-          channel.eventListeners[eventName as ToneEventType] = listener as (
+          soundModule.eventListeners[eventName as ToneEventType] = listener as (
             ...args: unknown[]
           ) => unknown[];
         }
@@ -258,11 +278,38 @@ export function useTone(
   return useMemo(
     () => ({
       controls,
-      activeChannels,
+      activeSoundModules,
       getSetState,
       start,
       started: startedOnce,
     }),
-    [controls, activeChannels, getSetState, start, startedOnce]
+    [controls, activeSoundModules, getSetState, start, startedOnce]
   );
+}
+export function createSoundModule<Key extends SoundModuleKey>(
+  key: Key,
+  definition: SoundModuleDefinition<
+    SoundModuleControlsOf<Key>,
+    SoundModuleStateOf<Key>,
+    ToneControls,
+    ToneEventMap
+  >,
+  tone: ToneControls
+) {
+  const { state, controls } = definition.initialize(tone);
+
+  const soundModule: SoundModule<
+    Key,
+    typeof controls,
+    typeof state,
+    ToneControls,
+    ToneEventMap
+  > = {
+    controls,
+    state,
+    key,
+    definition,
+    eventListeners: {},
+  };
+  return soundModule;
 }

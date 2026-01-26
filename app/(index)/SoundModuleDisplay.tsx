@@ -1,6 +1,6 @@
 import { ReactNode } from "react";
 
-export function ChannelDisplay({
+export function SoundModuleDisplay({
   title,
   boxContents,
   bottom,
@@ -25,7 +25,7 @@ export function ChannelDisplay({
     </div>
   );
 }
-export function ChannelDisplayItem({
+export function SoundModuleDisplayItem({
   className,
   label,
   value,

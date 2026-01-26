@@ -1,8 +1,11 @@
 "use client";
-import { channelsDefinitions, channelsOrder } from "./channels/definitions";
-import { SetState } from "./Channel";
-import { ChannelOf } from "./channels/definitions";
-import { ChannelKey } from "./channels/definitions";
+import {
+  soundModulesDefinitions,
+  soundModulesOrder,
+} from "./soundModules/definitions";
+import { SetState } from "./SoundModule";
+import { SoundModuleOf } from "./soundModules/definitions";
+import { SoundModuleKey } from "./soundModules/definitions";
 import { useTone } from "./useTone";
 import { ToneControls } from "./tone";
 import { useP5, VisualsCanvas } from "./VisualsCanvas";
@@ -15,9 +18,9 @@ import { Visitor } from "./sketch/Visitor";
 
 export default function PlayPage() {
   const P5Class = useP5();
-  const { controls, activeChannels, start, started, getSetState } = useTone(
-    channelsDefinitions,
-    channelsOrder
+  const { controls, activeSoundModules, start, started, getSetState } = useTone(
+    soundModulesDefinitions,
+    soundModulesOrder
   );
   const [visualsStarted, setVisualsStarted] = useState(false);
   const startVisuals = () => {
@@ -76,7 +79,10 @@ export default function PlayPage() {
   );
 
   return (
-    <div id="container" className="w-screen h-screen text-white bg-black p-4">
+    <div
+      id="container"
+      className="min-w-screen min-h-screen text-white bg-black p-4"
+    >
       <div className="flex flex-row flex-wrap justify-center items-center gap-6">
         <div className="shrink-0">
           {P5Class && visualsStarted && (
@@ -101,13 +107,13 @@ export default function PlayPage() {
           </button>
         )}
 
-        {activeChannels.map((channel) => {
+        {activeSoundModules.map((soundModule) => {
           return (
-            <DisplayChannel
-              key={channel.key}
-              channel={channel}
+            <DisplaySoundModule
+              key={soundModule.key}
+              soundModule={soundModule}
               tone={controls}
-              setState={getSetState(channel)}
+              setState={getSetState(soundModule)}
             />
           );
         })}
@@ -116,17 +122,17 @@ export default function PlayPage() {
   );
 }
 
-function DisplayChannel<Key extends ChannelKey>({
-  channel,
+function DisplaySoundModule<Key extends SoundModuleKey>({
+  soundModule,
   tone,
   setState,
 }: {
-  channel: ChannelOf<Key>;
+  soundModule: SoundModuleOf<Key>;
   tone: ToneControls;
-  setState: SetState<ChannelOf<ChannelKey>["state"]>;
+  setState: SetState<SoundModuleOf<SoundModuleKey>["state"]>;
 }) {
-  const { definition } = channel;
-  const state = channel.state;
+  const { definition } = soundModule;
+  const state = soundModule.state;
 
   return <>{definition.renderMonitorDisplay?.(state, setState, tone)}</>;
 }

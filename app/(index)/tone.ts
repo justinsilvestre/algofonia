@@ -1,5 +1,6 @@
 import * as Tone from "tone";
 import { Scale } from "tonal";
+import { SoundModuleDefinition } from "./SoundModule";
 
 const START_BPM = 100;
 
@@ -16,6 +17,21 @@ type ToneEventListener<T extends ToneEventType> = (
 ) => void;
 
 export type ToneControls = ReturnType<typeof getToneControls>;
+
+/**
+ * A noop function to help with type inference when defining sound modules
+ * specifically for this app.
+ */
+export function defineSoundModule<SoundModuleControls, SoundModuleState>(
+  definition: SoundModuleDefinition<
+    SoundModuleControls,
+    SoundModuleState,
+    ToneControls,
+    ToneEventMap
+  >
+) {
+  return definition;
+}
 
 export function getToneControls(startBpm: number = START_BPM) {
   let targetBpm = startBpm;

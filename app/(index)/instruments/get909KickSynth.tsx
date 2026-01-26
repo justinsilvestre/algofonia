@@ -24,7 +24,7 @@ export function get909KickSynth() {
     },
   });
 
-  // 3. Separate filters for each source to avoid channel count conflicts
+  // 3. Separate filters for each source to avoid soundModule count conflicts
   const oscillatorFilter = new Tone.Filter({
     type: "lowpass",
     frequency: 800,

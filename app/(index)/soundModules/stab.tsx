@@ -1,9 +1,12 @@
 import * as Tone from "tone";
 import { Scale } from "tonal";
-import { defineChannel } from "../Channel";
+import { defineSoundModule } from "../tone";
 import { getStabSynth } from "../instruments/getStabSynth";
-import { ChannelDisplay, ChannelDisplayItem } from "../ChannelDisplay";
-import { Slider } from "../ChannelDisplaySlider";
+import {
+  SoundModuleDisplay,
+  SoundModuleDisplayItem,
+} from "../SoundModuleDisplay";
+import { Slider } from "../SoundModuleDisplaySlider";
 
 type ChordEvent = ReturnType<typeof pattern>[number];
 
@@ -74,9 +77,9 @@ function getSequenceForPattern(
   return part;
 }
 
-export const stab = defineChannel({
+export const stab = defineSoundModule({
   initialize: ({ currentMeasureStartTime, tonic, scale }) => {
-    console.log("channels!", "stab initialized!!");
+    console.log("soundModules!", "stab initialized!!");
     const synth = getStabSynth();
 
     const startPattern = "SILENT" as PatternName;
@@ -163,42 +166,42 @@ export const stab = defineChannel({
     const patternNames = Object.keys(patterns) as PatternName[];
 
     return (
-      <ChannelDisplay
+      <SoundModuleDisplay
         title="Stab"
         className="w-100"
         boxContents={
           <div className="flex flex-row flex-wrap justify-between">
-            <ChannelDisplayItem
+            <SoundModuleDisplayItem
               className="flex-1 basis-full [&>.value]:text-blue-600"
               label="Pattern"
               value={state.pattern}
             />
 
-            <ChannelDisplayItem
+            <SoundModuleDisplayItem
               className="flex-1 [&>.value]:text-green-600"
               label="Echo Wet"
               value={state.echoWet.toFixed(2)}
             />
 
-            <ChannelDisplayItem
+            <SoundModuleDisplayItem
               className="flex-1 [&>.value]:text-orange-600"
               label="Echo Feedback"
               value={state.echoFeedback.toFixed(2)}
             />
 
-            <ChannelDisplayItem
+            <SoundModuleDisplayItem
               className="flex-1 basis-full [&>.value]:text-purple-600"
               label="Oscillator"
               value={state.oscillator}
             />
 
-            <ChannelDisplayItem
+            <SoundModuleDisplayItem
               className="flex-1 [&>.value]:text-cyan-600"
               label="Osc Count"
               value={`${state.oscillatorCount}`}
             />
 
-            <ChannelDisplayItem
+            <SoundModuleDisplayItem
               className="flex-1 [&>.value]:text-pink-600"
               label="Osc Spread"
               value={`${state.oscillatorSpread}`}
