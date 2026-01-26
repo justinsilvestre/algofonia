@@ -71,7 +71,7 @@ export function VisualsCanvas({
         p5InstanceRef.current.remove();
       }
     };
-  }, [P5Class, isFullscreen, loadSketch]);
+  }, [P5Class, loadSketch]);
 
   useEffect(() => {
     const handleResize = () => {
