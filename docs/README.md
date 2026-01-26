@@ -54,7 +54,7 @@ Run motion capture via the following command, replacing the index `--cam 0` with
 
 ```bash
 # in the repository root:
-poetry run python ./motion-tracking/skeleton.py -model yolov8s-pose.pt --cam 0
+poetry run python ./motion-tracking/skeleton.py --model yolov8s-pose.pt --cam 0
 ```
 
 If this is the first time running this command on this machine, you'll have to wait for the file `yolov8s-pose.pt` to download (about 27MB).
