@@ -6,21 +6,174 @@ import {
   SoundModuleDisplayItem,
 } from "../SoundModuleDisplay";
 import { Slider } from "../SoundModuleDisplaySlider";
-import { get909KickSynth } from "../instruments/get909KickSynth";
-import { getSnareSynth } from "../instruments/getSnareSynth";
-import { getLowTomSynth } from "@/app/(index)/instruments/getLowTomSynth";
+import { getSampleInstrument } from "../instruments/getSampleInstrument";
 
 type InstrumentType = "kick" | "hat" | "tom" | "snare";
 type StepPattern = Record<InstrumentType, boolean[]>; // Always 16 steps
 
 const instruments: InstrumentType[] = ["kick", "hat", "tom", "snare"];
 
+// Sample paths for drum sounds
+const BASE_PATH = "/samples/deep_house_drum_samples/Deep House Drum Samples";
+
+const SAMPLE_FILES = {
+  kick: [
+    "bd_909dwsd.wav",
+    "bd_chicago.wav",
+    "bd_dandans.wav",
+    "bd_deephouser.wav",
+    "bd_diesel.wav",
+    "bd_dropped.wav",
+    "bd_flir.wav",
+    "bd_gas.wav",
+    "bd_ghost.wav",
+    "bd_hybrid.wav",
+    "bd_isampleoldskool.wav",
+    "bd_liked.wav",
+    "bd_mainroom.wav",
+    "bd_mirror.wav",
+    "bd_nash.wav",
+    "bd_newyear.wav",
+    "bd_organicisin.wav",
+    "bd_outdoor.wav",
+    "bd_shoein.wav",
+    "bd_sodeep.wav",
+    "bd_sonikboom.wav",
+    "bd_streek.wav",
+    "bd_stripped.wav",
+    "bd_sub808.wav",
+    "bd_tech.wav",
+    "bd_tripper.wav",
+    "bd_uma.wav",
+    "bd_untitled.wav",
+    "bd_vintager.wav",
+    "bd_vinylinstereo.wav",
+  ],
+  hat: [
+    "hat_626.wav",
+    "hat_ace.wav",
+    "hat_addverb.wav",
+    "hat_analog.wav",
+    "hat_bebias.wav",
+    "hat_bestfriend.wav",
+    "hat_bigdeal.wav",
+    "hat_blackmamba.wav",
+    "hat_chart.wav",
+    "hat_charter.wav",
+    "hat_chipitaka.wav",
+    "hat_classical.wav",
+    "hat_classichousehat.wav",
+    "hat_closer.wav",
+    "hat_collective.wav",
+    "hat_crackers.wav",
+    "hat_critters.wav",
+    "hat_cuppa.wav",
+    "hat_darkstar.wav",
+    "hat_deephouseopen.wav",
+    "hat_drawn.wav",
+    "hat_freekn.wav",
+    "hat_gater.wav",
+    "hat_glitchbitch.wav",
+    "hat_hatgasm.wav",
+    "hat_hattool.wav",
+    "hat_jelly.wav",
+    "hat_kate.wav",
+    "hat_lights.wav",
+    "hat_lilcloser.wav",
+    "hat_mydustyhouse.wav",
+    "hat_myfavouriteopen.wav",
+    "hat_negative6.wav",
+    "hat_nice909open.wav",
+    "hat_niner0niner.wav",
+    "hat_omgopen.wav",
+    "hat_openiner.wav",
+    "hat_original.wav",
+    "hat_quentin.wav",
+    "hat_rawsample.wav",
+    "hat_retired.wav",
+    "hat_sampleking.wav",
+    "hat_samplekingdom.wav",
+    "hat_sharp.wav",
+    "hat_soff.wav",
+    "hat_spreadertrick.wav",
+    "hat_stereosonic.wav",
+    "hat_tameit.wav",
+    "hat_vintagespread.wav",
+    "hat_void.wav",
+  ],
+  tom: [
+    "tom_909fatty.wav",
+    "tom_909onvinyl.wav",
+    "tom_cleansweep.wav",
+    "tom_dept.wav",
+    "tom_discodisco.wav",
+    "tom_eclipse.wav",
+    "tom_enriched.wav",
+    "tom_enrico.wav",
+    "tom_greatwhite.wav",
+    "tom_iloveroland.wav",
+    "tom_madisonave.wav",
+    "tom_ofalltoms.wav",
+    "tom_summerdayze.wav",
+    "tom_taste.wav",
+    "tom_vsneve.wav",
+  ],
+  snare: [
+    "snr_analogging.wav",
+    "snr_answer8bit.wav",
+    "snr_bland.wav",
+    "snr_drm909kit.wav",
+    "snr_dwreal.wav",
+    "snr_housey.wav",
+    "snr_mpc.wav",
+    "snr_myclassicsnare.wav",
+    "snr_owned.wav",
+    "snr_royalty.wav",
+    "snr_rusnarious.wav",
+    "snr_truevintage.wav",
+  ],
+};
+
+function getRandomSampleFile(instrumentType: InstrumentType): string {
+  const files = SAMPLE_FILES[instrumentType];
+  const randomIndex = Math.floor(Math.random() * files.length);
+  return files[randomIndex];
+}
+
+function getSamplePath(
+  instrumentType: InstrumentType,
+  filename: string
+): string {
+  const folderName =
+    instrumentType === "kick"
+      ? "bd_kick"
+      : instrumentType === "hat"
+        ? "hats"
+        : instrumentType === "tom"
+          ? "toms"
+          : "snare";
+  return `${BASE_PATH}/${folderName}/${filename}`;
+}
+
+function getRandomSampleFiles() {
+  return {
+    kick: getRandomSampleFile("kick"),
+    hat: getRandomSampleFile("hat"),
+    tom: getRandomSampleFile("tom"),
+    snare: getRandomSampleFile("snare"),
+  };
+}
+
 export const drumMachine = defineSoundModule({
   initialize: ({ currentMeasureStartTime }) => {
-    const kick = get909KickSynth();
-    const hat = getHatSynth();
-    const tom = getLowTomSynth();
-    const snare = getSnareSynth();
+    const sampleFiles = getRandomSampleFiles();
+
+    const kick = getSampleInstrument(getSamplePath("kick", sampleFiles.kick));
+    const hat = getSampleInstrument(getSamplePath("hat", sampleFiles.hat));
+    const tom = getSampleInstrument(getSamplePath("tom", sampleFiles.tom));
+    const snare = getSampleInstrument(
+      getSamplePath("snare", sampleFiles.snare)
+    );
 
     const initialPatternLength = 16;
     const initialPattern = getEmptyPattern(); // Always 16 steps
@@ -40,6 +193,7 @@ export const drumMachine = defineSoundModule({
         isPlaying: true,
         density: 0.3,
         deviation: 0.0,
+        sampleFiles,
       },
       controls: {
         kick,
@@ -65,11 +219,39 @@ export const drumMachine = defineSoundModule({
     state,
     previousState
   ) => {
-    // Update sequence when pattern changes or length changes
+    // Check if sample files have changed
+    const sampleFilesChanged =
+      JSON.stringify(state.sampleFiles) !==
+      JSON.stringify(previousState.sampleFiles);
+
+    if (sampleFilesChanged) {
+      // Dispose old instruments
+      controls.kick.dispose();
+      controls.hat.dispose();
+      controls.tom.dispose();
+      controls.snare.dispose();
+
+      // Create new instruments with new samples
+      controls.kick = getSampleInstrument(
+        getSamplePath("kick", state.sampleFiles.kick)
+      );
+      controls.hat = getSampleInstrument(
+        getSamplePath("hat", state.sampleFiles.hat)
+      );
+      controls.tom = getSampleInstrument(
+        getSamplePath("tom", state.sampleFiles.tom)
+      );
+      controls.snare = getSampleInstrument(
+        getSamplePath("snare", state.sampleFiles.snare)
+      );
+    }
+
+    // Update sequence when pattern changes or length changes or samples change
     if (
       JSON.stringify(state.pattern) !== JSON.stringify(previousState.pattern) ||
       state.patternLength !== previousState.patternLength ||
-      state.deviation !== previousState.deviation
+      state.deviation !== previousState.deviation ||
+      sampleFilesChanged
     ) {
       controls.sequence.dispose();
       const newSequence = createSequence(
@@ -110,9 +292,7 @@ export const drumMachine = defineSoundModule({
                       key={`${instrument}-${stepIndex}`}
                       data-step={stepIndex}
                       data-instrument={instrument}
-                      title={
-                        instrument.charAt(0).toUpperCase() + instrument.slice(1)
-                      }
+                      title={state.sampleFiles[instrument]}
                       onClick={() =>
                         setState({
                           ...state,
@@ -156,7 +336,7 @@ export const drumMachine = defineSoundModule({
                 <SoundModuleDisplayItem
                   label="Deviation"
                   value={`${Math.round(state.deviation * 100)}%`}
-                  className="[&>.value]:text-purple-600"
+                  className="[&>.value]:text-blue-600"
                 />
               </div>
               <div className="flex gap-2">
@@ -167,9 +347,32 @@ export const drumMachine = defineSoundModule({
                       pattern: getRandomPattern(state.density),
                     })
                   }
-                  className="px-3 py-1 text-xs bg-purple-500 text-white rounded hover:bg-purple-600 transition-colors"
+                  className="px-3 py-1 text-xs bg-green-500 text-white rounded hover:bg-green-600 transition-colors"
                 >
-                  Random
+                  Rhythm
+                </button>
+                <button
+                  onClick={() =>
+                    setState({
+                      ...state,
+                      sampleFiles: getRandomSampleFiles(),
+                    })
+                  }
+                  className="px-3 py-1 text-xs bg-orange-500 text-white rounded hover:bg-orange-600 transition-colors"
+                >
+                  Samples
+                </button>
+                <button
+                  onClick={() =>
+                    setState({
+                      ...state,
+                      pattern: getRandomPattern(state.density),
+                      sampleFiles: getRandomSampleFiles(),
+                    })
+                  }
+                  className="px-3 py-1 text-xs bg-blue-500 text-white rounded hover:bg-blue-600 transition-colors"
+                >
+                  Both
                 </button>
                 <button
                   onClick={() =>
@@ -246,10 +449,10 @@ function getActiveButtonStyle(instrument: InstrumentType): string {
 function createSequence(
   pattern: StepPattern,
   synths: {
-    kick: ReturnType<typeof get909KickSynth>;
-    hat: ReturnType<typeof getHatSynth>;
-    tom: ReturnType<typeof getLowTomSynth>;
-    snare: ReturnType<typeof getSnareSynth>;
+    kick: ReturnType<typeof getSampleInstrument>;
+    hat: ReturnType<typeof getSampleInstrument>;
+    tom: ReturnType<typeof getSampleInstrument>;
+    snare: ReturnType<typeof getSampleInstrument>;
   },
   patternLength: number,
   deviation: number
@@ -287,34 +490,6 @@ function createSequence(
     steps,
     stepDuration
   ).set({ loop: true });
-}
-
-// Hi-hat synth
-function getHatSynth() {
-  const synth = new Tone.NoiseSynth({
-    noise: { type: "white" },
-    envelope: {
-      attack: 0.001,
-      decay: 0.05,
-      sustain: 0,
-    },
-  })
-    .connect(
-      new Tone.Filter({
-        type: "highpass",
-        frequency: 8000,
-      })
-    )
-    .connect(new Tone.Gain(0.3).toDestination());
-
-  return {
-    hit: (time: Tone.Unit.Time) => {
-      synth.triggerAttackRelease("32n", time);
-    },
-    dispose: () => {
-      synth.dispose();
-    },
-  };
 }
 
 function updateHighlighting(
