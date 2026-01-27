@@ -54,7 +54,8 @@ export type SoundModuleDefinition<
       controls: SoundModuleControls,
       state: SoundModuleState,
       tone: GlobalToneControls,
-      arg: ToneEventMap[T]
+      arg: ToneEventMap[T],
+      setState: SetState<SoundModuleState>
     ) => void;
   };
   renderMonitorDisplay?: (

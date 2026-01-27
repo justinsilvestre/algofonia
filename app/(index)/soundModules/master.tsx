@@ -23,17 +23,39 @@ export const master = defineSoundModule({
     };
   },
   teardown: () => {},
-  onStateChange: (tone, controls, state, previousState) => {
-    const { setBpm } = tone;
-    if (state.bpm !== previousState.bpm) {
-      setBpm(state.bpm);
-      console.log("Setting new BPM to", state.bpm);
-    }
-    tone.tonic = state.tonic;
-    tone.scale = state.scale;
-    tone.chordRootScaleDegree = state.chordRootScaleDegree;
+  onToneEvent: {
+    tonicChange: (controls, state, tone, newTonic, setState) => {
+      setState({
+        ...state,
+        tonic: newTonic,
+      });
+    },
+    bpmChange: (controls, state, tone, newBpm, setState) => {
+      setState({
+        ...state,
+        bpm: newBpm,
+      });
+    },
+    scaleChange: (controls, state, tone, newScale, setState) => {
+      setState({
+        ...state,
+        scale: newScale,
+      });
+    },
+    chordRootScaleDegreeChange: (
+      controls,
+      state,
+      tone,
+      newChordRootScaleDegree,
+      setState
+    ) => {
+      setState({
+        ...state,
+        chordRootScaleDegree: newChordRootScaleDegree,
+      });
+    },
   },
-  renderMonitorDisplay: (state, setState) => {
+  renderMonitorDisplay: (state, setState, tone) => {
     const tonicIndex = pitches.indexOf(state.tonic);
 
     return (
@@ -72,12 +94,7 @@ export const master = defineSoundModule({
               max={250}
               step={1}
               value={state.bpm}
-              onChange={(value) =>
-                setState({
-                  ...state,
-                  bpm: value,
-                })
-              }
+              onChange={(value) => tone.setBpm(value)}
               className="w-full slider-blue-600"
             />
             <Slider
@@ -85,12 +102,7 @@ export const master = defineSoundModule({
               max={pitches.length - 1}
               step={1}
               value={tonicIndex}
-              onChange={(value) =>
-                setState({
-                  ...state,
-                  tonic: pitches[value],
-                })
-              }
+              onChange={(value) => (tone.tonic = pitches[value])}
               className="w-full slider-green-600"
               notchesCount={pitches.length}
             />
@@ -114,12 +126,7 @@ export const master = defineSoundModule({
               max={scaleNames.length - 1}
               step={1}
               value={Math.max(0, scaleNames.indexOf(state.scale))}
-              onChange={(value) =>
-                setState({
-                  ...state,
-                  scale: scaleNames[value],
-                })
-              }
+              onChange={(value) => (tone.scale = scaleNames[value])}
               className="w-full slider-orange-600"
               notchesCount={scaleNames.length}
             />

@@ -8,6 +8,7 @@ export type ToneEventMap = {
   tonicChange: string;
   scaleChange: string;
   chordRootScaleDegreeChange: number;
+  bpmChange: number;
 };
 
 export type ToneEventType = keyof ToneEventMap;
@@ -97,6 +98,7 @@ export function getToneControls(startBpm: number = START_BPM) {
       return Tone.getTransport();
     },
     setBpm: (bpm: number) => {
+      if (targetBpm === bpm) return;
       const currentBpm = Tone.getTransport().bpm.value;
       const difference = Math.abs(bpm - currentBpm);
       if (!difference) return;
@@ -107,6 +109,7 @@ export function getToneControls(startBpm: number = START_BPM) {
       );
       Tone.getTransport().bpm.rampTo(bpm, rampTime);
       targetBpm = bpm;
+      emit("bpmChange", bpm);
     },
     /** The current bpm OR the BPM that has been set as the target for ramping */
     getTargetBpm: () => targetBpm,
@@ -134,6 +137,7 @@ export function getToneControls(startBpm: number = START_BPM) {
         emit("scaleChange", newScale);
       }
     },
+    /** currently static */
     get chordRootScaleDegree() {
       return chordRootScaleDegree;
     },

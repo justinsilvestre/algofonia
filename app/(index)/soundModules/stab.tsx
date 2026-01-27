@@ -136,8 +136,7 @@ export const stab = defineSoundModule({
   onStateChange: (
     { currentMeasureStartTime, tonic, scale },
     controls,
-    state,
-    previousState
+    state
   ) => {
     controls.sequence?.dispose();
 

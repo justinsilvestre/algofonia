@@ -34,56 +34,6 @@ export function useTone(
   const [activeSoundModules, setActiveSoundModules] = useState<
     SoundModuleOf<SoundModuleKey>[]
   >([]);
-  const start = useCallback(
-    (startTime?: Tone.Unit.Time | undefined) => {
-      return Tone.start().then(() => {
-        const { transport } = controls;
-
-        const newSoundModules = soundModulesOrder.map((key) =>
-          // @ts-expect-error -- parameter type inference issue
-          createSoundModule(key, soundModulesDefinitions[key], controls)
-        );
-        setActiveSoundModules(newSoundModules);
-
-        for (const soundModule of newSoundModules) {
-          if (soundModule.definition.onToneEvent) {
-            for (const eventName in soundModule.definition.onToneEvent) {
-              const listener = (arg: ToneEventListenerArg<ToneEventType>) => {
-                const handler =
-                  soundModule.definition.onToneEvent?.[
-                    eventName as ToneEventType
-                  ];
-                if (handler) {
-                  handler(
-                    soundModule.controls,
-                    soundModule.state,
-                    controls,
-                    arg as never
-                  );
-                }
-              };
-              controls.addEventListener(eventName as ToneEventType, listener);
-              soundModule.eventListeners[eventName as ToneEventType] =
-                listener as (...args: unknown[]) => unknown[];
-            }
-          }
-        }
-
-        console.log(
-          "Starting Tone.js Transport with soundModules:",
-          newSoundModules
-        );
-
-        const startBpm = controls.getBpm();
-
-        transport.bpm.value = startBpm;
-        transport.start(startTime);
-
-        setStartedOnce(true);
-      });
-    },
-    [soundModulesDefinitions, soundModulesOrder, controls]
-  );
 
   const getSetState = useCallback(
     <Key extends SoundModuleKey>(soundModule: SoundModuleOf<Key>) => {
@@ -117,45 +67,49 @@ export function useTone(
           );
         }
         setActiveSoundModules(newSoundModules);
-        for (const soundModule of newSoundModules) {
-          for (const eventName in soundModule.eventListeners) {
-            // de-register old listeners to avoid duplicates
-            const listener =
-              soundModule.eventListeners[eventName as ToneEventType];
-            if (listener) {
-              controls.removeEventListener(
-                eventName as ToneEventType,
-                listener
-              );
-            }
-          }
-          if (soundModule.definition.onToneEvent) {
-            for (const eventName in soundModule.definition.onToneEvent) {
-              const listener = (arg: ToneEventListenerArg<ToneEventType>) => {
-                const handler =
-                  soundModule.definition.onToneEvent?.[
-                    eventName as ToneEventType
-                  ];
-                if (handler) {
-                  handler(
-                    soundModule.controls,
-                    soundModule.state,
-                    controls,
-                    arg as never
-                  );
-                }
-              };
-              controls.addEventListener(eventName as ToneEventType, listener);
-              soundModule.eventListeners[eventName as ToneEventType] =
-                listener as (...args: unknown[]) => unknown[];
-            }
-          }
-        }
       };
       return setState;
     },
     [activeSoundModules, controls]
   );
+
+  const start = useCallback(
+    (startTime?: Tone.Unit.Time | undefined) => {
+      return Tone.start().then(() => {
+        const { transport } = controls;
+
+        const newSoundModules = soundModulesOrder.map((key) =>
+          // @ts-expect-error -- parameter type inference issue
+          createSoundModule(key, soundModulesDefinitions[key], controls)
+        );
+        setActiveSoundModules(newSoundModules);
+
+        addEventListenersForModules(newSoundModules, controls, getSetState);
+
+        console.log(
+          "Starting Tone.js Transport with soundModules:",
+          newSoundModules
+        );
+
+        const startBpm = controls.getBpm();
+
+        transport.bpm.value = startBpm;
+        transport.start(startTime);
+
+        setStartedOnce(true);
+      });
+    },
+    [soundModulesDefinitions, soundModulesOrder, controls, getSetState]
+  );
+
+  useDidChange(activeSoundModules, (current) => {
+    const newSoundModules = current;
+    // Re-register event listeners for all modules
+    // Currently re-adding ALL event listeners, even for unchanged soundModules.
+
+    removeEventListenersForModules(newSoundModules, controls);
+    addEventListenersForModules(newSoundModules, controls, getSetState);
+  });
 
   const soundModulesDef = useMemo(() => {
     return { soundModulesDefinitions, soundModulesOrder };
@@ -202,9 +156,9 @@ export function useTone(
             controls
           );
           const newActiveSoundModuleState = {
-            ...newActiveSoundModuleBase.state,
-            ...oldActiveSoundModule.state,
-          };
+            ...(newActiveSoundModuleBase.state as object),
+            ...(oldActiveSoundModule.state as object),
+          } as typeof newActiveSoundModuleBase.state;
           newActiveSoundModuleBase.definition.onStateChange?.(
             controls,
             newActiveSoundModuleBase.controls,
@@ -234,52 +188,17 @@ export function useTone(
         soundModule.state,
         controls
       );
-      for (const eventName in soundModule.eventListeners) {
-        const listener = soundModule.eventListeners[eventName as ToneEventType];
-        if (listener) {
-          controls.removeEventListener(eventName as ToneEventType, listener);
-        }
-      }
+      removeEventListeners(soundModule, controls);
     });
 
     setActiveSoundModules(newActiveSoundModules);
-    for (const soundModule of newActiveSoundModules) {
-      // currently re-adding ALL event listeners, even for unchanged soundModules.
-      for (const eventName in soundModule.eventListeners) {
-        // de-register old listeners to avoid duplicates
-        const listener = soundModule.eventListeners[eventName as ToneEventType];
-        if (listener) {
-          controls.removeEventListener(eventName as ToneEventType, listener);
-        }
-      }
-      if (soundModule.definition.onToneEvent) {
-        for (const eventName in soundModule.definition.onToneEvent) {
-          const listener = (arg: ToneEventListenerArg<ToneEventType>) => {
-            const handler =
-              soundModule.definition.onToneEvent?.[eventName as ToneEventType];
-            if (handler) {
-              handler(
-                soundModule.controls,
-                soundModule.state,
-                controls,
-                arg as never
-              );
-            }
-          };
-          controls.addEventListener(eventName as ToneEventType, listener);
-          soundModule.eventListeners[eventName as ToneEventType] = listener as (
-            ...args: unknown[]
-          ) => unknown[];
-        }
-      }
-    }
   });
 
   return useMemo(
     () => ({
       controls,
       activeSoundModules,
-      getSetState,
+      getSetState: getSetState,
       start,
       started: startedOnce,
     }),
@@ -312,4 +231,67 @@ export function createSoundModule<Key extends SoundModuleKey>(
     eventListeners: {},
   };
   return soundModule;
+}
+
+function addEventListeners(
+  soundModule: SoundModuleOf<SoundModuleKey>,
+  controls: ToneControls,
+  getSetState: <Key extends SoundModuleKey>(
+    soundModule: SoundModuleOf<Key>
+  ) => SetState<SoundModuleOf<Key>["state"]>
+) {
+  if (soundModule.definition.onToneEvent) {
+    for (const eventName in soundModule.definition.onToneEvent) {
+      const listener = (arg: ToneEventListenerArg<ToneEventType>) => {
+        const handler =
+          soundModule.definition.onToneEvent?.[eventName as ToneEventType];
+        if (handler) {
+          handler(
+            soundModule.controls,
+            soundModule.state,
+            controls,
+            arg as never,
+            getSetState(soundModule)
+          );
+        }
+      };
+      controls.addEventListener(eventName as ToneEventType, listener);
+      soundModule.eventListeners[eventName as ToneEventType] = listener as (
+        ...args: unknown[]
+      ) => unknown[];
+    }
+  }
+}
+
+function removeEventListeners(
+  soundModule: SoundModuleOf<SoundModuleKey>,
+  controls: ToneControls
+) {
+  for (const eventName in soundModule.eventListeners) {
+    const listener = soundModule.eventListeners[eventName as ToneEventType];
+    if (listener) {
+      controls.removeEventListener(eventName as ToneEventType, listener);
+    }
+  }
+}
+
+function addEventListenersForModules(
+  soundModules: SoundModuleOf<SoundModuleKey>[],
+  controls: ToneControls,
+  getSetState: <Key extends SoundModuleKey>(
+    soundModule: SoundModuleOf<Key>
+  ) => SetState<SoundModuleOf<Key>["state"]>
+) {
+  for (const soundModule of soundModules) {
+    addEventListeners(soundModule, controls, getSetState);
+  }
+}
+
+function removeEventListenersForModules(
+  soundModules: SoundModuleOf<SoundModuleKey>[],
+  controls: ToneControls
+) {
+  for (const soundModule of soundModules) {
+    removeEventListeners(soundModule, controls);
+  }
 }
