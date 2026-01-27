@@ -574,6 +574,190 @@ class OpenCVVisualizer:
         return id_x, id_y
 
 
+class GridVisualizer:
+    """Visualizes floor positions on a 2D grid"""
+    
+    def __init__(
+        self,
+        grid_size: int = 400,
+        grid_range: float = 6.0,
+        margin: int = 50
+    ):
+        """
+        Initialize grid visualizer.
+        
+        Args:
+            grid_size: Size of the grid display in pixels
+            grid_range: Maximum coordinate value in meters (0 to grid_range)
+            margin: Margin around the grid in pixels
+        """
+        self.grid_size = grid_size
+        self.grid_range = grid_range
+        self.margin = margin
+        self.total_size = grid_size + 2 * margin
+        
+    def create_grid_frame(self, frame_analysis: FrameAnalysis) -> np.ndarray:
+        """Create a 2D grid visualization showing floor positions"""
+        # Create white background
+        grid_frame = np.ones((self.total_size, self.total_size, 3), dtype=np.uint8) * 255
+        
+        # Draw grid lines and labels
+        self._draw_grid_lines(grid_frame)
+        self._draw_axis_labels(grid_frame)
+        
+        # Draw person positions
+        for person in frame_analysis.detected_people:
+            if person.floor_position:
+                self._draw_person_on_grid(grid_frame, person)
+        
+        return grid_frame
+    
+    def _draw_grid_lines(self, grid_frame: np.ndarray) -> None:
+        """Draw grid lines and border"""
+        # Draw border
+        cv2.rectangle(
+            grid_frame,
+            (self.margin, self.margin),
+            (self.margin + self.grid_size, self.margin + self.grid_size),
+            (0, 0, 0),
+            2
+        )
+        
+        # Draw grid lines every 0.5 meters
+        step = 0.5
+        num_lines = int(self.grid_range / step)
+        for i in range(1, num_lines):
+            # Calculate pixel position
+            pos = self.margin + int((i * step / self.grid_range) * self.grid_size)
+            
+            # Vertical lines
+            cv2.line(
+                grid_frame,
+                (pos, self.margin),
+                (pos, self.margin + self.grid_size),
+                (200, 200, 200),
+                1
+            )
+            
+            # Horizontal lines
+            cv2.line(
+                grid_frame,
+                (self.margin, pos),
+                (self.margin + self.grid_size, pos),
+                (200, 200, 200),
+                1
+            )
+    
+    def _draw_axis_labels(self, grid_frame: np.ndarray) -> None:
+        """Draw axis labels and title"""
+        font = cv2.FONT_HERSHEY_SIMPLEX
+        font_scale = 0.4
+        thickness = 1
+        
+        # Title
+        cv2.putText(
+            grid_frame,
+            "Floor Position (meters)",
+            (self.margin, 20),
+            font,
+            0.6,
+            (0, 0, 0),
+            2
+        )
+        
+        # X-axis labels - every 0.5 meters
+        step = 0.5
+        num_labels = int(self.grid_range / step) + 1
+        for i in range(num_labels):
+            value = i * step
+            x_pos = self.margin + int((value / self.grid_range) * self.grid_size)
+            label = f"{value:.1f}" if value % 1 != 0 else f"{int(value)}"
+            cv2.putText(
+                grid_frame,
+                label,
+                (x_pos - 10, self.total_size - self.margin + 20),
+                font,
+                font_scale,
+                (0, 0, 0),
+                thickness
+            )
+        
+        # Y-axis labels (inverted because image Y grows downward) - every 0.5 meters
+        for i in range(num_labels):
+            value = i * step
+            y_pos = self.margin + int((value / self.grid_range) * self.grid_size)
+            label_value = self.grid_range - value
+            label = f"{label_value:.1f}" if label_value % 1 != 0 else f"{int(label_value)}"
+            cv2.putText(
+                grid_frame,
+                label,
+                (10, y_pos + 5),
+                font,
+                font_scale,
+                (0, 0, 0),
+                thickness
+            )
+        
+        # Axis names
+        cv2.putText(grid_frame, "X", (self.total_size - 30, self.total_size - 10), 
+                   font, 0.5, (0, 0, 0), thickness)
+        cv2.putText(grid_frame, "Y", (10, 40), 
+                   font, 0.5, (0, 0, 0), thickness)
+    
+    def _draw_person_on_grid(self, grid_frame: np.ndarray, person: PersonDetection) -> None:
+        """Draw a person's position on the grid"""
+        fp = person.floor_position
+        
+        # Clamp coordinates to grid range
+        x = max(0, min(self.grid_range, fp.floor_x))
+        y = max(0, min(self.grid_range, fp.floor_y))
+        
+        # Convert floor coordinates to pixel coordinates
+        # Y is inverted because image Y grows downward
+        pixel_x = self.margin + int((x / self.grid_range) * self.grid_size)
+        pixel_y = self.margin + int(((self.grid_range - y) / self.grid_range) * self.grid_size)
+        
+        # Draw person circle
+        color = self._get_person_color(person.person_id)
+        cv2.circle(grid_frame, (pixel_x, pixel_y), 8, color, -1)
+        cv2.circle(grid_frame, (pixel_x, pixel_y), 8, (0, 0, 0), 1)
+        
+        # Draw person ID
+        cv2.putText(
+            grid_frame,
+            f"ID{person.person_id}",
+            (pixel_x + 12, pixel_y + 5),
+            cv2.FONT_HERSHEY_SIMPLEX,
+            0.4,
+            (0, 0, 0),
+            1
+        )
+        
+        # Draw coordinates
+        coord_text = f"({fp.floor_x:.1f}, {fp.floor_y:.1f})"
+        cv2.putText(
+            grid_frame,
+            coord_text,
+            (pixel_x + 12, pixel_y + 18),
+            cv2.FONT_HERSHEY_SIMPLEX,
+            0.3,
+            (100, 100, 100),
+            1
+        )
+    
+    def _get_person_color(self, person_id: int) -> Tuple[int, int, int]:
+        """Get a consistent color for each person ID"""
+        colors = [
+            (255, 100, 100),  # Light blue
+            (100, 255, 100),  # Light green
+            (100, 100, 255),  # Light red
+            (255, 255, 100),  # Light cyan
+            (255, 100, 255),  # Light magenta
+            (100, 255, 255),  # Light yellow
+        ]
+        return colors[person_id % len(colors)]
+
+
 class PersonTracker:
     """
     Manages stable person IDs across frames using floor position tracking.
@@ -1125,6 +1309,7 @@ def main():
     osc_handler = OSCOutputHandler(args.osc_host, args.osc_port)
     output_handler = CombinedOutputHandler([console_handler, osc_handler])
     visualizer = OpenCVVisualizer()
+    grid_visualizer = None  # Will be initialized with frame dimensions
 
     # Set up video capture source (camera or file)
     if args.video:
@@ -1164,6 +1349,16 @@ def main():
             if args.flip:
                 current_frame = cv2.flip(current_frame, 1)
 
+            # Initialize grid visualizer with frame dimensions (first frame only)
+            if grid_visualizer is None:
+                frame_height = current_frame.shape[0]
+                # Make grid square based on frame height, with reasonable margins
+                grid_visualizer = GridVisualizer(
+                    grid_size=frame_height - 100,
+                    grid_range=3.0,  # Changed from 6.0 to 3.0 meters
+                    margin=50
+                )
+
             # Analyze the frame and get detection results
             frame_analysis = skeleton_tracker.analyze_frame(
                 input_frame=current_frame,
@@ -1182,7 +1377,22 @@ def main():
             visualization_frame = visualizer.create_visualization_frame(
                 current_frame, frame_analysis
             )
-            cv2.imshow("Real-time Skeleton Tracking with Floor Position Mapping", visualization_frame)
+            
+            # Create grid visualization
+            grid_frame = grid_visualizer.create_grid_frame(frame_analysis)
+            
+            # Resize grid to match camera frame height if necessary
+            if grid_frame.shape[0] != visualization_frame.shape[0]:
+                grid_frame = cv2.resize(
+                    grid_frame,
+                    (grid_frame.shape[1], visualization_frame.shape[0]),
+                    interpolation=cv2.INTER_LINEAR
+                )
+            
+            # Combine visualizations side by side
+            combined_frame = np.hstack([visualization_frame, grid_frame])
+            
+            cv2.imshow("Real-time Skeleton Tracking with Floor Position Mapping", combined_frame)
             
             # Check for quit command (press 'q' key)
             if cv2.waitKey(1) & 0xFF == ord("q"):
