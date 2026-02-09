@@ -27,10 +27,10 @@ export class PoemSampler {
     // Use 'this.sampler' instead of bare 'sampler'
     this.sampler = new Tone.Sampler({
       urls: {
-        A1: "/samples/p1", // Use full URL with correct port and endpoint
-        B1: "/samples/p2",
-        C1: "/samples/p3",
-        D1: "/samples/p4",
+        A1: "/samples/p1.mp3", // Use full URL with correct port and endpoint
+        B1: "/samples/p2.mp3",
+        C1: "/samples/p3.mp3",
+        D1: "/samples/p4.mp3",
       },
       onload: () => {
         this.isLoaded = true;
