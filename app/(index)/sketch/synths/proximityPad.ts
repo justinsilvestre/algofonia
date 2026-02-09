@@ -1,4 +1,18 @@
+import * as Tone from "tone";
+
 export class ProximityPad {
+  vibrato: Tone.Vibrato;
+  chorus: Tone.Chorus;
+  filter: Tone.Filter;
+  filterLFO: Tone.LFO;
+  reverb: Tone.Reverb;
+  tremolo: Tone.Tremolo;
+  phaser: Tone.Phaser;
+  stereoWidener: Tone.StereoWidener;
+  compressor: Tone.Compressor;
+  mixer: Tone.Gain;
+  voices: Map<string, Tone.FMSynth>;
+
   constructor() {
     // Gentle wobble for organic unease
     this.vibrato = new Tone.Vibrato({
@@ -84,7 +98,7 @@ export class ProximityPad {
     this.voices = new Map();
   }
 
-  createVoice(note, volumeGate) {
+  createVoice(note: string, volumeGate: Tone.Gain): void {
     const synth = new Tone.FMSynth({
       harmonicity: 1.5, // Musical perfect fifth relationship
       modulationIndex: 2, // Rich but controlled harmonics
@@ -115,8 +129,8 @@ export class ProximityPad {
     this.voices.set(note, synth);
   }
 
-  dispose() {
-    this.voices.forEach((synth) => synth.dispose());
+  dispose(): void {
+    this.voices.forEach((synth: Tone.FMSynth) => synth.dispose());
     this.vibrato.dispose();
     this.chorus.dispose();
     this.filter.dispose();

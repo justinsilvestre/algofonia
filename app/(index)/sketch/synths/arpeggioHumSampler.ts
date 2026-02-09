@@ -1,5 +1,19 @@
+import * as Tone from "tone";
+import { map } from "./map";
+
 export class ArpeggioHumSampler {
-  constructor(sampleUrl) {
+  loaded: boolean;
+  bufferDuration: number;
+  numVoices: number;
+  players: Tone.Player[];
+  nextVoice: number;
+  gain: Tone.Gain;
+  filter: Tone.Filter;
+  compressor: Tone.Compressor;
+  repeatId: number | null;
+  probability: number;
+
+  constructor(sampleUrl: string, masterVolume: number) {
     this.loaded = false;
     this.bufferDuration = 0;
 
@@ -11,7 +25,7 @@ export class ArpeggioHumSampler {
     let loadCount = 0;
 
     for (let i = 0; i < this.numVoices; i++) {
-      let player = new Tone.Player({
+      const player = new Tone.Player({
         url: sampleUrl,
         loop: false,
         autostart: false,
@@ -30,7 +44,8 @@ export class ArpeggioHumSampler {
       this.players.push(player);
     }
 
-    this.gain = new Tone.Gain(0.0075 * MASTER_VOLUME);
+    this.gain = new Tone.Gain(0.0075 * masterVolume);
+    this.gain = new Tone.Gain(0.0075);
     this.filter = new Tone.Filter({
       type: "lowpass",
       frequency: 6000,
@@ -44,7 +59,7 @@ export class ArpeggioHumSampler {
     }).toDestination();
 
     // Connect all players to the same effects chain
-    this.players.forEach((player) => {
+    this.players.forEach((player: Tone.Player) => {
       player.chain(this.gain, this.filter, this.compressor);
     });
 
@@ -52,15 +67,15 @@ export class ArpeggioHumSampler {
     this.probability = 0.4;
   }
 
-  start() {
+  start(): void {
     if (!this.loaded || this.repeatId) return;
 
-    this.repeatId = Tone.Transport.scheduleRepeat((time) => {
+    this.repeatId = Tone.Transport.scheduleRepeat((time: number) => {
       if (!this.loaded) return;
 
       if (Math.random() < this.probability) {
         // Use round-robin voice allocation
-        let player = this.players[this.nextVoice];
+        const player = this.players[this.nextVoice];
         this.nextVoice = (this.nextVoice + 1) % this.numVoices;
 
         // Stop the player first if it's already playing
@@ -68,7 +83,7 @@ export class ArpeggioHumSampler {
           player.stop(time);
         }
 
-        const offset = random(0, Math.max(this.bufferDuration - 6, 0));
+        const offset = Math.random() * Math.max(this.bufferDuration - 6, 0);
         const duration = 6;
 
         player.start(time, offset, duration);
@@ -77,24 +92,24 @@ export class ArpeggioHumSampler {
     }, "16n");
   }
 
-  update(entropy) {
-    let targetFilterFreq = map(entropy, 0, 1, 1000, 6000);
+  update(entropy: number): void {
+    const targetFilterFreq = map(entropy, 0, 1, 1000, 6000);
     this.filter.frequency.rampTo(targetFilterFreq, 0.1);
   }
 
-  stop() {
+  stop(): void {
     if (this.repeatId) {
       Tone.Transport.clear(this.repeatId);
       this.repeatId = null;
     }
-    this.players.forEach((p) => {
+    this.players.forEach((p: Tone.Player) => {
       if (p.state === "started") p.stop();
     });
   }
 
-  dispose() {
+  dispose(): void {
     this.stop();
-    this.players.forEach((p) => p.dispose());
+    this.players.forEach((p: Tone.Player) => p.dispose());
     this.filter.dispose();
     this.gain.dispose();
     this.compressor.dispose();

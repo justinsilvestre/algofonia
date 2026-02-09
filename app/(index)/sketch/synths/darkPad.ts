@@ -1,5 +1,14 @@
+import * as Tone from "tone";
+
 export class DarkAmbientPad {
-  constructor() {
+  vibrato: Tone.Vibrato;
+  chorus: Tone.Chorus;
+  filter: Tone.Filter;
+  filterLFO: Tone.LFO;
+  mixer: Tone.Gain;
+  voices: Map<string, Tone.FMSynth>;
+
+  constructor(masterVolume: number) {
     // Keep the shared effects
     this.vibrato = new Tone.Vibrato({
       frequency: 0.5,
@@ -31,7 +40,7 @@ export class DarkAmbientPad {
     this.filterLFO.start();
 
     // Create a MIXER for all voices
-    this.mixer = new Tone.Gain(0.5 * MASTER_VOLUME);
+    this.mixer = new Tone.Gain(0.5 * masterVolume);
 
     // Chain shared effects: vibrato -> filter -> chorus -> mixer
     this.vibrato.chain(
@@ -45,7 +54,7 @@ export class DarkAmbientPad {
     this.voices = new Map();
   }
 
-  createVoice(note, volumeGate) {
+  createVoice(note: string, volumeGate: Tone.Gain): void {
     // Create a dedicated synth for this note
     const synth = new Tone.FMSynth({
       harmonicity: 1.01,
@@ -76,8 +85,8 @@ export class DarkAmbientPad {
     this.voices.set(note, synth);
   }
 
-  dispose() {
-    this.voices.forEach((synth) => synth.dispose());
+  dispose(): void {
+    this.voices.forEach((synth: Tone.FMSynth) => synth.dispose());
     this.vibrato.dispose();
     this.filter.dispose();
     this.filterLFO.dispose();

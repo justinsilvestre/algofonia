@@ -1,5 +1,16 @@
+import * as Tone from "tone";
+
 export class BassSynth {
-  constructor() {
+  mainSynth: Tone.MonoSynth;
+  subSynth: Tone.MonoSynth;
+  distortion: Tone.Distortion;
+  eq: Tone.EQ3;
+  compressor: Tone.Compressor;
+  chorus: Tone.Chorus;
+  reverb: Tone.Reverb;
+  gain: Tone.Gain;
+
+  constructor(masterVolume: number) {
     // Main bass voice - sawtooth for brightness
     this.mainSynth = new Tone.MonoSynth({
       oscillator: {
@@ -77,7 +88,7 @@ export class BassSynth {
     });
 
     // Master gain
-    this.gain = new Tone.Gain(0.025 * MASTER_VOLUME);
+    this.gain = new Tone.Gain(0.025 * masterVolume);
 
     // Connect main synth chain
     this.mainSynth.chain(
@@ -96,11 +107,15 @@ export class BassSynth {
     this.reverb.generate();
   }
 
-  async start() {
+  async start(): Promise<void> {
     await Tone.start();
   }
 
-  playNote(note, duration, time) {
+  playNote(
+    note: string | number,
+    duration: Tone.Unit.Time,
+    time?: Tone.Unit.Time
+  ): void {
     note = Tone.Frequency(note).transpose(-12).toNote();
     // Play main note
     this.mainSynth.triggerAttackRelease(note, duration, time);
@@ -110,18 +125,18 @@ export class BassSynth {
     this.subSynth.triggerAttackRelease(subNote, duration, time);
   }
 
-  triggerAttack(note, time) {
+  triggerAttack(note: string | number, time?: Tone.Unit.Time): void {
     this.mainSynth.triggerAttack(note, time);
     const subNote = Tone.Frequency(note).transpose(-36).toNote();
     this.subSynth.triggerAttack(subNote, time);
   }
 
-  triggerRelease(time) {
+  triggerRelease(time?: Tone.Unit.Time): void {
     this.mainSynth.triggerRelease(time);
     this.subSynth.triggerRelease(time);
   }
 
-  dispose() {
+  dispose(): void {
     this.mainSynth.dispose();
     this.subSynth.dispose();
     this.distortion.dispose();

@@ -1,14 +1,36 @@
+import * as Tone from "tone";
+import { map } from "./map";
+import { constrain } from "./constrain";
+
+// Declare width as global variable which would typically come from p5.js
+declare const width: number;
+
 export class PoemSampler {
-  constructor() {
+  isLoaded: boolean;
+  sampler: Tone.Sampler;
+  notes: string[];
+  noteIndex: number;
+  reverb: Tone.Reverb;
+  delay: Tone.FeedbackDelay;
+  filter: Tone.Filter;
+  filterLFO: Tone.LFO;
+  panner: Tone.Panner;
+  stereoWidener: Tone.StereoWidener;
+  compressor: Tone.Compressor;
+  gain: Tone.Gain;
+  lastTriggered: number;
+  cooldown: number;
+
+  constructor(masterVolume: number) {
     this.isLoaded = false;
 
     // Use 'this.sampler' instead of bare 'sampler'
     this.sampler = new Tone.Sampler({
       urls: {
-        A1: "http://localhost:8080/p1", // Use full URL with correct port and endpoint
-        B1: "http://localhost:8080/p2",
-        C1: "http://localhost:8080/p3",
-        D1: "http://localhost:8080/p4",
+        A1: "/samples/p1", // Use full URL with correct port and endpoint
+        B1: "/samples/p2",
+        C1: "/samples/p3",
+        D1: "/samples/p4",
       },
       onload: () => {
         this.isLoaded = true;
@@ -26,7 +48,7 @@ export class PoemSampler {
 
     this.delay = new Tone.FeedbackDelay({
       feedback: 0.3,
-      delayDuration: "8n.",
+      delayTime: "8n.",
       wet: 0.4,
     });
 
@@ -55,7 +77,7 @@ export class PoemSampler {
       release: 0.3,
     });
 
-    this.gain = new Tone.Gain(0.45 * MASTER_VOLUME);
+    this.gain = new Tone.Gain(0.45 * masterVolume);
 
     this.sampler.chain(
       this.filter,
@@ -72,7 +94,7 @@ export class PoemSampler {
     this.cooldown = 200; // 2 second cooldown between triggers
   }
 
-  update(screenCentroidX) {
+  update(screenCentroidX: number): void {
     this.panner.pan.rampTo(
       constrain(map(screenCentroidX, width * 0.45, width * 0.55, -1, 1), -1, 1),
       0.1
@@ -80,7 +102,7 @@ export class PoemSampler {
   }
 
   // Trigger the next poem line
-  trigger() {
+  trigger(): void {
     if (!this.isLoaded) return;
 
     if (Date.now() - this.lastTriggered < this.cooldown) return;
@@ -93,7 +115,7 @@ export class PoemSampler {
   }
 
   // Trigger specific line
-  triggerLine(lineNumber) {
+  triggerLine(lineNumber: number): void {
     if (!this.isLoaded) return;
     if (lineNumber < 1 || lineNumber > 4) return;
 
@@ -101,7 +123,7 @@ export class PoemSampler {
     this.sampler.triggerAttackRelease(notes[lineNumber - 1], "1n");
   }
 
-  dispose() {
+  dispose(): void {
     this.sampler.dispose();
   }
 }

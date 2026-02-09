@@ -1,7 +1,23 @@
+import * as Tone from "tone";
+import { map } from "./map";
+import { constrain } from "./constrain";
+
 export class ProximityMelody {
-  constructor() {
+  synth: Tone.PolySynth<Tone.FMSynth>;
+  reverb: Tone.Reverb;
+  chorus: Tone.Chorus;
+  pingPong: Tone.PingPongDelay;
+  filter: Tone.Filter;
+  gain: Tone.Gain;
+  melodyPatterns: string[][];
+  currentPattern: string[];
+  repeatId: number | null;
+  proximityLevel: number;
+
+  constructor(scaleOctaveAbove: string[]) {
     this.synth = new Tone.PolySynth(Tone.FMSynth, {
-      maxPolyphony: 4,
+      // compiler error:
+      // maxpolyphony: 4,
       harmonicity: 1,
       modulationIndex: 1.2,
       oscillator: { type: "sine" },
@@ -19,6 +35,9 @@ export class ProximityMelody {
         release: 1.5,
       },
     });
+
+    // Set max polyphony after construction
+    this.synth.maxPolyphony = 4;
 
     this.reverb = new Tone.Reverb({
       decay: 4,
@@ -55,29 +74,29 @@ export class ProximityMelody {
     );
 
     this.melodyPatterns = [
-      [SCALE_OCTAVE_ABOVE[4], SCALE_OCTAVE_ABOVE[2], SCALE_OCTAVE_ABOVE[0]],
-      [SCALE_OCTAVE_ABOVE[0], SCALE_OCTAVE_ABOVE[2], SCALE_OCTAVE_ABOVE[5]],
+      [scaleOctaveAbove[4], scaleOctaveAbove[2], scaleOctaveAbove[0]],
+      [scaleOctaveAbove[0], scaleOctaveAbove[2], scaleOctaveAbove[5]],
       [
-        SCALE_OCTAVE_ABOVE[5],
-        SCALE_OCTAVE_ABOVE[4],
-        SCALE_OCTAVE_ABOVE[3],
-        SCALE_OCTAVE_ABOVE[2],
+        scaleOctaveAbove[5],
+        scaleOctaveAbove[4],
+        scaleOctaveAbove[3],
+        scaleOctaveAbove[2],
       ],
-      [SCALE_OCTAVE_ABOVE[0], SCALE_OCTAVE_ABOVE[4]],
-      [SCALE_OCTAVE_ABOVE[2], SCALE_OCTAVE_ABOVE[6], SCALE_OCTAVE_ABOVE[4]],
+      [scaleOctaveAbove[0], scaleOctaveAbove[4]],
+      [scaleOctaveAbove[2], scaleOctaveAbove[6], scaleOctaveAbove[4]],
     ];
 
-    this.currentPattern = random(this.melodyPatterns);
+    this.currentPattern = randomChoice(this.melodyPatterns);
     this.repeatId = null;
     this.proximityLevel = 1;
   }
 
-  start() {
+  start(): void {
     if (this.repeatId) return;
 
     let noteIndex = 0;
 
-    this.repeatId = Tone.Transport.scheduleRepeat((time) => {
+    this.repeatId = Tone.Transport.scheduleRepeat((time: number) => {
       const activePositions = [0, 5, 10, 14].slice(
         0,
         this.currentPattern.length
@@ -89,10 +108,12 @@ export class ProximityMelody {
         let note = this.currentPattern[patternIndex];
 
         if (this.proximityLevel > 0.1) {
-          const velocity = map(this.proximityLevel, 0.1, 1, 0.2, 0.6);
+          // const velocity = map(this.proximityLevel, 0.1, 1, 0.2, 0.6); // Unused variable commented out
 
-          if (random(1) > 0.7)
-            note = Tone.Frequency(note).transpose(random() > 0.5 ? 12 : -12);
+          if (Math.random() > 0.7)
+            note = Tone.Frequency(note)
+              .transpose(Math.random() > 0.5 ? 12 : -12)
+              .toNote();
 
           this.synth.triggerAttackRelease(note, "8n", time);
         }
@@ -101,25 +122,30 @@ export class ProximityMelody {
       noteIndex++;
 
       if (noteIndex % 32 === 0 && Math.random() < 0.3) {
-        this.currentPattern = random(this.melodyPatterns);
+        this.currentPattern = randomChoice(this.melodyPatterns);
       }
     }, "16n");
   }
 
-  update(visitorIndex1, visitorIndex2, distance) {
+  update(
+    visitorIndex1: number,
+    visitorIndex2: number,
+    distance: number,
+    masterVolume: number
+  ): void {
     const volume =
-      map(constrain(distance, 0, 200), 0, 200, 0.4, 0.0) * MASTER_VOLUME;
+      map(constrain(distance, 0, 200), 0, 200, 0.4, 0.0) * masterVolume;
     this.gain.gain.rampTo(volume, 0.1);
   }
 
-  stop() {
+  stop(): void {
     if (this.repeatId) {
       Tone.Transport.clear(this.repeatId);
       this.repeatId = null;
     }
   }
 
-  dispose() {
+  dispose(): void {
     this.stop();
     this.synth.dispose();
     this.reverb.dispose();
@@ -127,4 +153,9 @@ export class ProximityMelody {
     this.filter.dispose();
     this.gain.dispose();
   }
+}
+
+// Helper method to replace p5.js random function
+function randomChoice<T>(array: T[]): T {
+  return array[Math.floor(Math.random() * array.length)];
 }
