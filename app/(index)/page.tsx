@@ -12,7 +12,6 @@ import { VisualsCanvas as NativeVisualsCanvas } from "./NativeVisualsCanvas";
 import { useRef, useState } from "react";
 import * as Tone from "tone";
 import { useWebsocket } from "../useWebsocket";
-import { VisualsState, initialVisualsState } from "./sketch/nativeVisuals";
 
 export default function PlayPage() {
   const { controls, activeSoundModules, start, started, getSetState } = useTone(
