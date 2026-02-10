@@ -84,20 +84,40 @@ async function startServer() {
       const [address, ...args] = msg as [string, ...number[]];
 
       if (address === "/people/positions") {
-        // Parse positions: [personId1, x1, y1, personId2, x2, y2, ...]
+        console.log("👥 People positions received:", args);
+        if (args.length === 0) {
+          console.log("   (No people detected)");
+        } else {
+          const numPeople = args.length / 4; // Groups of 4: [id, x, y, hands_raised]
+          console.log(`   (${numPeople} people detected)`);
+
+          // Log each person's data
+          for (let i = 0; i < args.length; i += 4) {
+            if (i + 3 < args.length) {
+              const id = args[i];
+              const x = args[i + 1];
+              const y = args[i + 2];
+              const handsRaised = args[i + 3];
+              const handsStatus = handsRaised ? "🙌" : "👇";
+              console.log(
+                `   Person ${id}: (${x.toFixed(3)}, ${y.toFixed(3)}) meters, hands: ${handsStatus}`
+              );
+            }
+          }
+        }
+
+        // Parse positions: [id1, x1, y1, hands_raised1, id2, x2, y2, hands_raised2, ...]
         const positions = [];
-        for (let i = 0; i < args.length; i += 3) {
-          if (i + 2 < args.length) {
+        for (let i = 0; i < args.length; i += 4) {
+          if (i + 3 < args.length) {
             positions.push({
               personId: args[i],
               x: args[i + 1],
               y: args[i + 2],
+              handsRaised: args[i + 3],
             });
           }
         }
-        console.log(
-          `osc: /people/positions ${positions.map((p) => `[${p.personId}:${p.x.toFixed(2)},${p.y.toFixed(2)}]`).join(" ")}`
-        );
         broadcastPeoplePositions(positions);
       }
     });
@@ -143,7 +163,7 @@ async function startServer() {
         logInBox([
           "",
           `LISTEN TO MUSIC at:`,
-          `   🔊 http${useHttps ? "s" : ""}://${localIp}:${port}/listen`,
+          `   🔊 http${useHttps ? "s" : ""}://${localIp}:${port}/`,
           `   Or, on this machine, at http${
             useHttps ? "s" : ""
           }://localhost:${port}/`,
