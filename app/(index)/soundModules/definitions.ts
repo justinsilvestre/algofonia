@@ -2,6 +2,15 @@ import { drums } from "./drums";
 import { drumMachine } from "./drumMachine";
 import { stab } from "./stab";
 import { master } from "./master";
+import {
+  abstractHumSampler,
+  arpeggioHumSampler,
+  bass,
+  darkPad,
+  poemSampler,
+  proximityMelody,
+  proximityPad,
+} from "./finalExhibition";
 import type { SoundModule } from "../SoundModule";
 import type { ToneControls, ToneEventMap } from "../tone";
 
@@ -13,12 +22,26 @@ export const soundModulesDefinitions = {
   drumMachine,
   stab,
   master,
+  abstractHumSampler,
+  arpeggioHumSampler,
+  bass,
+  darkPad,
+  poemSampler,
+  proximityMelody,
+  proximityPad,
 } as const;
 
 export const soundModulesOrder: SoundModuleKey[] = [
   "master",
-  "drumMachine",
-  "stab",
+  // "drumMachine",
+  // "stab",
+  "abstractHumSampler",
+  "arpeggioHumSampler",
+  "bass",
+  "darkPad",
+  "poemSampler",
+  "proximityMelody",
+  "proximityPad",
 ];
 
 export type SoundModuleOf<Key extends SoundModuleKey = SoundModuleKey> =

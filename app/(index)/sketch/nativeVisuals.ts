@@ -1,8 +1,29 @@
+type PersonPosition = {
+  personId: number;
+  x: number;
+  y: number;
+  handsRaised: boolean;
+};
+
+type Circle = {
+  personId: number;
+  x: number;
+  y: number;
+  normalizedX: number; // 0-1
+  normalizedY: number; // 0-1
+  targetX: number;
+  targetY: number;
+  radius: number;
+  baseRadius: number;
+  targetRadius: number;
+  handsRaised: boolean;
+  targetHandsRaised: boolean;
+  color: string;
+  isActive: boolean; // Whether this person is currently present
+};
+
 type VisualsState = {
-  mouseX: number;
-  mouseY: number;
-  mouseNormX: number; // 0-1
-  mouseNormY: number; // 0-1
+  circles: Circle[];
   cliffordPoints: Array<{ x: number; y: number; age: number }>;
   attractorX: number;
   attractorY: number;
@@ -35,11 +56,33 @@ export function mountVisuals(
   let frameCount = 0;
   let animationFrameId: number;
 
+  // Position coordinate system bounds
+  const POSITION_MAX_X = 3.5;
+  const POSITION_MAX_Y = 3;
+
+  // Create circle for a person
+  function createCircle(personId: number): Circle {
+    const hue = (personId * 137.5) % 360; // Golden angle for good color distribution
+    return {
+      personId,
+      x: width * 0.5, // Start in center
+      y: height * 0.5,
+      normalizedX: 0.5,
+      normalizedY: 0.5,
+      targetX: width * 0.5,
+      targetY: height * 0.5,
+      radius: 25,
+      baseRadius: 25,
+      targetRadius: 25,
+      handsRaised: false,
+      targetHandsRaised: false,
+      color: `hsl(${hue}, 70%, 60%)`,
+      isActive: false,
+    };
+  }
+
   const state: VisualsState = {
-    mouseX: 0,
-    mouseY: 0,
-    mouseNormX: 0.5,
-    mouseNormY: 0.5,
+    circles: [],
     cliffordPoints: [],
     attractorX: 0,
     attractorY: 0,
@@ -49,36 +92,92 @@ export function mountVisuals(
       c: 1.0,
       d: 0.7,
     },
-    maxPoints: 10000,
-    iterationsPerFrame: 10000,
+    maxPoints: 2000,
+    iterationsPerFrame: 10,
   };
 
-  // Mouse event handlers
-  const onMouseMove = (e: MouseEvent) => {
-    const rect = canvas.getBoundingClientRect();
-    state.mouseX = e.clientX - rect.left;
-    state.mouseY = e.clientY - rect.top;
-    state.mouseNormX = state.mouseX / width;
-    state.mouseNormY = state.mouseY / height;
+  // Update people positions from external data
+  function updatePeoplePositions(positions: PersonPosition[]) {
+    // Mark all circles as inactive initially
+    state.circles.forEach((circle) => {
+      circle.isActive = false;
+    });
 
-    // Update Clifford attractor parameters based on mouse position
-    updateAttractorParams(state);
-  };
+    positions.forEach((position) => {
+      let circle = state.circles.find((c) => c.personId === position.personId);
 
-  const onMouseLeave = () => {
-    // Reset to center when mouse leaves
-    state.mouseNormX = 0.5;
-    state.mouseNormY = 0.5;
-    updateAttractorParams(state);
-  };
+      // Create new circle if person doesn't exist
+      if (!circle) {
+        circle = createCircle(position.personId);
+        state.circles.push(circle);
+      }
+
+      // Mark as active and update targets
+      circle.isActive = true;
+      // Map coordinates: x from [0, POSITION_MAX_X] to [0, width], y from [0, POSITION_MAX_Y] to [height, 0]
+      circle.targetX = (position.x / POSITION_MAX_X) * width;
+      circle.targetY = height - (position.y / POSITION_MAX_Y) * height;
+      circle.targetHandsRaised = position.handsRaised;
+    });
+
+    // Remove circles for people who are no longer present
+    state.circles = state.circles.filter((circle) => circle.isActive);
+  }
+
+  function updateCircleProperties() {
+    state.circles.forEach((circle) => {
+      // Smooth position interpolation
+      const posLerp = 0.05; // Adjust for responsiveness vs smoothness
+      circle.x += (circle.targetX - circle.x) * posLerp;
+      circle.y += (circle.targetY - circle.y) * posLerp;
+
+      // Update normalized positions
+      circle.normalizedX = circle.x / width;
+      circle.normalizedY = circle.y / height;
+
+      // Smooth hands raised state
+      const currentHandsRaised = circle.handsRaised;
+      const targetHandsRaised = circle.targetHandsRaised;
+
+      // Update hands raised state (for size calculation)
+      if (targetHandsRaised !== currentHandsRaised) {
+        circle.handsRaised = targetHandsRaised;
+      }
+
+      // Calculate target radius based on hands raised
+      circle.targetRadius = circle.handsRaised
+        ? circle.baseRadius * 2
+        : circle.baseRadius;
+
+      // Smooth radius interpolation
+      const sizeLerp = 0.08; // Slightly faster for size changes
+      circle.radius += (circle.targetRadius - circle.radius) * sizeLerp;
+    });
+  }
 
   function updateAttractorParams(state: VisualsState) {
-    // Map mouse position to attractor parameters
-    // Smooth interpolation for natural movement
-    const targetA = -2.5 + state.mouseNormX * 2.0; // Range: -2.5 to -0.5
-    const targetB = 0.5 + state.mouseNormY * 2.0; // Range: 0.5 to 2.5
-    const targetC = 0.5 + state.mouseNormX * 1.0; // Range: 0.5 to 1.5
-    const targetD = 0.3 + state.mouseNormY * 0.8; // Range: 0.3 to 1.1
+    // Calculate average influence from all circles with weighted contribution
+    let totalInfluenceX = 0;
+    let totalInfluenceY = 0;
+    let totalWeight = 0;
+
+    state.circles.forEach((circle) => {
+      // Weight circles by their radius (larger circles have more influence)
+      const weight = circle.radius / 50; // Normalize radius to weight
+      totalInfluenceX += circle.normalizedX * weight;
+      totalInfluenceY += circle.normalizedY * weight;
+      totalWeight += weight;
+    });
+
+    // Use defaults if no circles
+    const avgInfluenceX = totalWeight > 0 ? totalInfluenceX / totalWeight : 0.5;
+    const avgInfluenceY = totalWeight > 0 ? totalInfluenceY / totalWeight : 0.5;
+
+    // Map average circle positions to attractor parameters
+    const targetA = -2.5 + avgInfluenceX * 2.0; // Range: -2.5 to -0.5
+    const targetB = 0.5 + avgInfluenceY * 2.0; // Range: 0.5 to 2.5
+    const targetC = 0.5 + avgInfluenceX * 1.0; // Range: 0.5 to 1.5
+    const targetD = 0.3 + avgInfluenceY * 0.8; // Range: 0.3 to 1.1
 
     // Smooth interpolation for fluid movement
     const lerp = 0.02;
@@ -129,10 +228,6 @@ export function mountVisuals(
     // Initialize canvas
     ctx.fillStyle = "black";
     ctx.fillRect(0, 0, width, height);
-
-    // Add mouse event listeners
-    canvas.addEventListener("mousemove", onMouseMove);
-    canvas.addEventListener("mouseleave", onMouseLeave);
   }
 
   function draw() {
@@ -140,14 +235,20 @@ export function mountVisuals(
     ctx.fillStyle = "rgba(0, 0, 0, 0.03)";
     ctx.fillRect(0, 0, width, height);
 
+    // Update circle properties
+    updateCircleProperties();
+
+    // Update attractor parameters based on circle positions
+    updateAttractorParams(state);
+
     // Generate new points
     generateCliffordPoints(state);
 
     // Draw attractor points
     drawCliffordAttractor(state);
 
-    // Draw mouse indicator (optional)
-    drawMouseIndicator(state);
+    // Draw circles
+    drawCircles(state);
   }
 
   function drawCliffordAttractor(state: VisualsState) {
@@ -186,16 +287,31 @@ export function mountVisuals(
     ctx.restore();
   }
 
-  function drawMouseIndicator(state: VisualsState) {
-    if (state.mouseX > 0 && state.mouseY > 0) {
-      ctx.save();
-      ctx.strokeStyle = "rgba(255, 255, 255, 0.3)";
-      ctx.lineWidth = 1;
+  function drawCircles(state: VisualsState) {
+    ctx.save();
+
+    state.circles.forEach((circle) => {
+      const isEnlarged = circle.radius > circle.baseRadius + 1;
+
+      if (isEnlarged) {
+        // Draw filled circle when hands raised (enlarged)
+        ctx.fillStyle = circle.color;
+        ctx.globalAlpha = 0.7;
+        ctx.beginPath();
+        ctx.arc(circle.x, circle.y, circle.radius, 0, Math.PI * 2);
+        ctx.fill();
+      }
+
+      // Always draw circle outline
+      ctx.strokeStyle = circle.color;
+      ctx.lineWidth = 2;
+      ctx.globalAlpha = 0.9;
       ctx.beginPath();
-      ctx.arc(state.mouseX, state.mouseY, 20, 0, Math.PI * 2);
+      ctx.arc(circle.x, circle.y, circle.radius, 0, Math.PI * 2);
       ctx.stroke();
-      ctx.restore();
-    }
+    });
+
+    ctx.restore();
   }
 
   // --- RUNTIME ---
@@ -225,13 +341,12 @@ export function mountVisuals(
   // Return cleanup function for the module consumer
   return {
     state,
-    start: animate,
     onResize,
+    updatePeoplePositions, // Expose function to update positions
+    start: animate, // Expose start function instead of auto-starting
     stop: () => {
       cancelAnimationFrame(animationFrameId);
       window.removeEventListener("resize", onResize);
-      canvas.removeEventListener("mousemove", onMouseMove);
-      canvas.removeEventListener("mouseleave", onMouseLeave);
       container.removeChild(canvas);
     },
   };

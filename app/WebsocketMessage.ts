@@ -43,8 +43,12 @@ export type MessageToClient =
     }
   | {
       type: "PEOPLE_POSITIONS";
-      /** Expected format: [id1, x1, y1, hands1, id2, x2, y2, hands2, ...] */
-      positions: (string | number | boolean)[];
+      positions: {
+        personId: number;
+        x: number;
+        y: number;
+        handsRaised: boolean;
+      }[];
     }
   | MotionInputMessageToClient;
 

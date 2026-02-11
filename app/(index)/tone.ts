@@ -3,6 +3,7 @@ import { Scale } from "tonal";
 import { SoundModuleDefinition } from "./SoundModule";
 
 const START_BPM = 100;
+const DEFAULT_MASTER_VOLUME = -8;
 
 export type ToneEventMap = {
   tonicChange: string;
@@ -87,6 +88,7 @@ export function getToneControls(startBpm: number = START_BPM) {
     eventListeners,
     addEventListener,
     removeEventListener,
+    masterVolume: DEFAULT_MASTER_VOLUME,
     get currentMeasureStartTime() {
       const position = Tone.getTransport().position as string;
 

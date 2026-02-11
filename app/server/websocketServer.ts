@@ -110,7 +110,12 @@ export async function startWebSocketServer(options: WebSocketServerOptions) {
   return {
     websocketServer,
     broadcastPeoplePositions: (
-      positions: Array<{ personId: number; x: number; y: number }>
+      positions: Array<{
+        personId: number;
+        x: number;
+        y: number;
+        handsRaised: boolean;
+      }>
     ) => {
       const message: MessageToClient = {
         type: "PEOPLE_POSITIONS",

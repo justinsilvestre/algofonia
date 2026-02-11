@@ -1,4 +1,5 @@
 "use client";
+import { useEffect, useState } from "react";
 import {
   soundModulesDefinitions,
   soundModulesOrder,
@@ -8,35 +9,66 @@ import { SoundModuleOf } from "./soundModules/definitions";
 import { SoundModuleKey } from "./soundModules/definitions";
 import { useTone } from "./useTone";
 import { ToneControls } from "./tone";
-import { VisualsCanvas as NativeVisualsCanvas } from "./NativeVisualsCanvas";
-import { useRef, useState } from "react";
+import {
+  VisualsCanvas as NativeVisualsCanvas,
+  useVisuals,
+} from "./NativeVisualsCanvas";
 import * as Tone from "tone";
 import { useWebsocket } from "../useWebsocket";
+import { mountVisuals } from "./sketch/nativeVisuals";
+
+type PersonPosition = {
+  personId: number;
+  x: number;
+  y: number;
+  handsRaised: boolean;
+};
 
 export default function PlayPage() {
-  const { controls, activeSoundModules, start, started, getSetState } = useTone(
-    soundModulesDefinitions,
-    soundModulesOrder
-  );
+  const [peoplePositions, setPeoplePositions] = useState<PersonPosition[]>([]);
 
-  const [visualsStarted, setVisualsStarted] = useState(false);
-  const startVisuals = () => {
-    if (!started) {
-      Tone.start().then(() => setVisualsStarted(true));
-    } else {
-      setVisualsStarted(true);
-    }
-  };
+  const {
+    controls,
+    activeSoundModules,
+    start: startSound,
+    started,
+    getSetState,
+  } = useTone(soundModulesDefinitions, soundModulesOrder);
+  const visuals = useVisuals({
+    beforeStart: () => Tone.start(),
+    initialize: mountVisuals,
+  });
 
-  const followMouse = useRef(true);
-
-  useWebsocket({
+  const { simulation } = useWebsocket({
     handleMessage(message) {
       if (message.type === "PEOPLE_POSITIONS") {
-        console.log("got positions");
+        console.log("got positions", message.positions);
+        setPeoplePositions(message.positions);
+
+        // Update visuals if they're available
+        if (visuals.instance?.updatePeoplePositions) {
+          visuals.instance.updatePeoplePositions(message.positions);
+        }
       }
     },
   });
+
+  useEffect(() => {
+    const simulate = () => {
+      simulation.toggleSimulation();
+    };
+    // simulate on press "S"
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.key === "s" || event.key === "S") {
+        console.log("Toggling simulation");
+        simulate();
+      }
+    };
+    window.addEventListener("keydown", handleKeyDown);
+    return () => {
+      window.removeEventListener("keydown", handleKeyDown);
+    };
+  }, [simulation]);
 
   return (
     <div
@@ -45,21 +77,15 @@ export default function PlayPage() {
     >
       <div className="flex flex-row flex-wrap justify-center items-center gap-6">
         <div className="shrink-0">
-          {visualsStarted && <NativeVisualsCanvas />}
-          {!visualsStarted && (
-            <button
-              className="w-96 h-72 border border-white/20 rounded-lg cursor-pointer flex items-center justify-center text-lg"
-              onClick={startVisuals}
-            >
-              Start Visuals
-            </button>
-          )}
+          <NativeVisualsCanvas visuals={visuals} />
         </div>
 
         {!started && (
           <button
             className="w-96 h-72 border border-white/20 rounded-lg cursor-pointer "
-            onClick={() => start()}
+            onClick={() => {
+              startSound();
+            }}
           >
             Start Audio
           </button>
@@ -93,23 +119,4 @@ function DisplaySoundModule<Key extends SoundModuleKey>({
   const state = soundModule.state;
 
   return <>{definition.renderMonitorDisplay?.(state, setState, tone)}</>;
-}
-
-/** not final! */
-function toCanvasCoordinates(
-  p5Instance: p5,
-  gridX: number,
-  gridY: number
-): { x: number; y: number } {
-  // Grid extents in meters
-  const MIN_X = 0.37918;
-  const MAX_X = 3.77447;
-  const MIN_Y = -0.32095;
-  const MAX_Y = 2.91386;
-
-  // Map grid coordinates to canvas coordinates
-  const x = p5Instance.map(gridX, MIN_X, MAX_X, 0, p5Instance.width);
-  const y = p5Instance.map(gridY, MIN_Y, MAX_Y, 0, p5Instance.height);
-
-  return { x, y };
 }
