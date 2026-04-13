@@ -15,7 +15,7 @@ import {
 } from "./NativeVisualsCanvas";
 import * as Tone from "tone";
 import { useWebsocket } from "../useWebsocket";
-import { mountVisuals } from "./sketch/nativeVisuals";
+import { getVisuals } from "./sketch/finalExhibitionVisuals";
 
 type PersonPosition = {
   personId: number;
@@ -26,6 +26,7 @@ type PersonPosition = {
 
 export default function PlayPage() {
   const [peoplePositions, setPeoplePositions] = useState<PersonPosition[]>([]);
+  const [useExhibitionVisuals, setUseExhibitionVisuals] = useState(true); // Switch between visual systems
 
   const {
     controls,
@@ -34,34 +35,31 @@ export default function PlayPage() {
     started,
     getSetState,
   } = useTone(soundModulesDefinitions, soundModulesOrder);
+
   const visuals = useVisuals({
     beforeStart: () => Tone.start(),
-    initialize: mountVisuals,
+    toneControls: controls,
+    initialize: getVisuals,
   });
 
   const { simulation } = useWebsocket({
     handleMessage(message) {
       if (message.type === "PEOPLE_POSITIONS") {
-        console.log("got positions", message.positions);
         setPeoplePositions(message.positions);
 
         // Update visuals if they're available
-        if (visuals.instance?.updatePeoplePositions) {
-          visuals.instance.updatePeoplePositions(message.positions);
+        if (visuals.instance?.onPositionsUpdate) {
+          visuals.instance.onPositionsUpdate(message.positions);
         }
       }
     },
   });
 
   useEffect(() => {
-    const simulate = () => {
-      simulation.toggleSimulation();
-    };
     // simulate on press "S"
     const handleKeyDown = (event: KeyboardEvent) => {
       if (event.key === "s" || event.key === "S") {
-        console.log("Toggling simulation");
-        simulate();
+        simulation.toggleSimulation();
       }
     };
     window.addEventListener("keydown", handleKeyDown);

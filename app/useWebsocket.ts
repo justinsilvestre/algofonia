@@ -1,5 +1,5 @@
 "use client";
-import { useState, useEffect, useCallback, useRef } from "react";
+import { useState, useEffect, useCallback, useRef, use } from "react";
 import { MessageToClient, MessageToServer } from "./WebsocketMessage";
 import { useWebsocketUrl } from "@/app/useWebsocketUrl";
 import { useDidChange } from "./listen/useDidChange";
@@ -17,7 +17,7 @@ const defaultSimulationConfig: SimulationConfig = {
   numPeople: 3,
   roomWidth: 3.5,
   roomHeight: 3,
-  cycleDuration: 8,
+  cycleDuration: 24,
 };
 
 type SimulatedPerson = {
@@ -89,6 +89,33 @@ export function usePositionSimulation(
   const lastUpdateTimeRef = useRef<number>(0);
   const cycleStartTimeRef = useRef<number>(0);
 
+  const mousePosition = useRef<{ x: number; y: number }>({ x: 0, y: 0 });
+  const isMouseDown = useRef(false);
+
+  useEffect(() => {
+    if (isSimulating) {
+      const handleMouseMove = (event: MouseEvent) => {
+        mousePosition.current = { x: event.clientX, y: event.clientY };
+      };
+      const handleMouseDown = () => {
+        isMouseDown.current = true;
+      };
+      const handleMouseUp = () => {
+        isMouseDown.current = false;
+      };
+      window.addEventListener("mousemove", handleMouseMove);
+      window.addEventListener("mousedown", handleMouseDown);
+      window.addEventListener("mouseup", handleMouseUp);
+      window.addEventListener("mousemove", handleMouseMove);
+      window.addEventListener("mousedown", handleMouseDown);
+      return () => {
+        window.removeEventListener("mousemove", handleMouseMove);
+        window.removeEventListener("mousedown", handleMouseDown);
+        window.removeEventListener("mouseup", handleMouseUp);
+      };
+    }
+  }, [isSimulating]);
+
   const sendSimulatedMessage = useCallback(() => {
     if (!onMessage) return;
 
@@ -101,6 +128,17 @@ export function usePositionSimulation(
     const positions = simulatedPeopleRef.current.map((person) =>
       updateSimulatedPerson(person, cycleProgress, simulationConfig)
     );
+
+    positions.push({
+      personId: -1, // Special ID for mouse
+      x:
+        (mousePosition.current.x / window.innerWidth) *
+        simulationConfig.roomWidth,
+      y:
+        (mousePosition.current.y / window.innerHeight) *
+        simulationConfig.roomHeight,
+      handsRaised: isMouseDown.current,
+    });
 
     const message: MessageToClient = {
       type: "PEOPLE_POSITIONS",

@@ -1,37 +1,28 @@
 "use client";
 import { useCallback, useEffect, useRef, useState } from "react";
+import { VisualsInterface } from "./sketch/VisualsInterface";
+import { ToneControls } from "./tone";
 
-type VisualsInterface<T> = {
-  state: T;
-  start: () => void;
-  onResize: () => void;
-  stop: () => void;
-  updatePeoplePositions?: (
-    positions: Array<{
-      personId: number;
-      x: number;
-      y: number;
-      handsRaised: boolean;
-    }>
-  ) => void;
-};
-
-export function useVisuals<T>({
+export function useVisuals<VisualsStateType>({
   initialize,
+  toneControls,
   beforeStart,
 }: {
   initialize: (
     container: HTMLElement,
     width: number,
-    height: number
-  ) => VisualsInterface<T>;
+    height: number,
+    toneControls: ToneControls
+  ) => VisualsInterface<VisualsStateType>;
+  toneControls: ToneControls;
   beforeStart?: () => Promise<void>;
 }) {
   const containerRef = useRef<HTMLDivElement>(null);
   const [isFullscreen, setIsFullscreen] = useState(false);
   const [started, setStarted] = useState(false);
 
-  const [controls, setControls] = useState<VisualsInterface<T> | null>(null);
+  const [controls, setControls] =
+    useState<VisualsInterface<VisualsStateType> | null>(null);
 
   // Toggle fullscreen using browser API
   const toggleFullscreen = async () => {
@@ -51,11 +42,12 @@ export function useVisuals<T>({
     const visuals = initialize(
       containerRef.current,
       window.innerWidth,
-      window.innerHeight
+      window.innerHeight,
+      toneControls
     );
     setControls(visuals);
     visuals.start();
-  }, [initialize]);
+  }, [initialize, toneControls]);
 
   // Handle window resize
   useEffect(() => {

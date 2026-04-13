@@ -1,9 +1,6 @@
 import * as Tone from "tone";
-import { map } from "./map";
+import { map } from "../map";
 import { constrain } from "./constrain";
-
-// Declare width as global variable which would typically come from p5.js
-declare const width: number;
 
 export class PoemSampler {
   isLoaded: boolean;
@@ -18,8 +15,6 @@ export class PoemSampler {
   stereoWidener: Tone.StereoWidener;
   compressor: Tone.Compressor;
   gain: Tone.Gain;
-  lastTriggered: number;
-  cooldown: number;
 
   constructor(masterVolume: number) {
     this.isLoaded = false;
@@ -89,12 +84,9 @@ export class PoemSampler {
       this.gain,
       Tone.getDestination()
     );
-
-    this.lastTriggered = 0;
-    this.cooldown = 200; // 2 second cooldown between triggers
   }
 
-  update(screenCentroidX: number): void {
+  update(screenCentroidX: number, width: number): void {
     this.panner.pan.rampTo(
       constrain(map(screenCentroidX, width * 0.45, width * 0.55, -1, 1), -1, 1),
       0.1
@@ -102,25 +94,22 @@ export class PoemSampler {
   }
 
   // Trigger the next poem line
-  trigger(): void {
+  trigger(time: Tone.Unit.Time): void {
     if (!this.isLoaded) return;
 
-    if (Date.now() - this.lastTriggered < this.cooldown) return;
-
-    this.sampler.triggerAttackRelease(this.notes[this.noteIndex], "1n");
+    this.sampler.triggerAttackRelease(this.notes[this.noteIndex], "1n", time);
 
     this.noteIndex += 1;
     this.noteIndex %= 4;
-    this.lastTriggered = Date.now();
   }
 
   // Trigger specific line
-  triggerLine(lineNumber: number): void {
+  triggerLine(lineNumber: number, time: Tone.Unit.Time): void {
     if (!this.isLoaded) return;
     if (lineNumber < 1 || lineNumber > 4) return;
 
     const notes = ["A1", "B1", "C1", "D1"];
-    this.sampler.triggerAttackRelease(notes[lineNumber - 1], "1n");
+    this.sampler.triggerAttackRelease(notes[lineNumber - 1], "1n", time);
   }
 
   dispose(): void {

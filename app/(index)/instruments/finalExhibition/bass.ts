@@ -107,10 +107,6 @@ export class BassSynth {
     this.reverb.generate();
   }
 
-  async start(): Promise<void> {
-    await Tone.start();
-  }
-
   playNote(
     note: string | number,
     duration: Tone.Unit.Time,
@@ -123,17 +119,6 @@ export class BassSynth {
     // Play sub-bass one octave lower
     const subNote = Tone.Frequency(note).transpose(-24).toNote();
     this.subSynth.triggerAttackRelease(subNote, duration, time);
-  }
-
-  triggerAttack(note: string | number, time?: Tone.Unit.Time): void {
-    this.mainSynth.triggerAttack(note, time);
-    const subNote = Tone.Frequency(note).transpose(-36).toNote();
-    this.subSynth.triggerAttack(subNote, time);
-  }
-
-  triggerRelease(time?: Tone.Unit.Time): void {
-    this.mainSynth.triggerRelease(time);
-    this.subSynth.triggerRelease(time);
   }
 
   dispose(): void {

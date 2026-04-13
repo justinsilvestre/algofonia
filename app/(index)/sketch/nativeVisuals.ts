@@ -1,9 +1,5 @@
-type PersonPosition = {
-  personId: number;
-  x: number;
-  y: number;
-  handsRaised: boolean;
-};
+import { ToneControls } from "../tone";
+import { VisitorPosition, VisualsInterface } from "./VisualsInterface";
 
 type Circle = {
   personId: number;
@@ -41,11 +37,12 @@ type VisualsState = {
  * Starts the visuals on the provided HTML Element.
  * Returns a cleanup function to stop the animation and remove listeners.
  */
-export function mountVisuals(
+export function getVisuals(
   container: HTMLElement,
   width: number,
-  height: number
-) {
+  height: number,
+  toneControls: ToneControls
+): VisualsInterface<VisualsState> {
   const canvas = document.createElement("canvas");
   canvas.style.display = "block";
   canvas.style.width = "100%";
@@ -53,7 +50,6 @@ export function mountVisuals(
   container.appendChild(canvas);
 
   const ctx = canvas.getContext("2d")!;
-  let frameCount = 0;
   let animationFrameId: number;
 
   // Position coordinate system bounds
@@ -96,8 +92,28 @@ export function mountVisuals(
     iterationsPerFrame: 10,
   };
 
+  // check if circle positions are < 200 px apart,
+  // in which case play blip
+  function onVisitorsContact() {
+    const threshold = 200;
+    for (let i = 0; i < state.circles.length; i++) {
+      for (let j = i + 1; j < state.circles.length; j++) {
+        const c1 = state.circles[i];
+        const c2 = state.circles[j];
+        const dx = c1.x - c2.x;
+        const dy = c1.y - c2.y;
+        const distance = Math.sqrt(dx * dx + dy * dy);
+        if (distance < threshold) {
+          console.log("contact!");
+          toneControls.emit("proximity", distance);
+          return; // Only trigger one blip per frame
+        }
+      }
+    }
+  }
+
   // Update people positions from external data
-  function updatePeoplePositions(positions: PersonPosition[]) {
+  function onPositionsUpdate(positions: VisitorPosition[]) {
     // Mark all circles as inactive initially
     state.circles.forEach((circle) => {
       circle.isActive = false;
@@ -249,6 +265,9 @@ export function mountVisuals(
 
     // Draw circles
     drawCircles(state);
+
+    // Check for visitor contact and trigger event
+    onVisitorsContact();
   }
 
   function drawCliffordAttractor(state: VisualsState) {
@@ -333,7 +352,6 @@ export function mountVisuals(
 
   // Animation Loop
   const animate = () => {
-    frameCount++;
     draw();
     animationFrameId = requestAnimationFrame(animate);
   };
@@ -342,8 +360,8 @@ export function mountVisuals(
   return {
     state,
     onResize,
-    updatePeoplePositions, // Expose function to update positions
-    start: animate, // Expose start function instead of auto-starting
+    onPositionsUpdate, // Expose function to update positions
+    start: animate,
     stop: () => {
       cancelAnimationFrame(animationFrameId);
       window.removeEventListener("resize", onResize);

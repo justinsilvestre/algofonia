@@ -1,15 +1,34 @@
 import * as Tone from "tone";
-import { Scale } from "tonal";
 import { SoundModuleDefinition } from "./SoundModule";
 
 const START_BPM = 100;
-const DEFAULT_MASTER_VOLUME = -8;
+const DEFAULT_MASTER_VOLUME = 7.5;
 
 export type ToneEventMap = {
   tonicChange: string;
   scaleChange: string;
   chordRootScaleDegreeChange: number;
   bpmChange: number;
+
+  proximityMapUpdate: Record<string, number>;
+
+  /** * When a vertical column exceeds the threshold,
+   * ramp up the specific note volume.
+   */
+  sliceActive: { index: number; density: number };
+
+  /** * Triggered when the attractor centroid crosses
+   * a line connecting two visitors.
+   */
+  poemTrigger: { pair: number[] };
+
+  /** Continuous update for humming wave evolution */
+  entropyUpdate: number;
+
+  /** Continuous update for spatial panning */
+  centroidMove: number;
+
+  proximityMelodyChange: undefined;
 };
 
 export type ToneEventType = keyof ToneEventMap;
@@ -65,7 +84,13 @@ export function getToneControls(startBpm: number = START_BPM) {
     }
   };
 
-  const emit = <T extends ToneEventType>(event: T, value: ToneEventMap[T]) => {
+  const emit = <T extends ToneEventType>(
+    event: T,
+    ...[value]: ToneEventMap[T] extends undefined
+      ? []
+      : [value: ToneEventMap[T]]
+  ) => {
+    // console.log("Emitting event:", event, value);
     const listeners = eventListeners.get(event);
     if (listeners) {
       listeners.forEach((listener) => listener(value));
@@ -73,19 +98,16 @@ export function getToneControls(startBpm: number = START_BPM) {
   };
 
   Tone.loaded().then(() => {
-    blipSynth = getBlipSynth();
-    blipSynth.toDestination();
+    // any synths not living within sound modules can be initialized here
   });
 
-  let tonic = "D#";
+  let tonic = "C#";
   let scale = "minor";
   let chordRootScaleDegree = 1;
 
-  let lastBlipScaleDegree = 1;
-  let lastBlipOctave = 3;
-
   return {
     eventListeners,
+    emit,
     addEventListener,
     removeEventListener,
     masterVolume: DEFAULT_MASTER_VOLUME,
@@ -149,60 +171,5 @@ export function getToneControls(startBpm: number = START_BPM) {
         emit("chordRootScaleDegreeChange", degree);
       }
     },
-    blip() {
-      const octaveDelta = getLowerDelta();
-      const octave = clamp(lastBlipOctave + octaveDelta, 3, 7);
-      lastBlipOctave = octave;
-      const scaleNotes = Scale.get(`${tonic}${octave} ${scale}`).notes;
-      const noteDelta = getLowDelta();
-      const blipScaleDegree =
-        Math.random() < 0.25
-          ? 1
-          : clamp(lastBlipScaleDegree + noteDelta, 1, scaleNotes.length);
-      lastBlipScaleDegree = blipScaleDegree;
-      const note = scaleNotes[blipScaleDegree - 1] || scaleNotes[0];
-      blipSynth.triggerAttackRelease(note, Math.random());
-    },
   };
-}
-
-function getBlipSynth() {
-  const synth = new Tone.MembraneSynth({
-    pitchDecay: 0.05,
-    octaves: 4,
-    oscillator: {
-      type: "sine",
-    },
-    envelope: {
-      attack: 0.01,
-      decay: 0.2,
-      sustain: 0.01,
-      release: 1.4,
-      attackCurve: "exponential",
-    },
-  });
-
-  return synth;
-}
-
-function clamp(value: number, min: number, max: number) {
-  return Math.min(Math.max(value, min), max);
-}
-
-/** Return -2 to 2, with a bias towards smaller intervals */
-function getLowDelta() {
-  const rand = Math.random();
-  if (rand < 0.4) return 0;
-  if (rand < 0.65) return Math.random() < 0.5 ? -1 : 1;
-  if (rand < 0.8) return Math.random() < 0.5 ? -2 : 2;
-  return Math.random() < 0.5 ? -3 : 3;
-}
-
-/** Return -2 to 2, with a greater bias towards smaller intervals */
-function getLowerDelta() {
-  const rand = Math.random();
-  if (rand < 0.6) return 0;
-  if (rand < 0.85) return Math.random() < 0.5 ? -1 : 1;
-  if (rand < 0.95) return Math.random() < 0.5 ? -2 : 2;
-  return Math.random() < 0.5 ? -3 : 3;
 }

@@ -1,5 +1,5 @@
 import * as Tone from "tone";
-import { map } from "./map";
+import { map } from "../map";
 
 interface PlayerChain {
   panner: Tone.Panner;
@@ -162,7 +162,11 @@ export class AbstractHummingSampler {
   }
 
   // Call this continuously in draw() for eternal waves
-  updateWaves(entropy: number, masterVolume: number): void {
+  updateWaves(
+    entropy: number,
+    masterVolume: number,
+    time: Tone.Unit.Time
+  ): void {
     if (!this.loaded) return;
 
     this.wavePhase += 0.001;
@@ -195,7 +199,7 @@ export class AbstractHummingSampler {
 
       // Add entropy influence
       targetVol *= map(entropy, 0, 1, 0.5, 2.0);
-      targetVol *= masterVolume;
+      targetVol *= masterVolume * 2;
       // Smooth volume changes for wave-like swells
       chain.gain.gain.rampTo(targetVol, 8.0); // 8 second transitions
 
@@ -206,47 +210,25 @@ export class AbstractHummingSampler {
       if (targetVol > 0.01 && player.state !== "started") {
         // Random offset in sample for variation
         const offset = Math.random() * (this.bufferDuration * 0.3);
-        player.start(Tone.now(), offset);
+        console.log(`Starting player ${i} at offset ${offset.toFixed(2)}s`);
+        player.start(time, offset);
       } else if (targetVol < 0.01 && player.state === "started") {
-        player.stop(Tone.now() + 4); // Fade out over 4 seconds
+        console.log(`Stopping player ${i}`);
+        player.stop(Tone.Time(time).toSeconds() + 4); // Fade out over 4 seconds
       }
     });
   }
 
-  // Trigger a sudden wave burst (for expansion/contraction events)
-  triggerWaveBurst(intensity: number = 1.0): void {
-    if (!this.loaded) return;
-
-    this.players.forEach((player: Tone.Player, i: number) => {
-      const chain = this.playerChains[i];
-
-      // Surge all layers
-      const burstVol = (Math.random() * 0.15 + 0.1) * intensity;
-      chain.gain.gain.rampTo(burstVol, 0.5);
-
-      // Then decay
-      chain.gain.gain.rampTo(0.05, 6.0, Tone.now() + 2);
-
-      if (player.state !== "started") {
-        player.start(Tone.now(), Math.random() * (this.bufferDuration * 0.5));
-      }
-    });
-
-    // Dramatic frequency shift
-    // this.freqShift.frequency.rampTo(-20, 1.0);
-    // this.freqShift.frequency.rampTo(5, 8.0, Tone.now() + 1);
-  }
-
-  stopAll(): void {
+  stopAll(time: Tone.Unit.Time): void {
     this.players.forEach((p: Tone.Player) => {
       if (p.state === "started") {
-        p.stop(Tone.now() + 4); // Graceful fade
+        p.stop(Tone.Time(time).toSeconds() + 4); // Graceful fade
       }
     });
   }
 
   dispose(): void {
-    this.stopAll();
+    this.stopAll(Tone.now());
     this.players.forEach((p: Tone.Player) => p.dispose());
     this.playerChains.forEach((chain: PlayerChain) => {
       // chain.pitchShift.dispose(); // pitchShift not included in PlayerChain interface

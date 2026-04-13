@@ -1,5 +1,5 @@
 import * as Tone from "tone";
-import { map } from "./map";
+import { map } from "../map";
 
 export class ArpeggioHumSampler {
   loaded: boolean;
